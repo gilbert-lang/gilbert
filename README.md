@@ -3,6 +3,7 @@ gilbert
 
 Distributed Linear Algebra on Sparse Matrices
 
+```Matlab
 
     % load network dataset
     numVertices = 50000000;
@@ -28,3 +29,4 @@ Distributed Linear Algebra on Sparse Matrices
 
     % save result
     write(ranks, "hdfs://results/pageranks.csv");
+```
