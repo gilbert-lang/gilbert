@@ -13,19 +13,18 @@ Distributed Linear Algebra on Sparse Matrices
     A = spones(N);
 
     % outdegree per vertex
-    degrees = sum(A, 2);
+    d = sum(A, 2);
 
     % create the column-stochastic transition matrix
-    T = (diag(1 ./ degrees) * A)';
+    T = (diag(1 ./ d) * A)';
 
     % initialize the ranks
     r_0 = ones(numVertices, 1) / numVertices;
 
     % compute PageRank
     e = ones(numVertices, 1)
-    beta = .85
 
-    ranks = fixpoint(r_0, @(r) (beta * T * r + (1 - beta) * e));
+    ranks = fixpoint(r_0, @(r) (.85 * T * r + .15 * e));
 
     % save result
     write(ranks, "hdfs://results/pageranks.csv");
