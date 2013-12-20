@@ -16,11 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.gilbertlang.language.typer
+package org.gilbertlang.language.definition
 
 import org.gilbertlang.language.definition.Types.Type
 import org.gilbertlang.language.definition.Types.VoidType
-
 import org.gilbertlang.language.definition.Types.StringType
 import org.gilbertlang.language.definition.Types.MatrixType
 import org.gilbertlang.language.definition.Operators.UnaryOperator

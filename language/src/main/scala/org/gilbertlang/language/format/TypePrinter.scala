@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.gilbertlang.language.definition
+package org.gilbertlang.language.format
 
 import org.gilbertlang.language.definition.Types._
 

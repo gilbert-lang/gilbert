@@ -23,31 +23,43 @@ import org.gilbertlang.language.typer.Typer
 import org.gilbertlang.language.compiler.Compiler
 import scala.util.parsing.input.StreamReader
 import java.io.InputStreamReader
+import java.io.IOException
+import org.apache.commons.io.IOUtils
 
 object PlayWithLanguage {
 
   def main(args: Array[String]): Unit = {
+    var isReader:InputStreamReader = null;
 
-    //TODO close stream
-    val reader = StreamReader(new InputStreamReader(ClassLoader.getSystemResourceAsStream("play.gb")))
+    try {
+      isReader = new InputStreamReader(ClassLoader.getSystemResourceAsStream("play.gb"))
+      val reader = StreamReader(isReader)
 
-    val typer = new Typer {}
-    val compiler = new Compiler {}
-    val parser = new Parser {}
+      val typer = new Typer {}
+      val compiler = new Compiler {}
+      val parser = new Parser {}
 
-    val ast = parser.parse(reader)
+      val ast = parser.parse(reader)
 
-    ast match {
-      case Some(parsedProgram) => {
+      ast match {
+        case Some(parsedProgram) => {
 
-        val typedAST = typer.typeProgram(parsedProgram)
-        val compiledProgram = compiler.compile(typedAST)
+          val typedAST = typer.typeProgram(parsedProgram)
+          val compiledProgram = compiler.compile(typedAST)
 
-        println(compiledProgram)
+          println(compiledProgram)
+        }
+        case _ => println("Could not parse program")
       }
-      case _ => println("Could not parse program")
+    } catch{
+      case exception: IOException => {
+        sys.error(exception.getMessage())
+        exception.printStackTrace()
+      }
+    } finally{
+      IOUtils.closeQuietly(isReader)
     }
 
   }
-  
+
 }

@@ -22,11 +22,12 @@ import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.MatrixParameter
 import scala.Some
 import org.gilbertlang.runtime.ScalarParameter
-import org.gilbertlang.language.typer.TypedAst._
+import org.gilbertlang.language.definition.TypedAst._
 import org.gilbertlang.language.definition.BuiltinSymbols
 import org.gilbertlang.language.definition.Types._
 import org.gilbertlang.language.definition.Operators._
-import org.gilbertlang.language.typer.TypedAst
+import org.gilbertlang.language.definition.TypedAst
+import org.gilbertlang.language.definition.TypedAst
 
 trait Compiler {
   

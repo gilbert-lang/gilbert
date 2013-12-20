@@ -19,7 +19,7 @@
 package org.gilbertlang.language.typer
 
 import org.gilbertlang.language.definition.Types._
-import org.gilbertlang.language.typer.TypedAst._
+import org.gilbertlang.language.definition.TypedAst._
 import org.gilbertlang.language.definition.Values._
 import org.gilbertlang.language.parser.AbstractSyntaxTree._
 import org.gilbertlang.language.definition.{Values, Types, BuiltinSymbols}
@@ -33,18 +33,18 @@ import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTBinaryExpression
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTMatrix
 import org.gilbertlang.language.definition.Values.ReferenceValue
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTProgram
-import org.gilbertlang.language.typer.TypedAst.TypedIdentifier
+import org.gilbertlang.language.definition.TypedAst.TypedIdentifier
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTAnonymousFunction
 import org.gilbertlang.language.definition.Types.PolymorphicType
 import org.gilbertlang.language.definition.Types.TypeVar
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTString
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTTypeAnnotation
-import org.gilbertlang.language.typer.TypedAst.TypedInteger
+import org.gilbertlang.language.definition.TypedAst.TypedInteger
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTFunctionApplication
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTOutputResultStatement
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTIdentifier
 import org.gilbertlang.language.definition.Values.IntValue
-import org.gilbertlang.language.typer.TypedAst.TypedProgram
+import org.gilbertlang.language.definition.TypedAst.TypedProgram
 import org.gilbertlang.language.definition.Types.UniversalType
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTUnaryExpression
 import org.gilbertlang.language.parser.AbstractSyntaxTree.ASTMatrixRow
