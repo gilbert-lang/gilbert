@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.gilbertlang.language.parser
+package org.gilbertlang.language.definition
 
 import org.gilbertlang.language.definition.Operators.{BinaryOperator, UnaryOperator}
 

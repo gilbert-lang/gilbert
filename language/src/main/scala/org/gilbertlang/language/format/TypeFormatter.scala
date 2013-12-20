@@ -20,8 +20,8 @@ package org.gilbertlang.language.format
 
 import org.gilbertlang.language.definition.Types._
 
-trait TypePrinter extends ValuePrinter{
-
+class TypeFormatter extends Formatter[Type] {
+  private val valueFormatter = new ValueFormatter{}
   def prettyString(mtype: Type): String = {
 
     mtype match {
@@ -42,8 +42,8 @@ trait TypePrinter extends ValuePrinter{
       }
       case MatrixType(elementType, rows, cols) => {
         val elementTypeStr = prettyString(elementType)
-        val rowsStr = prettyString(rows)
-        val colsStr = prettyString(cols)
+        val rowsStr = valueFormatter.prettyString(rows)
+        val colsStr = valueFormatter.prettyString(cols)
         
         "Matrix[" + elementTypeStr + ", " + rowsStr + ", " + colsStr + "]"
       }

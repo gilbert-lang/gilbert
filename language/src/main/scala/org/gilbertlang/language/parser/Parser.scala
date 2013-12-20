@@ -30,7 +30,7 @@ import org.gilbertlang.language.definition.Operators._
 
 trait Parser extends Parsers {
 
-  import org.gilbertlang.language.parser.AbstractSyntaxTree._
+  import org.gilbertlang.language.definition.AbstractSyntaxTree._
   import language.implicitConversions
 
   val lexer = new Lexer with DiscardWhitespaces with DiscardComments {}

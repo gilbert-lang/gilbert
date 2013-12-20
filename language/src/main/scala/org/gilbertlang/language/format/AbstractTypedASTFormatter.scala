@@ -5,10 +5,11 @@ import definition.Types._
 import definition.TypedAst._
 import definition.Operators.{TransposeOp, op2Str, CellwiseTransposeOp}
 
-trait TypedASTPrinter extends TypePrinter {
-  val spacing: String
-  val nl = "\n"
-  val verbose: Boolean
+abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
+  private val typeFormatter = new TypeFormatter
+  protected val spacing: String
+  protected val nl = "\n"
+  protected val verbose: Boolean
 
   private def indentStr(indentation: Int): String = {
     spacing * indentation
@@ -23,21 +24,21 @@ trait TypedASTPrinter extends TypePrinter {
   }
 
   private def verboseType(datatype: Type): String = {
-    if (verbose) str(": ") + prettyString(datatype)
+    if (verbose) str(": ") + typeFormatter.prettyString(datatype)
     else ""
   }
 
   private def nonVerboseType(datatype: Type): String = {
-    if (!verbose) str(": ") + prettyString(datatype)
+    if (!verbose) str(": ") + typeFormatter.prettyString(datatype)
     else ""
   }
 
-  def print(program: TypedProgram) {
-    println(prettyString(program, 0))
-  }
-
-  def print(expression: TypedExpression) {
+  def prettyPrint(expression: TypedExpression) {
     println(prettyString(expression, 0))
+  }
+  
+  def prettyString(program: TypedProgram) = {
+    prettyString(program, 0)
   }
 
   def prettyString(program: TypedProgram, indentation: Int): String = {
@@ -55,7 +56,7 @@ trait TypedASTPrinter extends TypePrinter {
   def prettyString(function: TypedFunction, indentation: Int): String = {
     str("Function [", indentation) + (function.values map { prettyString(_, 0) } mkString (", ")) + str("] = ") +
       function.identifier + str("(") + (function.parameters map { prettyString(_, 0) } mkString (", ")) + str("): ") +
-      prettyString(function.identifier.datatype) + str("{") + nl +
+      typeFormatter.prettyString(function.identifier.datatype) + str("{") + nl +
       prettyString(function.body, indentation + 1) +
       str("}", indentation)
   }

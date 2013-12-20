@@ -20,7 +20,7 @@ package org.gilbertlang.language.format
 
 import org.gilbertlang.language.definition.Values._
 
-trait ValuePrinter {
+class ValueFormatter extends Formatter[Value]{
   
   def prettyString(value: Value): String = {
 

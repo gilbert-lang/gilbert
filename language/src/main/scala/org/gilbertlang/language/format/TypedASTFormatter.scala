@@ -1,6 +1,6 @@
 package org.gilbertlang.language.format
 
-object Printer extends TypedASTPrinter {
+object TypedASTFormatter extends AbstractTypedASTFormatter {
   val spacing = " "
   val verbose = false
 }

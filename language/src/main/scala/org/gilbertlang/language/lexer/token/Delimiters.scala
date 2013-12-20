@@ -23,7 +23,7 @@ object Delimiters extends Enumeration {
   type Delimiters = Value
   
   val EQ = Value("=")
-  val SEMICOLON = Value("  ")  
+  val SEMICOLON = Value(";")  
   val COLON = Value(":")  
   val COMMA = Value(",")
   //TODO remove until necessary
