@@ -345,7 +345,8 @@ trait Typer {
           }
         }
         case (PolymorphicType(typesA), PolymorphicType(typesB)) => None
-        case _ => None
+        case (CharacterType, _) | (_, CharacterType) => None
+        case (_, _) => None
       }
     }
   }

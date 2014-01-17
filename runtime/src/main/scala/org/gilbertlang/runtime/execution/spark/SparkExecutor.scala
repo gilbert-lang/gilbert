@@ -84,7 +84,7 @@ class SparkExecutor extends Executor {
 
       case IterationStatePlaceholder => { iterationState }
 
-      //TODO some operations copy, others modify!
+      //TODO cannot call clone method on Vector instances, even though it should be part of the interface
       case transformation: CellwiseMatrixMatrixTransformation => {
         handle[CellwiseMatrixMatrixTransformation, (RowPartitionedMatrix, RowPartitionedMatrix)](transformation,
             { transformation => {
@@ -99,7 +99,10 @@ class SparkExecutor extends Executor {
                   case((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.times(rightRow))
                 }
                 case Division => leftMatrix zip rightMatrix map {
-                  case((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.assign(rightRow, Functions.DIV))
+                  case((rowIndex, leftRow: Vector), (_, rightRow: Vector)) => {
+                    val clonedLeftRow = new RandomAccessSparseVector(leftRow)
+                    (rowIndex, clonedLeftRow.assign(rightRow, Functions.DIV))
+                  }
                 }
                 case Subtraction => leftMatrix zip rightMatrix map {
                   case ((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.minus(rightRow))
@@ -107,13 +110,19 @@ class SparkExecutor extends Executor {
                 //TODO do we need this?
                 case Maximum => {
                   leftMatrix zip rightMatrix map {
-                    case ((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.assign(rightRow, Functions.MAX))
+                    case ((rowIndex, leftRow), (_, rightRow)) => {
+                      val clonedLeftRow = new RandomAccessSparseVector(leftRow)
+                      (rowIndex, clonedLeftRow.assign(rightRow, Functions.MAX))
+                    }
                   }
                 }
                 //TODO do we need this?
                 case Minimum => {
                   leftMatrix zip rightMatrix map {
-                    case ((rowIndex, aRow), (_, rightRow)) => (rowIndex, aRow.assign(rightRow, Functions.MIN))
+                    case ((rowIndex, leftRow), (_, rightRow)) => {
+                      val clonedLeftRow = new RandomAccessSparseVector(leftRow)
+                      (rowIndex, clonedLeftRow.assign(rightRow, Functions.MIN))
+                    }
                   }
                 }
               }
@@ -129,7 +138,10 @@ class SparkExecutor extends Executor {
               transformation.operation match {
                 case Binarize => {
                   //TODO add binarize to mahout to only apply it to non zeros!
-                  matrix.map({ case (index, row) => (index, row.assign(VectorFunctions.binarize)) })
+                  matrix.map({ case (index, row) => {
+                    val clonedRow = new RandomAccessSparseVector(row)
+                    (index, clonedRow.assign(VectorFunctions.binarize))
+                  }})
                 }
                 case Minus => matrix.map({ case (index,row) => (index, row.times(-1)) })
               }
@@ -489,7 +501,7 @@ class SparkExecutor extends Executor {
             { _ => },
             {(transformation, _) => PlanPrinter.print(transformation.function) })
       }
-
+      
       case (transformation: scalar) => {
 
         handle[scalar, Unit](transformation,

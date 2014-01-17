@@ -8,7 +8,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>runtime</artifactId>
+  <artifactId>runtimeMacros</artifactId>
 
   <dependencies>
     <dependency>
@@ -24,28 +24,8 @@
       <artifactId>jline</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.apache.mahout</groupId>
-      <artifactId>mahout-math</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.mahout</groupId>
-      <artifactId>mahout-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-core_2.10</artifactId>
-    </dependency>
-    <dependency>
       <groupId>eu.stratosphere</groupId>
       <artifactId>stratosphere-scala</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>eu.stratosphere</groupId>
-      <artifactId>stratosphere-clients</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.gilbertlang</groupId>
-      <artifactId>runtimeMacros</artifactId>  
     </dependency>
   </dependencies>
 

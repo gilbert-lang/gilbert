@@ -19,8 +19,9 @@
 package org.gilbertlang.runtime
 
 import org.gilbertlang.runtime.execution.reference.ReferenceExecutor
-
 import org.gilbertlang.runtime.execution.spark.SparkExecutor
+import eu.stratosphere.client.LocalExecutor
+import org.gilbertlang.runtime.execution.stratosphere.StratosphereExecutor
 
 object local {
   def apply(executable: Executable) = {
@@ -49,5 +50,18 @@ object withSpark {
     }
 
     new SparkExecutor().run(write)
+  }
+}
+
+object withStratosphere{
+  def apply(executable: Executable) = {
+    val write = executable match {
+      case matrix: Matrix => WriteMatrix(matrix)
+      case scalar: ScalarRef => WriteScalarRef(scalar)
+      case string: StringRef => WriteString(string)
+      case function: FunctionRef => WriteFunction(function)
+      case _ => executable
+    }
+    new StratosphereExecutor().run(write)
   }
 }

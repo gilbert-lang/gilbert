@@ -7,6 +7,7 @@
   <version>0.1-SNAPSHOT</version>
   <modules>
     <module>language</module>
+    <module>runtimeMacros</module>
     <module>runtime</module>
     <module>examples</module>
   </modules>
@@ -45,9 +46,9 @@
         <version>0.1-SNAPSHOT</version>
       </dependency>
       <dependency>
-        <groupId>eu.stratosphere</groupId>
-        <artifactId>pact-common</artifactId>
-        <version>0.4-SNAPSHOT</version>
+        <groupId>org.gilbertlang</groupId>
+        <artifactId>runtimeMacros</artifactId>
+        <version>0.1-SNAPSHOT</version>  
       </dependency>
       <dependency>
         <groupId>org.scala-lang</groupId>
@@ -120,6 +121,16 @@
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-core_2.10</artifactId>
         <version>0.9.0-incubating-SNAPSHOT</version>
+      </dependency>
+      <dependency>
+        <groupId>eu.stratosphere</groupId>
+        <artifactId>stratosphere-scala</artifactId>
+        <version>0.4</version>
+      </dependency>
+      <dependency>
+        <groupId>eu.stratosphere</groupId>
+        <artifactId>stratosphere-clients</artifactId>
+        <version>0.4</version>  
       </dependency>
     </dependencies>
   </dependencyManagement>
