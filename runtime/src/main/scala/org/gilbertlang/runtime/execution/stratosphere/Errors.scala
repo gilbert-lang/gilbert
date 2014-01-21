@@ -7,3 +7,7 @@ class TransformationNotSupportedError(msg: String) extends Error(msg){
 class IllegalArgumentError(msg: String) extends Error(msg) {
   def this() = this("Illegal Argument error.")
 }
+
+class StratosphereExecutionError(msg: String) extends Error(msg) {
+  def this() = this("Stratosphere execution error")
+}

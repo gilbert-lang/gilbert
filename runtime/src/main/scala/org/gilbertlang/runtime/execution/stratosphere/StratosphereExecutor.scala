@@ -43,12 +43,52 @@ import org.gilbertlang.runtime.spones
 import org.gilbertlang.runtime.sumRow
 import org.gilbertlang.runtime.sumCol
 import org.gilbertlang.runtime.diag
+import eu.stratosphere.api.scala.operators.DelimitedOutputFormat
+import org.apache.mahout.math.SparseMatrix
+import org.apache.mahout.math.function.DoubleFunction
+import org.apache.mahout.math.function.Functions
+import org.apache.mahout.math.function.DoubleDoubleFunction
+import org.gilbertlang.runtime.execution.VectorFunctions
+import scala.collection.convert.WrapAsScala
+import org.apache.mahout.math.DenseVector
+import MatrixValue._
+import scala.collection.mutable.ArrayBuilder
+import org.gilbertlang.runtime.FixpointIteration
+import org.gilbertlang.runtime.IterationStatePlaceholder
+import org.gilbertlang.runtime.CompoundExecutable
+import eu.stratosphere.api.scala.ScalaPlan
+import eu.stratosphere.api.scala.ScalaSink
+import org.gilbertlang.runtime.StringParameter
+import org.gilbertlang.runtime.ScalarParameter
+import org.gilbertlang.runtime.MatrixParameter
+import org.gilbertlang.runtime.FunctionParameter
+import org.gilbertlang.runtime.function
+import org.gilbertlang.runtime.sum
 
-class StratosphereExecutor extends Executor {
-  private var tempFileCounter = 0
-  type Entry = (Int, Int, Double)
+class StratosphereExecutor extends Executor with WrapAsScala {
+  type Entry = Submatrix
   type Matrix = DataSet[Entry]
   type Scalar[T] = DataSet[T]
+  private var tempFileCounter = 0
+  private var iterationStatePlaceholderValue: Option[Matrix] = None
+
+  implicit def scalaFunction2DoubleFunction(func: Double => Double): DoubleFunction = {
+    new DoubleFunction {
+      def apply(input: Double) = func(input)
+    }
+  }
+
+  implicit def javaFunction2DoubleFunction(func: Double => java.lang.Double): DoubleFunction = {
+    new DoubleFunction {
+      def apply(input: Double) = func(input)
+    }
+  }
+
+  implicit def scalaFunction2DoubleDoubleFunction(func: (Double, Double) => Double): DoubleDoubleFunction = {
+    new DoubleDoubleFunction {
+      def apply(a: Double, b: Double) = func(a, b)
+    }
+  }
 
   def newTempFileName(): String = {
     tempFileCounter += 1
@@ -65,7 +105,7 @@ class StratosphereExecutor extends Executor {
           { (_, matrix) =>
             {
               val tempFileName = newTempFileName()
-              matrix.write("file:///" + tempFileName, CsvOutputFormat("\n", " "));
+              matrix.write("file:///" + tempFileName, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "), ""));
             }
           })
       }
@@ -113,16 +153,21 @@ class StratosphereExecutor extends Executor {
             case (exec, (scalar, matrix)) => {
               exec.operation match {
                 case Addition => {
-                  scalar cross matrix map { case (scalar, (row, col, value)) => (row, col, scalar + value) }
+                  scalar cross matrix map { (scalar, submatrix) => submatrix.plus(scalar) }
                 }
                 case Subtraction => {
-                  scalar cross matrix map { case (scalar, (row, col, value)) => (row, col, scalar - value) }
+                  scalar cross matrix map { (scalar, submatrix) => submatrix.plus(-scalar) }
                 }
                 case Multiplication => {
-                  scalar cross matrix map { case (scalar, (row, col, value)) => (row, col, scalar * value) }
+                  scalar cross matrix map { (scalar, submatrix) => submatrix.times(scalar) }
                 }
                 case Division => {
-                  scalar cross matrix map { case (scalar, (row, col, value)) => (row, col, scalar / value) }
+                  scalar cross matrix map { (scalar, submatrix) =>
+                    {
+                      val result = submatrix.like()
+                      result.assign { x: Double => scalar / x }
+                    }
+                  }
                 }
               }
             }
@@ -137,16 +182,16 @@ class StratosphereExecutor extends Executor {
             case (exec, (matrix, scalar)) => {
               exec.operation match {
                 case Addition => {
-                  matrix cross scalar map { case ((row, col, value), scalar) => (row, col, scalar + value) }
+                  matrix cross scalar map { (submatrix, scalar) => submatrix.plus(scalar) }
                 }
                 case Subtraction => {
-                  matrix cross scalar map { case ((row, col, value), scalar) => (row, col, value - scalar) }
+                  matrix cross scalar map { (submatrix, scalar) => submatrix.plus(-scalar) }
                 }
                 case Multiplication => {
-                  matrix cross scalar map { case ((row, col, value), scalar) => (row, col, value * scalar) }
+                  matrix cross scalar map { (submatrix, scalar) => submatrix.times(scalar) }
                 }
                 case Division => {
-                  matrix cross scalar map { case ((row, col, value), scalar) => (row, col, value / scalar) }
+                  matrix cross scalar map { (submatrix, scalar) => submatrix.divide(scalar) }
                 }
               }
             }
@@ -191,13 +236,16 @@ class StratosphereExecutor extends Executor {
             {
               exec.operation match {
                 case Maximum => {
-                  matrix map { x => x._3 } combinableReduceAll { elements => elements.max }
+                  matrix map { x => x.aggregate(Functions.MAX, Functions.IDENTITY) } combinableReduceAll
+                    { elements => elements.max }
                 }
                 case Minimum => {
-                  matrix map { x => x._3 } combinableReduceAll { elements => elements.min }
+                  matrix map { x => x.aggregate(Functions.MIN, Functions.IDENTITY) } combinableReduceAll
+                    { elements => elements.min }
                 }
                 case Norm2 => {
-                  matrix map { x => x._3 * x._3 } combinableReduceAll { x => x.fold(0.0)(_ + _) } map
+                  matrix map { x => x.aggregate(Functions.PLUS, Functions.SQUARE) } combinableReduceAll
+                    { x => x.fold(0.0)(_ + _) } map
                     { x => math.sqrt(x) }
                 }
               }
@@ -245,10 +293,15 @@ class StratosphereExecutor extends Executor {
             {
               exec.operation match {
                 case Minus => {
-                  matrix map { case (row, col, value) => (row, col, -value) }
+                  matrix map { submatrix => submatrix.times(-1) }
                 }
                 case Binarize => {
-                  matrix map { case (row, col, value) => (row, col, CellwiseFunctions.binarize(value)) }
+                  matrix map { submatrix =>
+                    {
+                      val result = submatrix.clone()
+                      result.assign(CellwiseFunctions.binarize)
+                    }
+                  }
                 }
               }
             }
@@ -264,28 +317,46 @@ class StratosphereExecutor extends Executor {
               case (exec, (left, right)) => {
                 exec.operation match {
                   case Addition => {
-                    left join right where { x => (x._1, x._2) } isEqualTo { y => (y._1, y._2) } map
-                      { (left, right) => (left._1, left._2, left._3 + right._3) }
+                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                      { y => (y.rowIndex, y.columnIndex) } map
+                      { (left, right) => left.plus(right) }
                   }
                   case Subtraction => {
-                    left join right where { x => (x._1, x._2) } isEqualTo { y => (y._1, y._2) } map
-                      { (left, right) => (left._1, left._2, left._3 - right._3) }
+                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                      { y => (y.rowIndex, y.columnIndex) } map
+                      { (left, right) => left.minus(right) }
                   }
                   case Multiplication => {
-                    left join right where { x => (x._1, x._2) } isEqualTo { y => (y._1, y._2) } map
-                      { (left, right) => (left._1, left._2, left._3 * right._3) }
+                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                      { y => (y.rowIndex, y.columnIndex) } map
+                      { (left, right) =>
+                        val result = left.clone()
+                        result.assign(right, Functions.MULT)
+                      }
                   }
                   case Division => {
-                    left join right where { x => (x._1, x._2) } isEqualTo { y => (y._1, y._2) } map
-                      { (left, right) => (left._1, left._2, left._3 / right._3) }
+                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                      { y => (y.rowIndex, y.columnIndex) } map
+                      { (left, right) =>
+                        val result = left.clone()
+                        result.assign(right, Functions.DIV)
+                      }
                   }
                   case Maximum => {
-                    left join right where { x => (x._1, x._2) } isEqualTo { y => (y._1, y._2) } map
-                      { (left, right) => (left._1, left._2, math.max(left._3, right._3)) }
+                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                      { y => (y.rowIndex, y.columnIndex) } map
+                      { (left, right) =>
+                        val result = left.clone()
+                        result.assign(right, Functions.MAX)
+                      }
                   }
                   case Minimum => {
-                    left join right where { x => (x._1, x._2) } isEqualTo { y => (y._1, y._2) } map
-                      { (left, right) => (left._1, left._2, math.min(left._3, right._3)) }
+                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                      { y => (y.rowIndex, y.columnIndex) } map
+                      { (left, right) =>
+                        val result = left.clone()
+                        result.assign(right, Functions.MIN)
+                      }
                   }
                 }
               }
@@ -298,13 +369,14 @@ class StratosphereExecutor extends Executor {
           { exec => (evaluate[Matrix](exec.left), evaluate[Matrix](exec.right)) },
           {
             case (_, (left, right)) => {
-              left join right where { leftElement => leftElement._2 } isEqualTo { rightElement => rightElement._1 } map
-                { (left, right) => (left._1, right._2, left._3 * right._3) } groupBy
-                { element => (element._1, element._2) } combinableReduceGroup
+              left join right where { leftElement => leftElement.columnIndex } isEqualTo
+                { rightElement => rightElement.rowIndex } map
+                { (left, right) => left.times(right) } groupBy
+                { element => (element.rowIndex, element.columnIndex) } combinableReduceGroup
                 { elements =>
                   {
-                    val element = elements.next
-                    (element._1, element._2, (elements map { x => x._3 }).foldLeft(element._3)({ _ + _ }))
+                    val element = elements.next.clone()
+                    elements.foldLeft(element)({ _ plus _ })
                   }
                 }
             }
@@ -317,7 +389,11 @@ class StratosphereExecutor extends Executor {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix map { case (row, col, value) => (col, row, value) }
+              matrix map {
+                case Submatrix(matrix, rowIdx, columnIdx, rowOffset, columnOffset, numTotalRows, numTotalColumns) =>
+                  Submatrix(matrix.transpose(), columnIdx, rowIdx, columnOffset, rowOffset, numTotalColumns,
+                    numTotalRows)
+              }
             }
           })
       }
@@ -330,34 +406,58 @@ class StratosphereExecutor extends Executor {
             {
               exec.operation match {
                 case NormalizeL1 => {
-                  matrix groupBy (element => (element._1)) combinableReduceGroup { elements =>
-                    val element = elements.next
-                    val row = element._1
-                    val value = element._3
-                    (row, 0, (elements map { x => math.abs(x._3) }).foldLeft(value)(_ + _))
+                  matrix map { submatrix =>
+                    submatrix.aggregateRows(VectorFunctions.l1Norm)
+                  } groupBy (subvector => subvector.index) combinableReduceGroup {
+                    subvectors =>
+                      {
+                        val firstElement = subvectors.next.clone()
+                        subvectors.foldLeft(firstElement)(_ plus _)
+                      }
                   } join
-                    matrix where { l1norm => l1norm._1 } isEqualTo { element => element._1 } map
-                    { (l1norm, element) => (element._1, element._2, element._3 / l1norm._3) }
+                    matrix where { l1norm => l1norm.index } isEqualTo { submatrix => submatrix.rowIndex } map
+                    { (l1norm, submatrix) =>
+                      val result = submatrix.like()
+                      for (rowDenominator <- l1norm.all()) {
+                        result.assignRow(rowDenominator.index(),
+                          submatrix.viewRow(rowDenominator.index()).divide(rowDenominator.get()))
+                      }
+                      result
+                    }
                 }
                 case Maximum => {
-                  matrix groupBy { element => element._1 } combinableReduceGroup { elements =>
-                    val element = elements.next
-                    (element._1, 0, (elements map (element => element._3)).max)
-                  }
+                  matrix map { submatrix => submatrix.aggregateRows(VectorFunctions.maxVector) } groupBy
+                    { subvector => subvector.index } combinableReduceGroup { subvectors =>
+                      val firstElement = subvectors.next.clone()
+                      subvectors.foldLeft(firstElement) { (left, right) => left.assign(right, VectorFunctions.max) }
+                    } map { subvector =>
+                      Submatrix(subvector.cross(StratosphereExecutor.ONEVECTOR),
+                        subvector.index, 0, subvector.offset, 0, subvector.numTotalEntries, 1)
+                    }
                 }
                 case Minimum => {
-                  matrix groupBy { element => element._1 } combinableReduceGroup { elements =>
-                    val element = elements.next
-                    (element._1, 0, (elements map (element => element._3)).min)
-                  }
+                  matrix map { submatrix => submatrix.aggregateRows(VectorFunctions.minVector) } groupBy
+                    { subvector => subvector.index } combinableReduceGroup { subvectors =>
+                      val firstElement = subvectors.next.clone()
+                      subvectors.foldLeft(firstElement) { (left, right) => left.assign(right, VectorFunctions.min) }
+                    } map { subvector =>
+                      Submatrix(subvector.cross(StratosphereExecutor.ONEVECTOR),
+                        subvector.index, 0, subvector.offset, 0, subvector.numTotalEntries, 1)
+                    }
                 }
                 case Norm2 => {
-                  matrix groupBy { element => element._1 } combinableReduceGroup { elements =>
-                    val element = elements.next
-                    (element._1, 0, (elements map
-                      { element => element._3 * element._3 }).foldLeft(element._3 * element._3)(_ + _))
-                  } map
-                    { element => (element._1, element._2, math.sqrt(element._3)) }
+                  matrix map { submatrix =>
+                    val temp = submatrix.clone()
+                    temp.assign(Functions.SQUARE)
+                    temp.aggregateRows(VectorFunctions.sum)
+                  } groupBy { subvector => subvector.index } combinableReduceGroup { subvectors =>
+                    val firstElement = subvectors.next.clone()
+                    subvectors.foldLeft(firstElement) { _ plus _ }
+                  } map {
+                    subvector =>
+                      Submatrix(subvector.cross(StratosphereExecutor.ONEVECTOR), subvector.index,
+                        0, subvector.offset, 0, subvector.numTotalEntries, 1)
+                  }
                 }
 
               }
@@ -390,8 +490,30 @@ class StratosphereExecutor extends Executor {
               val rowLiteral = rows.contract.asInstanceOf[LiteralDataSource[Double]].values.head.toInt
               val columnLiteral = cols.contract.asInstanceOf[LiteralDataSource[Double]].values.head.toInt
 
-              DataSource("file:///" + pathLiteral, CsvInputFormat[(Int, Int, Double)]("\n", ' '))
+              val source = DataSource("file:///" + pathLiteral, CsvInputFormat[(Int, Int, Double)]("\n", ' '))
 
+              val partitionPlan = new SquareBlockPartitionPlan(Submatrix.BLOCKSIZE, rowLiteral, columnLiteral)
+              val blocks = LiteralDataSource(0, LiteralInputFormat[Int]()) flatMap { _ =>
+                for (partition <- partitionPlan.iterator) yield {
+                  (partition.id, Submatrix(partition))
+                }
+              }
+              source map {
+                case (row, column, value) =>
+                  (partitionPlan.partitionId(row, column), row, column, value)
+              } cogroup blocks where { entry => entry._1 } isEqualTo { block => block._1 } map { (entries, blocks) =>
+                if (blocks.size != 1) {
+                  throw new IllegalArgumentError("LoadMatrix coGroup phase can have only one block each")
+                }
+
+                val submatrix = blocks.next._2
+
+                for (entry <- entries) {
+                  submatrix.setQuick(entry._2, entry._3, entry._4)
+                }
+
+                submatrix
+              }
             }
           })
       }
@@ -402,8 +524,18 @@ class StratosphereExecutor extends Executor {
           { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numColumns)) },
           {
             case (_, (rows, columns)) => {
-              rows cross columns map { (rows, columns) =>
-                for (row <- 0 until rows.toInt; column <- 0 until columns.toInt) yield (row, column, 1)
+              rows cross columns flatMap { (rows, columns) =>
+                val partitionPlan = new SquareBlockPartitionPlan(Submatrix.BLOCKSIZE, rows.toInt, columns.toInt)
+
+                for (matrixPartition <- partitionPlan.iterator) yield {
+                  if (matrixPartition.rowIndex == matrixPartition.columnIndex) {
+                    val matrix = Submatrix(matrixPartition, matrixPartition.numRows)
+                    matrix.viewDiagonal().assign(1.0)
+                    matrix
+                  } else {
+                    Submatrix(matrixPartition)
+                  }
+                }
               }
             }
           })
@@ -419,12 +551,16 @@ class StratosphereExecutor extends Executor {
           {
             case (_, (rows, cols, mean, std)) => {
               rows cross cols map { (rows, cols) => (rows, cols) } cross mean map
-                { case ((rows, cols), mean) => (rows, cols, mean) } cross std map
+                { case ((rows, cols), mean) => (rows, cols, mean) } cross std flatMap
                 {
                   case ((rows, cols, mean), std) =>
                     val sampler = new Normal(mean, std)
+                    val partitionPlan = new SquareBlockPartitionPlan(Submatrix.BLOCKSIZE, rows.toInt, cols.toInt)
 
-                    for (row <- 0 until rows.toInt; col <- 0 until cols.toInt) yield (row, col, sampler.sample())
+                    for (partition <- partitionPlan.iterator) yield {
+                      val result = Submatrix(partition)
+                      result.assign { x: Double => sampler.sample() }
+                    }
                 }
             }
           })
@@ -436,7 +572,10 @@ class StratosphereExecutor extends Executor {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix map { case (row, col, value) => (row, col, CellwiseFunctions.binarize(value)) }
+              matrix map { submatrix =>
+                val result = submatrix.clone()
+                result.assign(CellwiseFunctions.binarize)
+              }
             }
           })
       }
@@ -447,10 +586,15 @@ class StratosphereExecutor extends Executor {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix groupBy { element => element._1 } combinableReduceGroup
-                { elements =>
-                  val firstElement = elements.next
-                  (firstElement._1, 0, (elements map { element => element._3 }).foldLeft(firstElement._3)(_ + _))
+              matrix map { submatrix => submatrix.aggregateRows(VectorFunctions.sum) } groupBy
+                { subvector => subvector.index } combinableReduceGroup
+                { subvectors =>
+                  val firstSubvector = subvectors.next.clone()
+                  subvectors.foldLeft(firstSubvector)(_ plus _)
+                } map
+                { subvector =>
+                  Submatrix(subvector.cross(StratosphereExecutor.ONEVECTOR), subvector.index, 0, subvector.offset, 0,
+                    subvector.numTotalEntries, 1)
                 }
             }
           })
@@ -462,10 +606,15 @@ class StratosphereExecutor extends Executor {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix groupBy { element => element._2 } combinableReduceGroup
-                { elements =>
-                  val firsElement = elements.next
-                  (0, firsElement._2, (elements map (element => element._3)).foldLeft(firsElement._3)(_ + _))
+              matrix map { submatrix => submatrix.aggregateColumns(VectorFunctions.sum) } groupBy
+                { subvector => subvector.index } combinableReduceGroup
+                { subvectors =>
+                  val firstSubvector = subvectors.next.clone()
+                  subvectors.foldLeft(firstSubvector)(_ plus _)
+                } map {
+                  subvector =>
+                    Submatrix(StratosphereExecutor.ONEVECTOR.cross(subvector), 0, subvector.index, 0,
+                      subvector.offset, 1, subvector.numTotalEntries)
                 }
             }
           })
@@ -479,30 +628,177 @@ class StratosphereExecutor extends Executor {
             {
               (exec.rows, exec.cols) match {
                 case (Some(1), _) => {
-                  matrix map { element => (element._2, element._2, element._3) }
-                }
-                case (_, Some(1)) => {
-                  matrix map { element => (element._1, element._1, element._3) }
-                }
-                case (Some(x), Some(y)) => {
-                  matrix flatMap { element =>
-                    if (element._1 == element._2) {
-                      List((element._1, 0, element._3)).iterator
-                    } else {
-                      List[(Int, Int, Double)]().iterator
-                    }
+                  val entries = matrix map
+                    { submatrix => (submatrix.columnIndex, submatrix.numCols, submatrix.columnOffset) }
+                  entries cross matrix map {
+                    case ((rowIndex, numRows, rowOffset), submatrix) =>
+                      val partition = Partition(-1, rowIndex, submatrix.columnIndex, numRows, submatrix.numCols,
+                        rowOffset, submatrix.columnOffset, submatrix.numTotalColumns, submatrix.numTotalColumns)
+                      val result = Submatrix(partition)
+
+                      if (submatrix.columnIndex == rowIndex) {
+                        for (index <- 0 until submatrix.numCols) {
+                          result.setQuick(index, index, submatrix.getQuick(0, index))
+                        }
+                      }
+
+                      result
                   }
                 }
-                //TODO: Fix
-                case (None, None) => {
-                  throw new IllegalArgumentError("The size of the matrix argument cannot be retrieved")
+                case (_, Some(1)) => {
+                  matrix map { submatrix => (submatrix.rowIndex, submatrix.numRows, submatrix.rowOffset) } cross
+                    matrix map {
+                      case ((columnIndex, numColumns, columnOffset), submatrix) =>
+                        val partition = Partition(-1, submatrix.rowIndex, columnIndex, submatrix.numRows, numColumns,
+                          submatrix.rowOffset, columnOffset, submatrix.numTotalRows, submatrix.numTotalRows)
+
+                        val result = Submatrix(partition)
+
+                        if (submatrix.rowIndex == columnIndex) {
+                          for (index <- 0 until submatrix.numRows) {
+                            result.setQuick(index, index, submatrix.getQuick(index, 0))
+                          }
+                        }
+
+                        result
+                    }
+                }
+                case _ => {
+                  val partialDiagResults = matrix map { submatrix =>
+                    val partition = Partition(-1, submatrix.rowIndex, 0, submatrix.numRows, 1, submatrix.rowOffset, 0,
+                      submatrix.numTotalRows, 1)
+
+                    val result = Submatrix(partition)
+
+                    val rowStart = submatrix.rowOffset
+                    val rowEnd = submatrix.rowOffset + submatrix.numRows
+                    val columnStart = submatrix.columnOffset
+                    val columnEnd = submatrix.columnOffset + submatrix.numCols
+
+                    var indexStart = (-1, -1)
+                    var indexEnd = (-1, -1)
+
+                    if (rowStart <= columnStart && rowEnd > columnStart) {
+                      indexStart = (columnStart - rowStart, 0)
+                    }
+
+                    if (columnStart < rowStart && columnEnd > rowStart) {
+                      indexStart = (0, rowStart - columnStart)
+                    }
+
+                    if (rowStart < columnEnd && rowEnd >= columnEnd) {
+                      indexEnd = (columnEnd - rowStart, submatrix.numCols)
+                    }
+
+                    if (columnStart < rowEnd && columnEnd > rowEnd) {
+                      indexEnd = (submatrix.numRows, rowEnd - columnStart)
+                    }
+
+                    if (indexStart._1 != -1 && indexStart._2 != -1 && indexEnd._1 != -1 && indexEnd._2 != -1) {
+                      for (counter <- 0 until indexEnd._1 - indexStart._1) {
+                        result.setQuick(counter + indexStart._1, 0, submatrix.getQuick(indexStart._1 + counter,
+                          indexStart._2 + counter))
+                      }
+                    } else {
+                      assert(indexStart._1 == -1 && indexStart._2 == -1 && indexEnd._1 == -1 && indexEnd._2 == -1)
+                    }
+
+                    result
+                  }
+
+                  partialDiagResults groupBy { partialResult => partialResult.rowIndex } combinableReduceGroup {
+                    results =>
+                      val result = results.next.copy()
+                      results.foldLeft(result)(_ plus _)
+                  }
                 }
               }
             }
           })
       }
 
+      case executable: FixpointIteration => {
+        handle[FixpointIteration, Matrix](
+          executable,
+          { exec => evaluate[Matrix](exec.initialState) },
+          { (exec, initialState) =>
+            val numberIterations = 10
+            val stepFunction = { partialSolution: Matrix =>
+              val oldStatePlaceholderValue = iterationStatePlaceholderValue
+              iterationStatePlaceholderValue = Some(partialSolution)
+              val result = evaluate[Matrix](exec.updatePlan)
+              iterationStatePlaceholderValue = oldStatePlaceholderValue
+              result
+            }
+            initialState.iterate(numberIterations, stepFunction);
+          })
+      }
+
+      case IterationStatePlaceholder => {
+        iterationStatePlaceholderValue match {
+          case Some(value) => value
+          case None => throw new StratosphereExecutionError("The iteration state placeholder value was not set yet.")
+        }
+      }
+
+      case executable: sum => {
+        handle[sum, (Matrix, Scalar[Double])](
+          executable,
+          { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.dimension)) },
+          {
+            case (_, (matrix, scalar)) =>
+              scalar cross matrix map { (scalar, submatrix) =>
+                if (scalar == 1) {
+                  (submatrix.columnIndex, scalar, submatrix.aggregateColumns(VectorFunctions.sum))
+                } else {
+                  (submatrix.rowIndex, scalar, submatrix.aggregateRows(VectorFunctions.sum))
+                }
+              } groupBy { case (group, scalar, subvector) => group } combinableReduceGroup { subvectors =>
+                val firstSubvector = subvectors.next
+                (firstSubvector._1, firstSubvector._2, subvectors.foldLeft(firstSubvector._3.clone())(_ plus _._3))
+              } map {
+                case (group, scalar, subvector) =>
+                  if(scalar == 1){
+                    Submatrix(StratosphereExecutor.ONEVECTOR.cross(subvector),0, subvector.index, 0,
+                        subvector.offset,1, subvector.numTotalEntries)
+                  }else{
+                    Submatrix(subvector.cross(StratosphereExecutor.ONEVECTOR), subvector.index, 0,
+                        subvector.offset, 0, subvector.numTotalEntries, 1)
+                  }
+              }
+          })
+      }
+
+      case function: function => {
+        throw new StratosphereExecutionError("Cannot execute function. Needs function application")
+      }
+
+      case compound: CompoundExecutable => {
+        val executables = compound.executables map { evaluate[ScalaSink[_]](_) }
+        new ScalaPlan(executables)
+      }
+
+      case parameter: StringParameter => {
+        throw new StratosphereExecutionError("Parameter found. Cannot execute parameters.")
+      }
+
+      case parameter: ScalarParameter => {
+        throw new StratosphereExecutionError("Parameter found. Cannot execute parameters.")
+      }
+
+      case parameter: MatrixParameter => {
+        throw new StratosphereExecutionError("Parameter found. Cannot execute parameters.")
+      }
+
+      case parameter: FunctionParameter => {
+        throw new StratosphereExecutionError("Parameter found. Cannot execute parameters.")
+      }
+
     }
   }
 
+}
+
+object StratosphereExecutor {
+  val ONEVECTOR = new DenseVector(Array(1.))
 }

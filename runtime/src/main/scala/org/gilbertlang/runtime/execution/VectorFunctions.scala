@@ -39,11 +39,23 @@ object VectorFunctions {
     def apply(value1: Double, value2: Double) = math.max(value1, value2)
   }
   
+  def maxVector = new VectorFunction{
+    def apply(vector: Vector) = vector.maxValue()
+  }
+  
   def min = new DoubleDoubleFunction {
     def apply(a: Double, b: Double) = math.min(a,b)
+  }
+  
+  def minVector = new VectorFunction{
+    def apply(vector: Vector) = vector.minValue()
   }
 
   def identity = new DoubleFunction {
     def apply(value: Double) = value
+  }
+  
+  def l1Norm = new VectorFunction {
+    def apply(vector: Vector) = vector.norm(1)
   }
 }
