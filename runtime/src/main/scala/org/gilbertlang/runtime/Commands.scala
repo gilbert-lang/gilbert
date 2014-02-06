@@ -22,6 +22,9 @@ import org.gilbertlang.runtime.execution.reference.ReferenceExecutor
 import org.gilbertlang.runtime.execution.spark.SparkExecutor
 import eu.stratosphere.client.LocalExecutor
 import org.gilbertlang.runtime.execution.stratosphere.StratosphereExecutor
+import eu.stratosphere.api.scala.ScalaPlan
+import eu.stratosphere.api.scala.ScalaSink
+import Executables._
 
 object local {
   def apply(executable: Executable) = {
@@ -62,6 +65,16 @@ object withStratosphere{
       case function: FunctionRef => WriteFunction(function)
       case _ => executable
     }
-    new StratosphereExecutor().run(write)
+    val executor = new StratosphereExecutor();
+    val result = executor.run(write)
+    
+    result match {
+      case x:ScalaPlan => x
+      case x:ScalaSink[_] => new ScalaPlan(Seq(x))
+      case x:List[_] => {
+        val sinks = for(dataset <- x) yield dataset.asInstanceOf[ScalaSink[_]]
+        new ScalaPlan(sinks)
+      }
+    }
   }
 }

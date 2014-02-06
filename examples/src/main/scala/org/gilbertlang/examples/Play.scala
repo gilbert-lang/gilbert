@@ -19,7 +19,8 @@
 package org.gilbertlang.examples
 
 import org.gilbertlang.runtime.GilbertFunctions.{norm2, fixpoint, binarize, load}
-import org.gilbertlang.runtime.{local, ones, randn}
+import org.gilbertlang.runtime.Executables.{ones, randn}
+import org.gilbertlang.runtime.local
 
 
 object Play {

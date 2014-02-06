@@ -18,7 +18,7 @@
 
 package org.gilbertlang.runtime.shell
 
-import org.gilbertlang.runtime._
+import org.gilbertlang.runtime.Executables._
 
 object printPlan {
 

@@ -18,9 +18,7 @@
 
 package org.gilbertlang.runtime.optimization
 
-import org.gilbertlang.runtime.Executable
-import org.gilbertlang.runtime.FixpointIteration
-import org.gilbertlang.runtime.IterationStatePlaceholder
+import org.gilbertlang.runtime.Executables._
 import scala.collection.mutable.Stack
 
 class VolatileExpressionDetector extends DagWalker {

@@ -1,4 +1,5 @@
-package org.gilbertlang.runtime.execution.stratosphere
+package org.gilbertlang.runtimeMacros.linalg
+
 
 trait PartitionPlan extends Iterable[Partition]{
   protected def maxId: Int

@@ -18,12 +18,12 @@
 
 package org.gilbertlang.examples
 
-import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.GilbertFunctions.{load, norm2, fixpoint}
-import org.gilbertlang.runtime.spones
-import org.gilbertlang.runtime.ones
-import org.gilbertlang.runtime.randn
-import org.gilbertlang.runtime.sum
+import org.gilbertlang.runtime.Executables.spones
+import org.gilbertlang.runtime.Executables.ones
+import org.gilbertlang.runtime.Executables.randn
+import org.gilbertlang.runtime.Executables.sum
+import org.gilbertlang.runtime.Executables.diag
 
 object Algorithms {
 

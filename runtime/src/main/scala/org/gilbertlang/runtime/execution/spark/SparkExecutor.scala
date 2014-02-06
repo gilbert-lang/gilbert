@@ -30,7 +30,8 @@ import org.apache.mahout.math.random.Normal
 import org.apache.spark.serializer.KryoSerializer
 import org.gilbertlang.runtime.execution.CellwiseFunctions
 import org.gilbertlang.runtime.shell.PlanPrinter
-import org.gilbertlang.runtime.VoidExecutable
+import org.gilbertlang.runtime.Executables._
+import org.gilbertlang.runtime.Operations._
 
 
 class SparkExecutor extends Executor {

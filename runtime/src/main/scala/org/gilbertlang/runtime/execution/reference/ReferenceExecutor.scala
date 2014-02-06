@@ -22,7 +22,8 @@ import org.gilbertlang.runtime._
 import org.apache.mahout.math.{DenseMatrix, SparseRowMatrix}
 import org.gilbertlang.runtime.execution.VectorFunctions
 import org.apache.mahout.math.random.Normal
-import org.gilbertlang.runtime.VoidExecutable
+import org.gilbertlang.runtime.Executables._
+import org.gilbertlang.runtime.Operations._
 import scala.io.Source
 import org.apache.mahout.math.SparseMatrix
 import org.gilbertlang.runtime.execution.CellwiseFunctions

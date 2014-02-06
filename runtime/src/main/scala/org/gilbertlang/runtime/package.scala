@@ -21,6 +21,9 @@ package org.gilbertlang
 import java.lang.String
 
 package object runtime {
+  
+  import Executables.{scalar, Matrix, FunctionRef, string, ScalarRef, function, MatrixParameter}
+  
   implicit def Int2Scalar(value: Int) = scalar(value.toDouble)
   implicit def Double2Scalar(value: Double) = scalar(value)
   implicit def String2StringRef(value: String) = string(value)

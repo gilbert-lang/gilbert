@@ -18,10 +18,9 @@
 
 package org.gilbertlang.language.compiler
 
-import org.gilbertlang.runtime._
-import org.gilbertlang.runtime.MatrixParameter
+import org.gilbertlang.runtime.Executables._
+import org.gilbertlang.runtime.Operations._
 import scala.Some
-import org.gilbertlang.runtime.ScalarParameter
 import org.gilbertlang.language.definition.TypedAst._
 import org.gilbertlang.language.definition.BuiltinSymbols
 import org.gilbertlang.language.definition.Types._

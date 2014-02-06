@@ -18,7 +18,7 @@
 
 package org.gilbertlang.runtime.optimization
 
-import org.gilbertlang.runtime._
+import org.gilbertlang.runtime.Executables._
 
 abstract class DagWalker {
 

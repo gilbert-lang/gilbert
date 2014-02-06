@@ -1,7 +1,7 @@
-package org.gilbertlang.runtime.execution.stratosphere
+package org.gilbertlang.runtimeMacros.linalg
 
 case class SquareBlockPartitionPlan(val blockSize: Int, val totalRows: Int, val totalColumns: Int)
-  extends PartitionPlan {
+  extends PartitionPlan{
   
   val maxRowIndex = math.ceil(totalRows.toDouble/blockSize).toInt
   val maxColumnIndex = math.ceil(totalColumns.toDouble/blockSize).toInt
@@ -39,7 +39,7 @@ case class SquareBlockPartitionPlan(val blockSize: Int, val totalRows: Int, val 
     val (rowId, columnId) = partitionIndices(partitionId)
     
     val rowStart = rowId * blockSize
-    val columnStart = rowId * blockSize
+    val columnStart = columnId * blockSize
     
     (rowStart, columnStart)
   }

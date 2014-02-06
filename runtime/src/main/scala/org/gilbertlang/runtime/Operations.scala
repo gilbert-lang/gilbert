@@ -18,30 +18,34 @@
 
 package org.gilbertlang.runtime
 
-sealed trait CellwiseOperation
-sealed trait ScalarsOperation extends CellwiseOperation
-sealed trait ScalarMatrixOperation extends CellwiseOperation
+object Operations {
 
-sealed trait ArithmeticOperation extends ScalarsOperation with ScalarMatrixOperation
-case object Addition extends ArithmeticOperation
-case object Subtraction extends ArithmeticOperation
-case object Multiplication extends ArithmeticOperation
-case object Division extends ArithmeticOperation
+  sealed trait CellwiseOperation
+  sealed trait ScalarsOperation extends CellwiseOperation
+  sealed trait ScalarMatrixOperation extends CellwiseOperation
 
-//TODO do we need this on vectors?
-sealed trait MinMax extends ScalarsOperation with VectorwiseOperation with AggregateMatrixOperation
-case object Maximum extends MinMax
-case object Minimum extends MinMax
+  sealed trait ArithmeticOperation extends ScalarsOperation with ScalarMatrixOperation
+  case object Addition extends ArithmeticOperation
+  case object Subtraction extends ArithmeticOperation
+  case object Multiplication extends ArithmeticOperation
+  case object Division extends ArithmeticOperation
 
-sealed trait UnaryScalarOperation
-//TODO remove
-case object Minus extends UnaryScalarOperation
-case object Binarize extends UnaryScalarOperation
+  //TODO do we need this on vectors?
+  sealed trait MinMax extends ScalarsOperation with VectorwiseOperation with AggregateMatrixOperation
+  case object Maximum extends MinMax
+  case object Minimum extends MinMax
 
-sealed trait VectorwiseOperation
-case object NormalizeL1 extends VectorwiseOperation
+  sealed trait UnaryScalarOperation
+  //TODO remove
+  case object Minus extends UnaryScalarOperation
+  case object Binarize extends UnaryScalarOperation
 
-sealed trait AggregateMatrixOperation
+  sealed trait VectorwiseOperation
+  case object NormalizeL1 extends VectorwiseOperation
 
-sealed trait NormOperation extends AggregateMatrixOperation with VectorwiseOperation
-case object Norm2 extends NormOperation
+  sealed trait AggregateMatrixOperation
+
+  sealed trait NormOperation extends AggregateMatrixOperation with VectorwiseOperation
+  case object Norm2 extends NormOperation
+
+}

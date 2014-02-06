@@ -18,6 +18,8 @@
 
 package org.gilbertlang.runtime
 
+import Executables.{StringRef, ScalarRef, LoadMatrix, Matrix, FixpointIteration}
+
 object GilbertFunctions {
   object load {
     def apply(path: StringRef, numRows: ScalarRef, numColumns: ScalarRef) = LoadMatrix(path, numRows, numColumns)
