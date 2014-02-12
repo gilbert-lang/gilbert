@@ -38,6 +38,22 @@ object BuiltinSymbols extends AbstractBuiltinSymbols {
   val write = Symbol("write", writeType)
   val sumRow = Symbol("sumRow", sumRowType)
   val sumCol = Symbol("sumCol", sumColType)
+  val rand = Symbol("rand", randType)
+  val zeros = Symbol("zeros", zerosType)
+  val eye = Symbol("eye", eyeType)
+  
+  def eyeType = {
+    FunctionType((IntegerType, IntegerType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
+  }
+  
+  def zerosType = {
+    FunctionType((IntegerType, IntegerType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
+  }
+  
+  def randType = {
+    FunctionType((IntegerType, IntegerType, DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0), 
+        ReferenceValue(1)))
+  }
 
   def loadType = {
     FunctionType((StringType, IntegerType, IntegerType), MatrixType(DoubleType, ReferenceValue(1), ReferenceValue(2)))

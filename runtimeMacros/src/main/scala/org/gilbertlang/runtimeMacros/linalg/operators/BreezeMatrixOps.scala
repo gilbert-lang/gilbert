@@ -209,7 +209,7 @@ trait BreezeMatrixOps {
       val t = matrix.t
       
       for(col <- 0 until t.cols){
-        val value = fn(matrix(::, col))
+        val value = fn(t(::, col))
         
         if(value != 0){
           dataBuilder += value

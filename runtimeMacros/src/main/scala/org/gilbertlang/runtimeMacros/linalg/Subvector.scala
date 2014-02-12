@@ -28,9 +28,22 @@ case class Subvector(vector: GilbertVector, index: Int, offset: Int, totalEntrie
   def asMatrix: Submatrix = {
     Submatrix(vector.asMatrix, index, 0, offset, 0, totalEntries, 1)
   }
+  
+  override def toString: String = {
+    val subvectorInfo = s"Subvectr[Index: $index, Offset: $offset, TotalEntries: $totalEntries]"
+    
+    if(vector != null)
+      subvectorInfo + "\n"+ vector
+    else
+        subvectorInfo
+  }
 }
 
 object Subvector extends SubvectorOps{
+  def apply( size:Int, index: Int, offset: Int, totalEntries: Int): Subvector = {
+    Subvector(GilbertVector(size),index, offset, totalEntries)
+  }
+  
   implicit val canZipMapValues: CanZipMapValues[Subvector, Double, Double, Subvector] = {
     new CanZipMapValues[Subvector, Double, Double, Subvector]{
       override def map(a: Subvector, b: Subvector, fn: (Double, Double) => Double) = {

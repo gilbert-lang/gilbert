@@ -19,6 +19,7 @@
 package org.gilbertlang
 
 import java.lang.String
+import scala.language.implicitConversions
 
 package object runtime {
   

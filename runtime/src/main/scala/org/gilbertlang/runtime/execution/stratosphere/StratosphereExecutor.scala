@@ -3,9 +3,10 @@ package org.gilbertlang.runtime.execution.stratosphere
 import org.gilbertlang.runtime.Executor
 import eu.stratosphere.api.scala.operators.CsvInputFormat
 import eu.stratosphere.api.scala.DataSource
+import eu.stratosphere.api.scala.LiteralDataSource
 import eu.stratosphere.api.scala.DataSet
 import eu.stratosphere.api.scala.operators.CsvOutputFormat
-import org.gilbertlang.runtimeMacros.io.LiteralInputFormat
+import eu.stratosphere.api.scala.io.LiteralInputFormat
 import eu.stratosphere.api.scala.operators.DelimitedOutputFormat
 import scala.collection.convert.WrapAsScala
 import scala.collection.mutable.ArrayBuilder
@@ -22,6 +23,9 @@ import breeze.linalg.*
 import org.gilbertlang.runtimeMacros.linalg.Subvector
 import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
 import org.gilbertlang.runtimeMacros.linalg.Configuration
+import eu.stratosphere.api.common.operators.Operator
+import scala.language.implicitConversions
+import scala.language.reflectiveCalls
 
 class StratosphereExecutor extends Executor with WrapAsScala {
   type Entry = Submatrix
@@ -36,6 +40,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
     tempFileCounter += 1
     "file://" + getCWD + "/gilbert" + tempFileCounter + ".output"
   }
+  
+  implicit def dataset2Operator[T](dataset: DataSet[T]): Operator = dataset.contract
 
   def execute(executable: Executable): Any = {
     executable match {
@@ -47,7 +53,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "), ""));
+              matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "), ""), 
+                  s"WriteMatrix($completePathWithFilename)");
             }
           })
       }
@@ -59,7 +66,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { (_, string) =>
             {
               val completePathWithFilename = newTempFileName()
-              string.write(completePathWithFilename, CsvOutputFormat())
+              string.write(completePathWithFilename, CsvOutputFormat(), s"WriteString($completePathWithFilename)")
             }
           })
       }
@@ -77,10 +84,9 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { (_, scalar) =>
             {
               val completePathWithFilename = newTempFileName()
-              scalar.write(completePathWithFilename, CsvOutputFormat())
+              scalar.write(completePathWithFilename, CsvOutputFormat(), s"WriteScalarRef($completePathWithFilename)")
             }
           })
-        throw new TransformationNotSupportedError("WriteScalarRef is not supported by Stratosphere")
       }
 
       case VoidExecutable => {
@@ -259,40 +265,52 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               case (exec, (left, right)) => {
                 exec.operation match {
                   case Addition => {
-                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
                       { (left, right) => left + right }
+                    result.setName("MM: Addition")
+                    result
                   }
                   case Subtraction => {
-                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
                       { (left, right) => left - right }
+                    result.setName("MM: Subtraction")
+                    result
                   }
                   case Multiplication => {
-                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
                       { (left, right) => left :* right
                       }
+                    result.setName("MM: Cellwise multiplication")
+                    result
                   }
                   case Division => {
-                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
                       { (left, right) => left / right
                       }
+                    result.setName("MM: Division")
+                    result
                   }
                   case Maximum => {
-                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
                       { (left, right) =>
                        numerics.max(left, right)
                       }
+                    result.setName("MM: Maximum")
+                    result
                   }
                   case Minimum => {
-                    left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
                       { (left, right) =>
                         numerics.min(left, right)
                       }
+                    result.setName("MM: Minimum")
+                    result
                   }
                 }
               }
@@ -424,7 +442,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               }
               source map {
                 case (row, column, value) =>
-                  (partitionPlan.partitionId(row, column), row, column, value)
+                  (partitionPlan.partitionId(row-1, column-1), row-1, column-1, value)
               } cogroup blocks where { entry => entry._1 } isEqualTo { block => block._1 } map { (entries, blocks) =>
                 if(!blocks.hasNext){
                   throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
@@ -455,15 +473,58 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numColumns)) },
           {
             case (_, (rows, columns)) => {
-              rows cross columns flatMap { (rows, columns) =>
+              val result = rows cross columns flatMap { (rows, columns) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, columns.toInt)
 
                 for (matrixPartition <- partitionPlan.iterator) yield {
                   Submatrix.init(matrixPartition, 1.0)
                 }
               }
+              
+              result.setName("Ones")
+              result
             }
           })
+      }
+      
+      case executable: zeros => {
+        handle[zeros, (Scalar[Double], Scalar[Double])](
+            executable,
+            { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numCols))},
+            { case (_, (rows, columns)) => {
+              val result = rows cross columns flatMap { (rows, columns) => 
+                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, columns.toInt)
+                
+                for(matrixPartition <- partitionPlan.iterator) yield {
+                  Submatrix(matrixPartition)
+                }
+              }
+              
+              result.setName(s"Zeros")
+              result
+            }})
+      }
+      
+      case executable: eye => {
+        handle[eye, (Scalar[Double], Scalar[Double])](
+            executable,
+            { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numCols))},
+            { case (_, (rows, columns)) => {
+              val result = rows cross columns flatMap { (rows, columns) => 
+                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, columns.toInt)
+                
+                for(matrixPartition <- partitionPlan.iterator) yield {
+                  if(matrixPartition.rowIndex == matrixPartition.columnIndex){
+                   Submatrix.eye(matrixPartition)
+                  }else{
+                    Submatrix(matrixPartition)
+                  }
+                }
+              }
+                
+              result.setName("Eye")
+              result
+            }})
       }
 
       case executable: randn => {
@@ -475,16 +536,26 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           },
           {
             case (_, (rows, cols, mean, std)) => {
-              rows cross cols map { (rows, cols) => (rows, cols) } cross mean map
-                { case ((rows, cols), mean) => (rows, cols, mean) } cross std flatMap
+              val rowsCols = rows cross cols map { (rows, cols) => (rows, cols) } 
+              rowsCols.setName("Randn: Rows and cols combined")
+              
+              val rowsColsMean = rowsCols cross mean map { case ((rows, cols), mean) => (rows, cols, mean) } 
+              rowsColsMean.setName("Randn: Rows, cols and mean combined")
+              
+              val randomPartitions = rowsColsMean cross std flatMap
                 {
                   case ((rows, cols, mean), std) =>
                     val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, cols.toInt)
 
-                    for (partition <- partitionPlan.iterator) yield {
-                      Submatrix.rand(partition)
+                    val result = for (partition <- partitionPlan.iterator) yield {
+                      Submatrix.rand(partition, new GaussianRandom(mean, std))
                     }
+                    
+                    result
                 }
+              
+              randomPartitions.setName("Randn: Random submatrices")
+              randomPartitions
             }
           })
       }
@@ -541,7 +612,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { exec => evaluate[Matrix](exec.matrix) },
           { (exec, matrix) =>
             {
-              (exec.rows, exec.cols) match {
+              (exec.matrix.rows, exec.matrix.cols) match {
                 case (Some(1), _) => {
                   val entries = matrix map
                     { submatrix => (submatrix.columnIndex, submatrix.cols, submatrix.columnOffset) }
@@ -638,14 +709,21 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { exec => evaluate[Matrix](exec.initialState) },
           { (exec, initialState) =>
             val numberIterations = 10
-            val stepFunction = { partialSolution: Matrix =>
+            def stepFunction(partialSolution: Matrix) = {
               val oldStatePlaceholderValue = iterationStatePlaceholderValue
               iterationStatePlaceholderValue = Some(partialSolution)
               val result = evaluate[Matrix](exec.updatePlan)
               iterationStatePlaceholderValue = oldStatePlaceholderValue
+              /* 
+               * Iteration mechanism requires that there is some kind of operation in the step function.
+               * Therefore it is not possible to use the identity function!!! A workaround for this situation
+               * would be to apply an explicit mapping operation with the identity function.
+              */
               result
             }
-            initialState.iterate(numberIterations, stepFunction);
+            val iteration = initialState.iterate(numberIterations, stepFunction);
+            iteration.setName("Fixpoint iteration")
+            iteration
           })
       }
 
@@ -697,5 +775,4 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
     }
   }
-
 }

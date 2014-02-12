@@ -18,6 +18,7 @@ import breeze.linalg.support.CanTranspose
 import breeze.linalg.support.CanCollapseAxis
 import breeze.linalg.Axis
 import breeze.linalg.CSCMatrix
+import scala.util.Random
 
 class GilbertMatrix(var matrix: BreezeMatrix[Double]) extends BreezeMatrix[Double] with BreezeMatrixLike[Double, GilbertMatrix] with Value {
   def this() = this(null)
@@ -44,6 +45,10 @@ class GilbertMatrix(var matrix: BreezeMatrix[Double]) extends BreezeMatrix[Doubl
 
   override def read(in: DataInput) {
     matrix = MatrixSerialization.read(in)
+  }
+  
+  override def toString = {
+    matrix.toString
   }
 }
 
@@ -86,8 +91,19 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
     new GilbertMatrix(Configuration.newDenseMatrix(rows, cols, initialValue))
   }
   
-  def rand(rows: Int, cols: Int) = {
-    GilbertMatrix(BreezeDenseMatrix.rand(rows, cols))
+  def eye(rows: Int, cols: Int) = {
+    val size=  rows*cols
+    val nonZeroElementsRatio = math.min(rows, cols).toDouble/size
+    
+    if(nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD){
+      new GilbertMatrix(Configuration.eyeDenseMatrix(rows, cols))
+    }else{
+      new GilbertMatrix(Configuration.eyeSparseMatrix(rows, cols))
+    }
+  }
+  
+  def rand(rows: Int, cols: Int, random: Random = new Random()) = {
+    GilbertMatrix(BreezeDenseMatrix.rand(rows, cols, random))
   }
   
   implicit val canMapValues = {
@@ -200,7 +216,11 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
   implicit val canTranspose: CanTranspose[GilbertMatrix, GilbertMatrix] = {
     new CanTranspose[GilbertMatrix, GilbertMatrix]{
       override def apply(gilbertMatrix: GilbertMatrix) = {
-        GilbertMatrix(gilbertMatrix.t)
+        val transposedMatrix = gilbertMatrix.matrix match {
+          case x: Configuration.DenseMatrix => x.t
+          case x: Configuration.SparseMatrix => x.t
+        }
+        GilbertMatrix(transposedMatrix)
       }
     }
   }

@@ -26,7 +26,7 @@ import org.gilbertlang.language.definition.BuiltinSymbols
 import org.gilbertlang.language.definition.Types._
 import org.gilbertlang.language.definition.Operators._
 import org.gilbertlang.language.definition.TypedAst
-import org.gilbertlang.language.definition.TypedAst
+import scala.language.postfixOps
 
 trait Compiler {
   
@@ -126,6 +126,8 @@ trait Compiler {
       case "load" => function(3, LoadMatrix(StringParameter(0), ScalarParameter(1), ScalarParameter(2)))
       case "ones" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
       case "rand" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2), ScalarParameter(3)))
+      case "zeros" => function(2, zeros(ScalarParameter(0), ScalarParameter(1)))
+      case "eye" => function(2, eye(ScalarParameter(0), ScalarParameter(1)))
       case "binarize" => {
         datatype match {
           case FunctionType(List(_: MatrixType), _) => {
@@ -291,13 +293,15 @@ trait Compiler {
     val fun = compileIdentifier(functionApplication.id)
     val arguments = functionApplication.args map { compileExpression }
 
-    fun match {
+    val result = fun match {
       case function(numParameters, body) if numParameters <= arguments.length => body.instantiate(arguments:_*) match {
         case x:ExpressionExecutable => x
         case _ => throw new TypeCompileError("Return value of a function has to be an expression")
       }
       case _ => throw new TypeCompileError("Id has to be of a function type")
     }
+    
+    result
   }
 
   // TODO: Handle return values of functions

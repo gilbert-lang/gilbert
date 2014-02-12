@@ -12,37 +12,61 @@ import org.junit.Test
 import org.scalatest.Spec
 import scala.util.parsing.input.CharSequenceReader
 import scala.util.parsing.input.CharArrayReader
+import org.apache.commons.io.IOUtils
 
 class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
-  
+
   @Test def testMLexer() {
-    val expected = List(Identifier("A"),Keyword("="),Identifier("load"),Keyword("("),
-        StringLiteral("path to file"),Keyword(","),IntegerLiteral(10),Keyword(","),
-        IntegerLiteral(10),Keyword(")"),Keyword("\n"),Identifier("B"),Keyword("="),Identifier("bin"),
-        Keyword("("),Identifier("A"),Keyword(")"),Keyword("\n"),Identifier("C"),Keyword("="),
-        Identifier("B"),Keyword("\'"),Keyword("*"),Identifier("B"),Keyword("\n"),Identifier("D"),
-        Keyword("="),Identifier("C"),Keyword("./"),Identifier("maxValue"),Keyword("("),Identifier("C"),
-        Keyword(")"),Keyword("\n"),Keyword("\n"),EOF)
+    val expected = List(Identifier("A"), Keyword("="), Identifier("load"), Keyword("("),
+      StringLiteral("path to file"), Keyword(","), IntegerLiteral(10), Keyword(","),
+      IntegerLiteral(10), Keyword(")"), Keyword("\n"), Identifier("B"), Keyword("="), Identifier("bin"),
+      Keyword("("), Identifier("A"), Keyword(")"), Keyword("\n"), Identifier("C"), Keyword("="),
+      Identifier("B"), Keyword("\'"), Keyword("*"), Identifier("B"), Keyword("\n"), Identifier("D"),
+      Keyword("="), Identifier("C"), Keyword("./"), Identifier("maxValue"), Keyword("("), Identifier("C"),
+      Keyword(")"), Keyword("\n"), Keyword("\n"), EOF)
     val lexer = new Lexer with DiscardWhitespaces
-    
+
     val inputFileURL = ClassLoader.getSystemResource("lexerInput.gb");
-    
-    val fileReader = new FileReader(inputFileURL.toURI.getPath())
-        
-    val streamReader = StreamReader(fileReader)
-    
-    val result = lex(streamReader)
-    
+    var fileReader: FileReader = null
+
+    try {
+      fileReader = new FileReader(inputFileURL.toURI.getPath())
+
+      val streamReader = StreamReader(fileReader)
+
+      val result = lex(streamReader)
+
+      expectResult(expected)(result)
+    } finally {
+      IOUtils.closeQuietly(fileReader)
+    }
+  }
+
+  @Test def testEOFChar() {
+    import scala.util.parsing.input.CharArrayReader.EofCh
+    val expected = List(Identifier("X"), EOF)
+    val input = "X";
+
+    val result = lex(input)
+
     expectResult(expected)(result)
   }
-  
-  @Test def testEOFChar(){
-    import scala.util.parsing.input.CharArrayReader.EofCh
-    val expected = List(Identifier("X"),EOF)
-    val input = "X";
+
+  @Test def testZeroLexing() {
+    val expected = List(Identifier("A"), Keyword("="), Identifier("rand"), Keyword("("), IntegerLiteral(0),
+ Keyword(")"), EOF)
+
+    val inputFileURL = ClassLoader.getSystemResource("zeroLexing.gb");
+    var fileReader: FileReader = null
     
-    val result = lex(input)
-    
-    expectResult(expected)(result)
+    try{
+      fileReader = new FileReader(inputFileURL.toURI.getPath())
+      val streamReader = StreamReader(fileReader)
+      val result = lex(streamReader)
+      
+      expectResult(expected)(result)
+    }finally{
+      IOUtils.closeQuietly(fileReader)
+    }
   }
 }

@@ -224,6 +224,20 @@ abstract class DagWalker {
         onArrival(VoidExecutable)
         onLeave(VoidExecutable)
       }
+      
+      case transformation: zeros => {
+        onArrival(transformation)
+        visit(transformation.numRows)
+        visit(transformation.numCols)
+        onLeave(transformation)
+      }
+      
+      case transformation: eye => {
+        onArrival(transformation)
+        visit(transformation.numRows)
+        visit(transformation.numCols)
+        onLeave(transformation)
+      }
     }
   }
 

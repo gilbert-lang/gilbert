@@ -19,6 +19,7 @@
 package org.gilbertlang.runtime.execution
 
 import org.apache.mahout.math.{Matrix, MatrixWritable, VectorWritable, Vector}
+import scala.language.implicitConversions
 
 package object spark {
 

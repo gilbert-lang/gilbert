@@ -45,10 +45,24 @@ BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorOps {
     }
     GilbertMatrix(result)
   }
+  
+  override def toString: String = vector.toString
 }
 
 object GilbertVector extends GilbertVectorOps {
   def apply(vector: BreezeVector[Double]): GilbertVector = new GilbertVector(vector)
+  
+  def apply(size: Int, numNonZeroElements: Int = 0): GilbertVector = {
+    val ratio = numNonZeroElements.toDouble/size
+    
+    val vector = if(ratio > Configuration.DENSITYTHRESHOLD){
+      BreezeDenseVector.zeros[Double](size)
+    }else{
+      BreezeSparseVector.zeros[Double](size)
+    }
+    
+    new GilbertVector(vector)
+  }
   
   implicit val canZipMapValues: CanZipMapValues[GilbertVector, Double, Double, GilbertVector] = {
     new CanZipMapValues[GilbertVector, Double, Double, GilbertVector]{

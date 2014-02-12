@@ -188,6 +188,18 @@ object PlanPrinter {
       case VoidExecutable => {
         printIndented(depth, VoidExecutable, "VoidExecutable")
       }
+      
+      case op: zeros => {
+        printIndented(depth, op, "zeros")
+        print(op.numRows, depth+1)
+        print(op.numCols, depth+1)
+      }
+      
+      case op: eye => {
+        printIndented(depth, op, "eye")
+        print(op.numRows, depth+1)
+        print(op.numCols, depth+1)
+      }
     }
 
   }

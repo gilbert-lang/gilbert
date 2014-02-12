@@ -24,7 +24,7 @@ class TypeFormatter extends Formatter[Type] {
   private val valueFormatter = new ValueFormatter{}
   def prettyString(mtype: Type): String = {
 
-    mtype match {
+    val result = mtype match {
       case IntegerType => "Int"
       case DoubleType => "Double"
       case CharacterType => "Char"
@@ -51,5 +51,6 @@ class TypeFormatter extends Formatter[Type] {
       case TypeVar(id) => "𝛕("+id+ ")"
       case UniversalType(valueVar) => "∀" + prettyString(valueVar)
     }
+    result
   }
 }

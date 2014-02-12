@@ -24,6 +24,7 @@ import scala.util.parsing.input.CharArrayReader
 import token.SelectTokens
 import scala.collection.mutable.ListBuffer
 import org.gilbertlang.language.lexer.input.EOFReader
+import scala.language.implicitConversions
 
 trait Scanners extends Parsers with SelectTokens {
 

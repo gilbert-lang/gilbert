@@ -368,6 +368,42 @@ class SparkExecutor extends Executor {
             }})
       }
       
+      case (transformation: eye) => {
+        handle[eye, (Int, Int)](
+          transformation,
+          { transformation => (evaluate[Double](transformation.numRows).toInt, 
+              evaluate[Double](transformation.numCols).toInt)},
+          { case (_, (numRows, numCols)) => 
+            var rows = Seq[(Int, Vector)]()
+            
+            for(index <- 1 to numRows) {
+              val row = new RandomAccessSparseVector(numCols);
+              row.setQuick(index, 1);
+              rows = rows ++ Seq((index, row));
+            }
+            
+            sc.parallelize(rows, degreeOfParallelism)
+          }
+        )
+      }
+      
+      case (transformation: zeros) => {
+        handle[zeros, (Int, Int)](
+          transformation,
+          { transformation => (evaluate[Double](transformation.numRows).toInt,
+              evaluate[Double](transformation.numCols).toInt)},
+          { case (_, (numRows, numCols)) =>
+            var rows = Seq[(Int, Vector)]()
+            
+            for(index <- 1 to numRows) {
+              rows = rows ++ Seq((index, new RandomAccessSparseVector(numCols)))
+            }
+            
+            sc.parallelize(rows, degreeOfParallelism)
+          }
+        )
+      }
+      
       case transformation: spones => {
         handle[spones, RowPartitionedMatrix](transformation,
             {transformation => evaluate[RowPartitionedMatrix](transformation.matrix)},

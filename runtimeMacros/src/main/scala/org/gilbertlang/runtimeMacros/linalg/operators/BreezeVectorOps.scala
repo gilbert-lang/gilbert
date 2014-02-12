@@ -2,6 +2,7 @@ package org.gilbertlang.runtimeMacros.linalg.operators
 
 import breeze.linalg.SparseVector
 import breeze.linalg.CSCMatrix
+import scala.language.implicitConversions
 
 trait BreezeVectorOps {
   implicit def sparseVector2SparseMatrix(sparseVector: SparseVector[Double]) = {

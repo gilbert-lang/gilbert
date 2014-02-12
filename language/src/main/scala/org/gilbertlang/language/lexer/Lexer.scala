@@ -23,11 +23,10 @@ import scala.util.parsing.input.Reader
 import scala.collection.mutable.ListBuffer
 import scala.util.parsing.input.CharArrayReader
 import scala.util.parsing.input.CharArrayReader.EofCh
-
-
-
 import org.gilbertlang.language.lexer.token.{Delimiters, Keywords, LanguageTokens}
 import scala.collection.immutable.HashSet
+import scala.language.reflectiveCalls
+import scala.language.implicitConversions
 
 trait Lexer extends Scanners with LanguageTokens {
 
@@ -47,7 +46,9 @@ trait Lexer extends Scanners with LanguageTokens {
     elem("Except: " + except.mkString(""), chr => except forall ( _ != chr))
   }
 
-  implicit def tilde2Str[A <: { def mkString(delim: String):String }, B <: { def mkString(delim: String):String }](x: ~[A, B]):{ def mkString(delim:String):String } = { new { def mkString(delim: String):String = x._1.mkString("") + x._2.mkString("") }}
+  implicit def tilde2Str[A <: { def mkString(delim: String):String }, B <: { def mkString(delim: String):String }]
+  (x: ~[A, B]):{ def mkString(delim:String):String } = 
+  { new { def mkString(delim: String):String = x._1.mkString("") + x._2.mkString("") }}
 
   def token(previousToken: Token): Parser[Token] =  (
     letter ~ rep(letter | digit | '_') ^^ { case h ~ t => processIdentifier(h + (t.mkString("")))}
@@ -69,7 +70,10 @@ trait Lexer extends Scanners with LanguageTokens {
     }
       | digit ~ rep(digit) ~ '.' ~ rep(digit) ^^ { case h~t~p~r => FloatingPointLiteral((h + t.mkString("") + p + r.mkString("")).toDouble) }
       | '.' ~ digit ~ rep(digit) ^^ { case p ~ h ~ r => FloatingPointLiteral(("0" + p + h + r.mkString("")).toDouble) }
-      | digit ~ rep(digit) ^^ { case h ~ t => IntegerLiteral((h::t).dropWhile(_ == '0').mkString("").toInt) }
+      | digit ~ rep(digit) ^^ { 
+        case h ~ t => 
+          IntegerLiteral((h::t).mkString("").toInt) 
+        }
       | whitespace ~ rep(whitespace) ^^ { case h ~ t => Whitespace(h + t.mkString(""))}
       | guard(Parser { in => if (isTransposable(previousToken)) Failure("failure",in) else Success("success",in) }) ~> '\'' ~> rep(chrExcept(List('\'', '\n', EofCh))) <~ '\'' ^^ { case l => StringLiteral(l.mkString("")) }
       | '\"' ~> rep(chrExcept(List('\"', '\n', EofCh))) <~ '\"' ^^ { case l => StringLiteral(l.mkString("")) }

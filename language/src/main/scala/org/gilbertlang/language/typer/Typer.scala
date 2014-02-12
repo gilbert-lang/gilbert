@@ -37,8 +37,8 @@ import org.gilbertlang.language.definition.Types.UniversalType
 import org.gilbertlang.language.definition.Values.UniversalValue
 import org.gilbertlang.language.definition.Types.MatrixType
 import org.gilbertlang.language.definition.Operators._
-
 import org.gilbertlang.language.definition.ConvenienceMethods._
+import scala.language.postfixOps
 
 import Types.Helper._
 import Values.Helper._
@@ -49,6 +49,30 @@ trait Typer {
   private val valueEnvironment = scala.collection.mutable.Map[String, TypedExpression]()
   private val typeVarMapping = scala.collection.mutable.Map[Type, Type]()
   private val valueVarMapping = scala.collection.mutable.Map[Value, Value]()
+  
+  def resolveTypeVars(expression: TypedExpression): TypedExpression = {
+    expression match {
+      case x:TypedIdentifier => resolveTypeVars(x)
+      case _ : TypedInteger | _: TypedFloatingPoint | _ : TypedString => expression
+      case TypedMatrix(rows, datatype) => 
+        val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {resolveTypeVars(_) })}
+        TypedMatrix(resolvedRows, resolveType(datatype).asInstanceOf[MatrixType])
+      case TypedAnonymousFunction(args, body, closure, datatype) => 
+        TypedAnonymousFunction(args map {resolveTypeVars(_)}, resolveTypeVars(body), 
+            closure, resolveType(datatype))
+      case TypedBinaryExpression(a, op, b, datatype) => TypedBinaryExpression(resolveTypeVars(a), op,
+          resolveTypeVars(b), resolveType(datatype))
+      case TypedUnaryExpression(a, op, datatype) => TypedUnaryExpression(resolveTypeVars(a), op, resolveType(datatype))
+      case TypedFunctionReference(func, datatype) => 
+        TypedFunctionReference(resolveTypeVars(func), resolveType(datatype))
+      case TypedFunctionApplication(fun, params, datatype) => TypedFunctionApplication(resolveTypeVars(fun), 
+          params map { resolveTypeVars(_) }, resolveType(datatype))
+    }
+  }
+  
+  def resolveTypeVars(id: TypedIdentifier): TypedIdentifier = {
+    TypedIdentifier(id.value, resolveType(id.datatype))
+  }
 
   def resolveType(datatype: Type): Type = {
     datatype match {
@@ -465,8 +489,8 @@ trait Typer {
 
       unificationResult match {
         case Some((appliedFunType @ FunctionType(_, resultType), _)) =>
-          TypedFunctionApplication(TypedIdentifier(typedFunc.value,appliedFunType), typedArguments,
-                                   resolveValueReferences(resultType, typedArguments))
+          TypedFunctionApplication(TypedIdentifier(typedFunc.value,appliedFunType), typedArguments map 
+              { resolveTypeVars(_) }, resolveValueReferences(resultType, typedArguments))
         case _ => throw new TypeNotFoundError("Function application could not be typed: " + exp)
       }
     }

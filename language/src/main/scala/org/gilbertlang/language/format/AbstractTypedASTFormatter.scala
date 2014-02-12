@@ -100,8 +100,7 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
   def prettyString(statement: TypedStatement, indentation: Int): String = {
     statement match {
       case TypedOutputResultStatement(stmt: TypedStatementWithResult) => {
-        val stmtStr = prettyString(stmt, indentation)
-        stmtStr.init
+        prettyString(stmt, indentation)
       }
       case TypedNOP => strnl("NOP", indentation)
       case x: TypedStatementWithResult => prettyString(x, indentation)

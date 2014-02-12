@@ -227,6 +227,28 @@ class ReferenceExecutor extends Executor {
               evaluate[Double](transformation.numColumns).toInt) },
           { case (transformation, (numRows, numColumns)) => { new DenseMatrix(numRows, numColumns).assign(1) }})
       }
+      
+      case (transformation: eye) => {
+        handle[eye, (Int, Int)](
+          transformation,
+          { trans => (evaluate[Double](trans.numRows).toInt, evaluate[Double](trans.numCols).toInt)},
+          { case (_, (rows, cols)) => 
+              val result = new SparseMatrix(rows, cols);
+              result.viewDiagonal().assign(1);
+              result
+          }
+        )
+      }
+      
+      case (transformation: zeros) => {
+        handle[zeros, (Int, Int)](
+            transformation,
+            {transformation => (evaluate[Double](transformation.numRows).toInt, 
+                evaluate[Double](transformation.numCols).toInt)},
+            { case (_, (rows, cols)) => 
+              new SparseMatrix(rows, cols);  
+            })
+      }
 
       case (transformation: randn) => {
 

@@ -31,6 +31,10 @@
       <groupId>eu.stratosphere</groupId>
       <artifactId>stratosphere-scala</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.scalatest</groupId>
+       <artifactId>scalatest_${scala.short.version}</artifactId>
+    </dependency>
   </dependencies>
 
   <build>

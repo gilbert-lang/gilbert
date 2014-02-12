@@ -9,6 +9,7 @@ import breeze.linalg.support.CanZipMapValues
 import breeze.linalg.support.CanSlice2
 import breeze.linalg.support.CanCollapseAxis
 import breeze.linalg.Axis
+import scala.util.Random
 
 case class Submatrix (var matrix: GilbertMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
   var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[Double]
@@ -70,9 +71,15 @@ object Submatrix extends SubmatrixOps {
           partitionInformation.columnOffset, partitionInformation.numTotalRows, partitionInformation.numTotalColumns)
     }
     
-    def rand(partition: Partition): Submatrix = {
+    def eye(partitionInformation: Partition): Submatrix = {
+      import partitionInformation._
+      Submatrix(GilbertMatrix.eye(numRows, numColumns), rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
+          numTotalColumns)
+    }
+    
+    def rand(partition: Partition, random: Random = new Random()): Submatrix = {
       import partition._
-      Submatrix(GilbertMatrix.rand(numRows, numColumns), rowIndex, columnIndex, rowOffset, columnOffset,
+      Submatrix(GilbertMatrix.rand(numRows, numColumns, random), rowIndex, columnIndex, rowOffset, columnOffset,
           numTotalRows, numTotalColumns)
     }
   
@@ -81,7 +88,7 @@ object Submatrix extends SubmatrixOps {
       def apply(submatrix: Submatrix): String = {
         var result = "";
         for (((row, col), value) <- submatrix.activeIterator) {
-          result += (row+submatrix.rowOffset) + fieldDelimiter + (col+submatrix.columnOffset) + fieldDelimiter + 
+          result += ((row+1)+submatrix.rowOffset) + fieldDelimiter + ((col+1)+submatrix.columnOffset) + fieldDelimiter + 
           value + elementDelimiter
 
         }
