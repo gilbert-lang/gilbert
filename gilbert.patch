@@ -1,8 +1,8 @@
 From 183057034150a8538f679a4c7cb7a10b68460bb8 Mon Sep 17 00:00:00 2001
 From: Till Rohrmann <till.rohrmann@mailbox.tu-berlin.de>
 Date: Wed, 12 Feb 2014 18:59:04 +0100
-Subject: [PATCH] Modifications for Stratosphere to support Gilbert: PlanNodes
- which belong to an iteration and do not lie on a dynamic path are
+Subject: [PATCH 1/2] Modifications for Stratosphere to support Gilbert:
+ PlanNodes which belong to an iteration and do not lie on a dynamic path are
  instantiated as RegularPactTask. This avoids that
  checkForTerminationAndResetEndOfSuperstepState in AbstractIterativePactTask
  fails because there are no iterative inputs. Removed private modifier from
@@ -614,6 +614,33 @@ index 0000000..4174051
 +  }
 +}
 \ No newline at end of file
+-- 
+1.8.3.4 (Apple Git-47)
+
+
+From 974f79e43fccae970f723a0a8cdde96607872f81 Mon Sep 17 00:00:00 2001
+From: Till Rohrmann <till.rohrmann@mailbox.tu-berlin.de>
+Date: Fri, 14 Feb 2014 13:55:56 +0100
+Subject: [PATCH 2/2] PlanCacheCleaner changes committed which were forgotten
+ in the former commit
+
+---
+ .../src/main/java/eu/stratosphere/compiler/dag/PlanCacheCleaner.java    | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dag/PlanCacheCleaner.java b/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dag/PlanCacheCleaner.java
+index 048d725..c068c61 100644
+--- a/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dag/PlanCacheCleaner.java
++++ b/stratosphere-compiler/src/main/java/eu/stratosphere/compiler/dag/PlanCacheCleaner.java
+@@ -20,7 +20,7 @@ final class PlanCacheCleaner implements Visitor<OptimizerNode> {
+ 
+ 	@Override
+ 	public boolean preVisit(OptimizerNode visitable) {
+-		if (visitable.cachedPlans != null) {
++		if (visitable.cachedPlans != null && visitable.isOnDynamicPath()) {
+ 			visitable.cachedPlans = null;
+ 			return true;
+ 		} else {
 -- 
 1.8.3.4 (Apple Git-47)
 
