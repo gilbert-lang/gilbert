@@ -13,7 +13,8 @@ import breeze.linalg._
 import breeze.linalg.support.CanCopy
 
 trait BitmatrixOps {
-  
+  this: Bitmatrix.type => 
+
   implicit val canCopy: CanCopy[Bitmatrix] = new CanCopy[Bitmatrix]{
     override def apply(a: Bitmatrix) = {
       a.copy
@@ -31,22 +32,6 @@ trait BitmatrixOps {
     }
   }
   
-  @expand
-  @expand.valify
-  implicit def op_MMUpdate[@expand.args(OpOr, OpAnd) Op <: OpType](implicit 
-      @expand.sequence[Op]({_ || _},{_ && _}) op: Op.Impl2[Boolean, Boolean, Boolean]):
-      BinaryUpdateRegistry[Matrix[Boolean], Matrix[Boolean], Op.type] =
-      new BinaryUpdateRegistry[Matrix[Boolean], Matrix[Boolean], Op.type]{
-    override def bindingMissing(a: Matrix[Boolean], b: Matrix[Boolean]){
-      require(a.rows == b.rows, "Matrixs must have the same number of rows")
-      require(a.cols == b.cols, "Matrixs must have the same number of cols")
-      
-      for(col <- 0 until a.cols; row <- 0 until a.rows){
-        a.update(row, col, op(a(row,col), b(row, col)))
-      }
-    }
-  }
-  
   implicit val andBMMUpdateOp: BinaryUpdateRegistry[Bitmatrix, Matrix[Boolean], OpAnd.type] =
     new BinaryUpdateRegistry[Bitmatrix, Matrix[Boolean], OpAnd.type] {
     override def bindingMissing(a: Bitmatrix, b: Matrix[Boolean]){
@@ -60,11 +45,20 @@ trait BitmatrixOps {
       }
     }
   }
+
+  implicit val andBMSUpdateOp: BinaryUpdateRegistry[Bitmatrix, Boolean, OpAnd.type] = 
+  new BinaryUpdateRegistry[Bitmatrix, Boolean, OpAnd.type]{
+    override def bindingMissing(a: Bitmatrix, b: Boolean) {
+      if(!b){
+        a.data.set(0, a.size, false)
+      }
+    }
+  }
   
   implicit val orBMMUpdateOp: BinaryUpdateRegistry[Bitmatrix, Matrix[Boolean], OpOr.type] = 
   new BinaryUpdateRegistry[Bitmatrix, Matrix[Boolean], OpOr.type]{
     override def bindingMissing(a: Bitmatrix, b:Matrix[Boolean]){
-       require(a.rows == b.rows, "Matrixs must have the same number of rows")
+      require(a.rows == b.rows, "Matrixs must have the same number of rows")
       require(a.cols == b.cols, "Matrixs must have the same number of cols")
       
       for(col <- 0 until a.cols; row <- 0 until a.rows){
@@ -74,17 +68,12 @@ trait BitmatrixOps {
       }
     }
   }
-  
-  @expand
-  @expand.valify
-  implicit def op_MM[@expand.args(OpOr, OpAnd) Op <: OpType]: 
-    BinaryRegistry[Matrix[Boolean], Matrix[Boolean], Op.type, Matrix[Boolean]] = {
-    val uop = implicitly[Op.InPlaceImpl2[Matrix[Boolean], Matrix[Boolean]]]
-    new BinaryRegistry[Matrix[Boolean], Matrix[Boolean], Op.type, Matrix[Boolean]]{
-      override def bindingMissing(a: Matrix[Boolean], b: Matrix[Boolean]): Matrix[Boolean] = {
-        val c = copy(a)
-        uop(c,b)
-        c
+
+  implicit val orBMSUpdateOp: BinaryUpdateRegistry[Bitmatrix, Boolean, OpOr.type] =
+  new BinaryUpdateRegistry[Bitmatrix, Boolean, OpOr.type]{
+    override def bindingMissing(a: Bitmatrix, b: Boolean) {
+      if(b){
+        a.data.set(0, a.size, true)
       }
     }
   }
@@ -95,6 +84,18 @@ trait BitmatrixOps {
     new BinaryRegistry[Bitmatrix, Matrix[Boolean], Op.type, Bitmatrix] {
     val uop = implicitly[BinaryUpdateRegistry[Bitmatrix, Matrix[Boolean], Op.type]]
     override def bindingMissing(a: Bitmatrix, b: Matrix[Boolean]): Bitmatrix = {
+      val c = copy(a)
+      uop(c,b)
+      c
+    }
+  }
+
+  @expand
+  @expand.valify
+  implicit def op_BMS[@expand.args(OpOr, OpAnd) Op <: OpType]: BinaryRegistry[Bitmatrix, Boolean, Op.type, Bitmatrix] =
+    new BinaryRegistry[Bitmatrix, Boolean, Op.type, Bitmatrix] {
+    val uop = implicitly[BinaryUpdateRegistry[Bitmatrix, Boolean, Op.type]]
+    override def bindingMissing(a: Bitmatrix, b: Boolean): Bitmatrix = {
       val c = copy(a)
       uop(c,b)
       c
@@ -111,6 +112,16 @@ trait BitmatrixOps {
     implicitly[BinaryRegistry[Matrix[Boolean], Matrix[Boolean], OpAnd.type, Matrix[Boolean]]].register(this)
     implicitly[BinaryRegistry[Bitmatrix, Matrix[Boolean], OpAnd.type, Bitmatrix]].register(this)
   }
+
+  implicit object AndBMSOp extends OpAnd.Impl2[Bitmatrix, Boolean, Bitmatrix]{
+    override def apply(a: Bitmatrix, b: Boolean): Bitmatrix = {
+      val result = copy(a)
+      result &= b
+      result
+    }
+    implicitly[BinaryRegistry[Matrix[Boolean], Boolean, OpAnd.type, Matrix[Boolean]]].register(this)
+    implicitly[BinaryRegistry[Bitmatrix, Boolean, OpAnd.type, Bitmatrix]].register(this)
+  }
   
   implicit object OrBMBMOp extends OpOr.Impl2[Bitmatrix, Bitmatrix, Bitmatrix]{
     override def apply(a: Bitmatrix, b: Bitmatrix): Bitmatrix = {
@@ -122,6 +133,16 @@ trait BitmatrixOps {
     
     implicitly[BinaryRegistry[Matrix[Boolean], Matrix[Boolean], OpOr.type, Matrix[Boolean]]].register(this)
     implicitly[BinaryRegistry[Bitmatrix, Matrix[Boolean], OpOr.type, Bitmatrix]].register(this)
+  }
+
+  implicit object OrBMSOp extends OpOr.Impl2[Bitmatrix, Boolean, Bitmatrix]{
+    override def apply(a: Bitmatrix, b: Boolean): Bitmatrix = {
+      val result = copy(a)
+      result |= b
+      result
+    }
+    implicitly[BinaryRegistry[Matrix[Boolean], Boolean, OpOr.type, Matrix[Boolean]]].register(this)
+    implicitly[BinaryRegistry[Bitmatrix, Boolean, OpOr.type, Bitmatrix]].register(this)
   }
   
   implicit val AndBMBMOpInPlace:OpAnd.InPlaceImpl2[Bitmatrix, Bitmatrix] = 
@@ -147,6 +168,18 @@ trait BitmatrixOps {
     implicitly[BinaryUpdateRegistry[Matrix[Boolean], Matrix[Boolean], OpAnd.type]].register(this)
     implicitly[BinaryUpdateRegistry[Bitmatrix, Matrix[Boolean], OpAnd.type]].register(this)
   }
+
+  implicit val AndBMSOpInPlace: OpAnd.InPlaceImpl2[Bitmatrix, Boolean] = 
+  new OpAnd.InPlaceImpl2[Bitmatrix, Boolean]{
+    override def apply(a: Bitmatrix, b: Boolean) {
+      if(!b){
+        a.data.set(0, a.size, false)
+      }
+    }
+    implicitly[BinaryUpdateRegistry[Matrix[Boolean], Boolean, OpAnd.type]].register(this)
+    implicitly[BinaryUpdateRegistry[Bitmatrix, Boolean, OpAnd.type]].register(this)
+
+  }
   
   implicit val OrBMBMOpInPlace: OpOr.InPlaceImpl2[Bitmatrix, Bitmatrix] = new OpOr.InPlaceImpl2[Bitmatrix, Bitmatrix]{
     override def apply(a: Bitmatrix, b: Bitmatrix) {
@@ -169,6 +202,18 @@ trait BitmatrixOps {
     
     implicitly[BinaryUpdateRegistry[Matrix[Boolean], Matrix[Boolean], OpOr.type]].register(this)
     implicitly[BinaryUpdateRegistry[Bitmatrix, Matrix[Boolean], OpOr.type]].register(this)
+  
+  }
+
+  implicit val OrBMSOpInPlae: OpOr.InPlaceImpl2[Bitmatrix, Boolean] = new OpOr.InPlaceImpl2[Bitmatrix, Boolean]{
+    override def apply(a: Bitmatrix, b: Boolean) {
+      if(b){
+          a.data.set(0, a.size, true)
+        }
+    }
+
+    implicitly[BinaryUpdateRegistry[Matrix[Boolean], Boolean, OpOr.type]].register(this)
+    implicitly[BinaryUpdateRegistry[Bitmatrix, Boolean, OpOr.type]].register(this)
   
   }
 }

@@ -24,6 +24,7 @@ import io.{DataWriter, DataReader}
 import breeze.linalg.Axis
 import scala.reflect.ClassTag
 import breeze.linalg._
+import operators.BreezeMatrixRegistries
 
 
 final class GilbertMatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:DefaultArrayValue]
@@ -59,7 +60,7 @@ final class GilbertMatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:
   }
 }
 
-object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
+object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps with BreezeMatrixRegistries {
   def apply[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
   DefaultArrayValue](matrix: BreezeMatrix[T]): GilbertMatrix[T] = new GilbertMatrix[T](matrix)
   

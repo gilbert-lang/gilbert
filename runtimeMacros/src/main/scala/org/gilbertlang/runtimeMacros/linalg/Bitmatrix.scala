@@ -3,6 +3,8 @@ package org.gilbertlang.runtimeMacros.linalg
 import breeze.linalg.Matrix
 import breeze.linalg.MatrixLike
 import org.gilbertlang.runtimeMacros.linalg.operators.BitmatrixOps
+import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixOps
+import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixRegistries
 
 class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
     val isTranspose: Boolean) 
@@ -88,7 +90,7 @@ class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
   }
 }
 
-object Bitmatrix extends BitmatrixOps{
+object Bitmatrix extends BitmatrixOps with BreezeMatrixRegistries{
   def zeros(rows: Int, cols: Int): Bitmatrix = {
     new Bitmatrix(rows, cols)
   }
