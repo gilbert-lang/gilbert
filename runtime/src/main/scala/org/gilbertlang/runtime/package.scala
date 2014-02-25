@@ -20,6 +20,7 @@ package org.gilbertlang
 
 import java.lang.String
 import scala.language.implicitConversions
+import org.apache.mahout.math.function.DoubleFunction
 
 package object runtime {
   
@@ -31,6 +32,26 @@ package object runtime {
 
   implicit def MatrixMatrix2FunctionRef(funct: Matrix => Matrix): FunctionRef = {
     function(1, funct(MatrixParameter(0)))
+  }
+  
+  implicit def boolean2Double(b: Boolean): Double = {
+    if(b) 1.0 else 0.0
+  }
+  
+  implicit def double2Boolean(d: Double): Boolean = {
+    if(d == 0) false else true
+  }
+  
+  implicit def funcDouble2DoubleFunction(func: Double => Double): DoubleFunction = {
+    new DoubleFunction{
+      def apply(a: Double): Double = func(a)
+    }
+  }
+  
+  implicit def funcBoolean2DoubleFunction(func: Double => Boolean): DoubleFunction = {
+    new DoubleFunction {
+      def apply(a: Double): Double = func(a)
+    }
   }
 
   def scalarRef2Int(value: ScalarRef) = {

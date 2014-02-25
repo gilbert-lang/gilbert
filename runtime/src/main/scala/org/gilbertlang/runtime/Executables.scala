@@ -507,6 +507,13 @@ object Executables {
       this
     }
   }
+  
+  case class boolean(value: Boolean) extends ScalarRef {
+    def instantiate(args: Executable*): boolean = {
+      Executable.instantiated = false
+      this
+    }
+  }
 
   case class AggregateMatrixTransformation(matrix: Matrix, operation: AggregateMatrixOperation) extends ScalarRef {
     def instantiate(args: Executable*): AggregateMatrixTransformation = {

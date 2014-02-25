@@ -594,8 +594,7 @@ trait Typer {
         FunctionType((DoubleType, DoubleType), DoubleType)))
     }
     case LogicalOrOp | LogicalAndOp => {
-      PolymorphicType(List(FunctionType((IntegerType, IntegerType), IntegerType),
-        FunctionType((DoubleType, DoubleType), DoubleType)))
+      FunctionType((IntegerType, IntegerType), IntegerType)
     }
     case BinaryOrOp | BinaryAndOp => {
       val (t, a, b) = newNTVV()
@@ -609,7 +608,7 @@ trait Typer {
     }
     case GTOp | GTEOp | LTOp | LTEOp | DEQOp => {
       val (t, a, b) = newNTVV()
-      PolymorphicType(List(FunctionType((DoubleType, DoubleType), DoubleType),
+      PolymorphicType(List(FunctionType((DoubleType, DoubleType), IntegerType),
         FunctionType((MatrixType(t, a, b), MatrixType(t, a, b)), MatrixType(IntegerType, a, b))))
     }
   }

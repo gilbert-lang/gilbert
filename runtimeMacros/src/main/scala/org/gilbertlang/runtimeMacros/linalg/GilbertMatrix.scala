@@ -16,11 +16,18 @@ import breeze.linalg.support.CanSlice2
 import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixOps
 import breeze.linalg.support.CanTranspose
 import breeze.linalg.support.CanCollapseAxis
-import breeze.linalg.Axis
-import breeze.linalg.CSCMatrix
+import breeze.linalg.support.CanCopy
+import breeze.math.Semiring
+import breeze.storage.DefaultArrayValue
 import scala.util.Random
+import io.{DataWriter, DataReader}
+import breeze.linalg.Axis
+import scala.reflect.ClassTag
+import breeze.linalg._
 
-class GilbertMatrix(var matrix: BreezeMatrix[Double]) extends BreezeMatrix[Double] with BreezeMatrixLike[Double, GilbertMatrix] with Value {
+
+final class GilbertMatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:DefaultArrayValue]
+(var matrix: BreezeMatrix[T]) extends BreezeMatrix[T] with BreezeMatrixLike[T, GilbertMatrix[T]] with Value {
   def this() = this(null)
 
   override def rows = matrix.rows
@@ -33,18 +40,18 @@ class GilbertMatrix(var matrix: BreezeMatrix[Double]) extends BreezeMatrix[Doubl
 
   override def apply(i: Int, j: Int) = matrix.apply(i, j)
 
-  override def update(i: Int, j: Int, value: Double) = matrix.update(i, j, value)
+  override def update(i: Int, j: Int, value: T) = matrix.update(i, j, value)
 
-  override def copy = GilbertMatrix(matrix.copy)
+  override def copy = breeze.linalg.copy(this)
 
-  override def write(out: DataOutput) {
+  override def write(out: DataOutput){
     MatrixSerialization.write(matrix, out)
   }
 
   override def repr = this
 
   override def read(in: DataInput) {
-    matrix = MatrixSerialization.read(in)
+    matrix = MatrixSerialization.read[T](in)
   }
   
   override def toString = {
@@ -53,94 +60,94 @@ class GilbertMatrix(var matrix: BreezeMatrix[Double]) extends BreezeMatrix[Doubl
 }
 
 object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
-  def apply(matrix: BreezeMatrix[Double]) = new GilbertMatrix(matrix)
+  def apply[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue](matrix: BreezeMatrix[T]): GilbertMatrix[T] = new GilbertMatrix[T](matrix)
   
-  def apply(rows: Int, cols: Int, entries: Seq[(Int, Int, Double)]): GilbertMatrix = {
+  def apply[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue: MatrixFactory](rows: Int, cols: Int, entries: Seq[(Int, Int, T)]): GilbertMatrix[T] = {
     val size = rows*cols
     val nonZeroElementsRatio = entries.length.toDouble/size
+    val factory = implicitly[MatrixFactory[T]]
     
-    if(nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD){
-      val matrix = Configuration.newDenseMatrix(rows,cols)
-      for((row, col, value) <- entries ){
-        matrix.update(row, col, value)
-      }
-      GilbertMatrix(matrix)
-    }else{
-      val builder = new CSCMatrix.Builder[Double](rows, cols, entries.length)
-      
-      for((row, col, value) <- entries){
-        builder.add(row,col,value)
-      }
-      
-      GilbertMatrix(builder.result)
-    }
+    GilbertMatrix(factory.create(rows, cols, entries, nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD))
   }
   
-  def apply(rows: Int, cols: Int, numNonZeroElements: Int = 0) = {
+  def apply[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: DefaultArrayValue: MatrixFactory]
+  (rows: Int, cols: Int, numNonZeroElements: Int = 0): GilbertMatrix[T] = {
     val size = rows*cols
     val nonZeroElementsRatio = numNonZeroElements.toDouble/size
+    val factory = implicitly[MatrixFactory[T]]
     
-    if(nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD){
-      new GilbertMatrix(Configuration.newDenseMatrix(rows,cols))
-    }else{
-      new GilbertMatrix(Configuration.newSparseMatrix(rows, cols))
-    }
+    GilbertMatrix(factory.create(rows, cols, nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD))
   }
   
-  def init(rows: Int, cols: Int, initialValue: Double =  0) = {
-    new GilbertMatrix(Configuration.newDenseMatrix(rows, cols, initialValue))
+  def init[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue: MatrixFactory](rows: Int, cols: Int, initialValue: T) = {
+    val factory = implicitly[MatrixFactory[T]]
+    GilbertMatrix(factory.create(rows, cols, initialValue, true))
   }
   
-  def eye(rows: Int, cols: Int) = {
+  def eye[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue: MatrixFactory](rows: Int, cols: Int) = {
     val size=  rows*cols
     val nonZeroElementsRatio = math.min(rows, cols).toDouble/size
+    val factory = implicitly[MatrixFactory[T]]
     
-    if(nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD){
-      new GilbertMatrix(Configuration.eyeDenseMatrix(rows, cols))
-    }else{
-      new GilbertMatrix(Configuration.eyeSparseMatrix(rows, cols))
-    }
+    GilbertMatrix(factory.eye(rows, cols, nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD))
   }
   
-  def rand(rows: Int, cols: Int, random: Random = new Random()) = {
+  def rand(rows: Int, cols: Int, random: Random = new Random()):GilbertMatrix[Double] = {
     GilbertMatrix(BreezeDenseMatrix.rand(rows, cols, random))
   }
   
-  implicit val canMapValues = {
-    new CanMapValues[GilbertMatrix, Double, Double, GilbertMatrix]{
-      override def map(matrix: GilbertMatrix, fun: Double => Double) = {
+  implicit def canCopy[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue]: CanCopy[GilbertMatrix[T]] =
+    new CanCopy[GilbertMatrix[T]]{
+    override def apply(gilbert: GilbertMatrix[T]): GilbertMatrix[T] = {
+      val internalCopy = gilbert.matrix match {
+        case x: BreezeDenseMatrix[T] => breeze.linalg.copy(x)
+        case x: BreezeSparseMatrix[T] => breeze.linalg.copy(x)
+      }
+      new GilbertMatrix[T](internalCopy)
+    }
+  }
+  
+  implicit def canMapValues[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: DefaultArrayValue] = {
+    new CanMapValues[GilbertMatrix[T], T, T, GilbertMatrix[T]]{
+      override def map(matrix: GilbertMatrix[T], fun: T => T) = {
         matrix.matrix match {
-          case x: Configuration.DenseMatrix => GilbertMatrix(x.map(fun))
-          case x: Configuration.SparseMatrix => GilbertMatrix(x.map(fun))
+          case x: BreezeDenseMatrix[T] => GilbertMatrix(x.map(fun))
+          case x: BreezeSparseMatrix[T] => GilbertMatrix(x.map(fun))
         }
       }
       
-      override def mapActive(matrix: GilbertMatrix, fun: Double => Double) = {
+      override def mapActive(matrix: GilbertMatrix[T], fun: T => T) = {
         matrix.matrix match{
-          case x: Configuration.DenseMatrix => GilbertMatrix(x.mapActiveValues(fun))
-          case x: Configuration.SparseMatrix => GilbertMatrix(x.mapActiveValues(fun))
+          case x: BreezeDenseMatrix[T] => GilbertMatrix(x.mapActiveValues(fun))
+          case x: BreezeSparseMatrix[T] => GilbertMatrix(x.mapActiveValues(fun))
         }
       }
     }
   }
   
-  implicit val handHoldCMV = new CanMapValues.HandHold[GilbertMatrix, Double]
+  implicit def handHoldCMV[T] = new CanMapValues.HandHold[GilbertMatrix[T], T]
   
-  implicit val canZipMapValues: CanZipMapValues[GilbertMatrix, Double, Double, GilbertMatrix] = {
-   new CanZipMapValues[GilbertMatrix, Double, Double, GilbertMatrix]{
-     override def map(a: GilbertMatrix, b: GilbertMatrix, fn: (Double, Double) => Double) = {
+  implicit def canZipMapValues[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:DefaultArrayValue]: 
+  CanZipMapValues[GilbertMatrix[T], T, T, GilbertMatrix[T]] = {
+   new CanZipMapValues[GilbertMatrix[T], T, T, GilbertMatrix[T]]{
+     override def map(a: GilbertMatrix[T], b: GilbertMatrix[T], fn: (T, T) => T) = {
        val result = (a.matrix, b.matrix) match {
-         case (x:BreezeDenseMatrix[Double], y:BreezeDenseMatrix[Double]) => 
+         case (x:BreezeDenseMatrix[T], y:BreezeDenseMatrix[T]) => 
            val mapper = 
-             implicitly[CanZipMapValues[BreezeDenseMatrix[Double], Double, Double, BreezeDenseMatrix[Double]]]
+             implicitly[CanZipMapValues[BreezeDenseMatrix[T], T, T, BreezeDenseMatrix[T]]]
            mapper.map(x,y,fn)
-         case (x: BreezeSparseMatrix[Double], y: BreezeSparseMatrix[Double]) =>
+         case (x: BreezeSparseMatrix[T], y: BreezeSparseMatrix[T]) =>
            val mapper = 
-             implicitly[CanZipMapValues[BreezeSparseMatrix[Double], Double, Double, BreezeSparseMatrix[Double]]]
+             implicitly[CanZipMapValues[BreezeSparseMatrix[T], T, T, BreezeSparseMatrix[T]]]
            mapper.map(x,y,fn)
          case _ =>
            val mapper =
-             implicitly[CanZipMapValues[BreezeMatrix[Double], Double, Double, BreezeMatrix[Double]]]
+             implicitly[CanZipMapValues[BreezeMatrix[T], T, T, BreezeMatrix[T]]]
            mapper.map(a.matrix,b.matrix,fn)
        }
        
@@ -149,18 +156,18 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
    }
   }
   
-  implicit val canIterateValues: CanTraverseValues[GilbertMatrix, Double] = {
-    new CanTraverseValues[GilbertMatrix, Double]{
-      override def isTraversableAgain(gilbertMatrix: GilbertMatrix):Boolean = true
+  implicit def canIterateValues[T]: CanTraverseValues[GilbertMatrix[T], T] = {
+    new CanTraverseValues[GilbertMatrix[T], T]{
+      override def isTraversableAgain(gilbertMatrix: GilbertMatrix[T]):Boolean = true
       
-      override def traverse(gilbertMatrix: GilbertMatrix, fn: ValuesVisitor[Double]){
+      override def traverse(gilbertMatrix: GilbertMatrix[T], fn: ValuesVisitor[T]){
         gilbertMatrix.matrix match {
-          case x: BreezeSparseMatrix[Double] => { 
-            val traversal = implicitly[CanTraverseValues[BreezeSparseMatrix[Double], Double]]
+          case x: BreezeSparseMatrix[T] => { 
+            val traversal = implicitly[CanTraverseValues[BreezeSparseMatrix[T], T]]
             traversal.traverse(x, fn)
           }
-          case x: BreezeDenseMatrix[Double] => {
-            val traversal = implicitly[CanTraverseValues[BreezeDenseMatrix[Double], Double]]
+          case x: BreezeDenseMatrix[T] => {
+            val traversal = implicitly[CanTraverseValues[BreezeDenseMatrix[T], T]]
             traversal.traverse(x, fn)
           }
         }
@@ -168,74 +175,80 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
     }
   }
   
-   implicit def canSliceRowGilbertMatrix: CanSlice2[GilbertMatrix, Int, ::.type, GilbertMatrix] = {
-    new CanSlice2[GilbertMatrix, Int, ::.type, GilbertMatrix]{
-      override def apply(matrix: GilbertMatrix, row: Int, ignored: ::.type) = {
+   implicit def canSliceRowGilbertMatrix[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: DefaultArrayValue]: 
+   CanSlice2[GilbertMatrix[T], Int, ::.type, GilbertMatrix[T]] = {
+    new CanSlice2[GilbertMatrix[T], Int, ::.type, GilbertMatrix[T]]{
+      override def apply(matrix: GilbertMatrix[T], row: Int, ignored: ::.type) = {
         matrix.matrix match {
-          case x: Configuration.DenseMatrix => GilbertMatrix(x(row, ::))
-          case x: Configuration.SparseMatrix => GilbertMatrix(x(row, ::))
+          case x: BreezeDenseMatrix[T] => GilbertMatrix(x(row, ::))
+          case x: BreezeSparseMatrix[T] => GilbertMatrix(x(row, ::))
         }
       }
     }
   }
   
-  implicit def canSliceRowsGilbertMatrix: CanSlice2[GilbertMatrix, Range, ::.type, GilbertMatrix] = {
-    new CanSlice2[GilbertMatrix, Range, ::.type, GilbertMatrix]{
-      override def apply(matrix: GilbertMatrix, rows: Range, ignored: ::.type) = {
+  implicit def canSliceRowsGilbertMatrix[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: DefaultArrayValue]: 
+  CanSlice2[GilbertMatrix[T], Range, ::.type, GilbertMatrix[T]] = {
+    new CanSlice2[GilbertMatrix[T], Range, ::.type, GilbertMatrix[T]]{
+      override def apply(matrix: GilbertMatrix[T], rows: Range, ignored: ::.type) = {
         matrix.matrix match{
-          case x: Configuration.DenseMatrix => GilbertMatrix(x(rows, ::))
-          case x: Configuration.SparseMatrix => GilbertMatrix(x(rows, ::))
+          case x: BreezeDenseMatrix[T] => GilbertMatrix(x(rows, ::))
+          case x: BreezeSparseMatrix[T] => GilbertMatrix(x(rows, ::))
         }
       }
     }
   }
   
-  implicit def canSliceColGilbertMatrix: CanSlice2[GilbertMatrix, ::.type, Int,  GilbertVector] = {
-    new CanSlice2[GilbertMatrix, ::.type, Int , GilbertVector]{
-      override def apply(matrix: GilbertMatrix, ignored: ::.type, col: Int) = {
+  implicit def canSliceColGilbertMatrix[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue]: CanSlice2[GilbertMatrix[T], ::.type, Int,  GilbertVector[T]] = {
+    new CanSlice2[GilbertMatrix[T], ::.type, Int , GilbertVector[T]]{
+      override def apply(matrix: GilbertMatrix[T], ignored: ::.type, col: Int) = {
         matrix.matrix match{
-          case x: Configuration.DenseMatrix => GilbertVector(x(::, col))
-          case x: Configuration.SparseMatrix => GilbertVector(x(::, col))
+          case x: BreezeDenseMatrix[T] => GilbertVector(x(::, col))
+          case x: BreezeSparseMatrix[T] => GilbertVector(x(::, col))
         }
       }
     }
   }
  
   
-  implicit def canSliceColsGilbertMatrix: CanSlice2[GilbertMatrix, ::.type,Range, GilbertMatrix] = {
-    new CanSlice2[GilbertMatrix, ::.type, Range, GilbertMatrix]{
-      override def apply(matrix: GilbertMatrix, ignored: ::.type, cols: Range) = {
+  implicit def canSliceColsGilbertMatrix[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue]: CanSlice2[GilbertMatrix[T], ::.type,Range, GilbertMatrix[T]] = {
+    new CanSlice2[GilbertMatrix[T], ::.type, Range, GilbertMatrix[T]]{
+      override def apply(matrix: GilbertMatrix[T], ignored: ::.type, cols: Range) = {
         matrix.matrix match{
-          case x: Configuration.DenseMatrix => GilbertMatrix(x(::,cols))
-          case x: Configuration.SparseMatrix => GilbertMatrix(x(::, cols))
+          case x: BreezeDenseMatrix[T] => GilbertMatrix(x(::,cols))
+          case x: BreezeSparseMatrix[T] => GilbertMatrix(x(::, cols))
         }
       }
     }
   }
   
-  implicit val canTranspose: CanTranspose[GilbertMatrix, GilbertMatrix] = {
-    new CanTranspose[GilbertMatrix, GilbertMatrix]{
-      override def apply(gilbertMatrix: GilbertMatrix) = {
+  implicit def canTranspose[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue]: CanTranspose[GilbertMatrix[T], GilbertMatrix[T]] = {
+    new CanTranspose[GilbertMatrix[T], GilbertMatrix[T]]{
+      override def apply(gilbertMatrix: GilbertMatrix[T]) = {
         val transposedMatrix = gilbertMatrix.matrix match {
-          case x: Configuration.DenseMatrix => x.t
-          case x: Configuration.SparseMatrix => x.t
+          case x: BreezeDenseMatrix[T] => x.t
+          case x: BreezeSparseMatrix[T] => x.t
         }
         GilbertMatrix(transposedMatrix)
       }
     }
   }
   
-  implicit val canCollapseRows: CanCollapseAxis[GilbertMatrix, Axis._0.type, BreezeVector[Double], Double, 
-    GilbertMatrix] = new CanCollapseAxis[GilbertMatrix, Axis._0.type, BreezeVector[Double], Double, GilbertMatrix]{
-      override def apply(gilbertMatrix: GilbertMatrix, axis: Axis._0.type)(fn: BreezeVector[Double] => Double) = {
+  implicit def canCollapseRows[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue]: CanCollapseAxis[GilbertMatrix[T], Axis._0.type, BreezeVector[T], T, 
+    GilbertMatrix[T]] = new CanCollapseAxis[GilbertMatrix[T], Axis._0.type, BreezeVector[T], T, GilbertMatrix[T]]{
+      override def apply(gilbertMatrix: GilbertMatrix[T], axis: Axis._0.type)(fn: BreezeVector[T] => T) = {
         val result = gilbertMatrix.matrix match {
-          case x:Configuration.DenseMatrix => 
-            val collapser = implicitly[CanCollapseAxis[Configuration.DenseMatrix, Axis._0.type, 
-            BreezeDenseVector[Double], Double, Configuration.DenseMatrix]]
+          case x:BreezeDenseMatrix[T] => 
+            val collapser = implicitly[CanCollapseAxis[BreezeDenseMatrix[T], Axis._0.type, 
+            BreezeDenseVector[T], T, BreezeDenseMatrix[T]]]
             collapser(x, axis)(fn)
-          case x: Configuration.SparseMatrix =>
-            val collapser = implicitly[CanCollapseAxis[Configuration.SparseMatrix, Axis._0.type,
-              BreezeSparseVector[Double], Double, Configuration.SparseMatrix]]
+          case x: BreezeSparseMatrix[T] =>
+            val collapser = implicitly[CanCollapseAxis[BreezeSparseMatrix[T], Axis._0.type,
+              BreezeSparseVector[T], T, BreezeSparseMatrix[T]]]
             collapser(x, axis)(fn)
         }
         
@@ -243,17 +256,18 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
       }
   }
   
-  implicit val canCollapseCols: CanCollapseAxis[GilbertMatrix, Axis._1.type, BreezeVector[Double], Double,
-    GilbertVector] = new CanCollapseAxis[GilbertMatrix, Axis._1.type, BreezeVector[Double], Double, GilbertVector]{
-        override def apply(gilbertMatrix: GilbertMatrix, axis: Axis._1.type)(fn: BreezeVector[Double] => Double) = {
+  implicit def canCollapseCols[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
+  DefaultArrayValue]: CanCollapseAxis[GilbertMatrix[T], Axis._1.type, BreezeVector[T], T,
+    GilbertVector[T]] = new CanCollapseAxis[GilbertMatrix[T], Axis._1.type, BreezeVector[T], T, GilbertVector[T]]{
+        override def apply(gilbertMatrix: GilbertMatrix[T], axis: Axis._1.type)(fn: BreezeVector[T] => T) = {
           val result = gilbertMatrix.matrix match {
-            case x: Configuration.DenseMatrix =>
-              val collapser = implicitly[CanCollapseAxis[Configuration.DenseMatrix, Axis._1.type, 
-                BreezeDenseVector[Double], Double, BreezeDenseVector[Double]]]
+            case x: BreezeDenseMatrix[T] =>
+              val collapser = implicitly[CanCollapseAxis[BreezeDenseMatrix[T], Axis._1.type, 
+                BreezeDenseVector[T], T, BreezeDenseVector[T]]]
               collapser(x, axis)(fn)
-            case x: Configuration.SparseMatrix =>
-              val collapser = implicitly[CanCollapseAxis[Configuration.SparseMatrix, Axis._1.type,
-                BreezeSparseVector[Double], Double, BreezeSparseVector[Double]]]
+            case x: BreezeSparseMatrix[T] =>
+              val collapser = implicitly[CanCollapseAxis[BreezeSparseMatrix[T], Axis._1.type,
+                BreezeSparseVector[T], T, BreezeSparseVector[T]]]
               collapser(x, axis)(fn)
           }
           
@@ -261,10 +275,11 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps {
         }
   }
   
-  implicit val handholdCanMapCols: CanCollapseAxis.HandHold[GilbertMatrix, Axis._1.type, BreezeVector[Double]] = 
-    new CanCollapseAxis.HandHold[GilbertMatrix, Axis._1.type, BreezeVector[Double]]()
+  
+  implicit def handholdCanMapCols[T]: CanCollapseAxis.HandHold[GilbertMatrix[T], Axis._1.type, BreezeVector[T]] = 
+    new CanCollapseAxis.HandHold[GilbertMatrix[T], Axis._1.type, BreezeVector[T]]()
     
-  implicit val handholdCanMapRows: CanCollapseAxis.HandHold[GilbertMatrix, Axis._0.type, BreezeVector[Double]] = 
-    new CanCollapseAxis.HandHold[GilbertMatrix, Axis._0.type, BreezeVector[Double]]()
+  implicit def handholdCanMapRows[T]: CanCollapseAxis.HandHold[GilbertMatrix[T], Axis._0.type, BreezeVector[T]] = 
+    new CanCollapseAxis.HandHold[GilbertMatrix[T], Axis._0.type, BreezeVector[T]]()
 }
 

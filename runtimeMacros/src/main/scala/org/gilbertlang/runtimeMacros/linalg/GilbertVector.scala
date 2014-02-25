@@ -8,9 +8,16 @@ import java.io.DataInput
 import org.gilbertlang.runtimeMacros.linalg.operators.GilbertVectorOps
 import breeze.linalg.support.CanZipMapValues
 import org.gilbertlang.runtimeMacros.linalg.operators.BreezeVectorOps
+import org.gilbertlang.runtimeMacros.linalg.io.DataWriter
+import org.gilbertlang.runtimeMacros.linalg.io.DataReader
+import scala.reflect.ClassTag
+import breeze.math.Semiring
+import breeze.storage.DefaultArrayValue
+import breeze.linalg.support.CanCopy
 
-class GilbertVector(var vector: BreezeVector[Double]) extends BreezeVector[Double] with 
-BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorOps {
+class GilbertVector[@specialized(Double, Boolean) T: DataWriter: DataReader: Semiring: DefaultArrayValue: ClassTag]
+(var vector: BreezeVector[T]) extends BreezeVector[T] with 
+BreezeVectorLike[T, GilbertVector[T]] with Value with BreezeVectorOps {
   def this() = this(null)
   
   def write(out: DataOutput){
@@ -32,16 +39,17 @@ BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorOps {
   
   def apply(i: Int) = vector(i)
   
-  def update(i: Int, value: Double){
+  def update(i: Int, value: T){
     vector.update(i,value)
   }
   
-  def copy = GilbertVector(vector.copy)
+  def copy = breeze.linalg.copy(this)
   
-  def asMatrix: GilbertMatrix = {
+  def asMatrix: 
+  GilbertMatrix[T] = {
     val result = vector match {
-      case x: BreezeDenseVector[Double] => x.asDenseMatrix
-      case x: BreezeSparseVector[Double] => x.asSparseMatrix
+      case x: BreezeDenseVector[T] => x.asDenseMatrix
+      case x: BreezeSparseVector[T] => x.asSparseMatrix
     }
     GilbertMatrix(result)
   }
@@ -50,32 +58,43 @@ BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorOps {
 }
 
 object GilbertVector extends GilbertVectorOps {
-  def apply(vector: BreezeVector[Double]): GilbertVector = new GilbertVector(vector)
+  def apply[@specialized(Double, Boolean) T :DataWriter: DataReader: Semiring: DefaultArrayValue: ClassTag]
+  (vector: BreezeVector[T]): GilbertVector[T] = new GilbertVector[T](vector)
   
-  def apply(size: Int, numNonZeroElements: Int = 0): GilbertVector = {
+  def apply[@specialized(Double, Boolean) T:DataWriter: DataReader: Semiring: DefaultArrayValue: ClassTag]
+  (size: Int, numNonZeroElements: Int = 0): GilbertVector[T] = {
     val ratio = numNonZeroElements.toDouble/size
     
     val vector = if(ratio > Configuration.DENSITYTHRESHOLD){
-      BreezeDenseVector.zeros[Double](size)
+      BreezeDenseVector.zeros[T](size)
     }else{
-      BreezeSparseVector.zeros[Double](size)
+      BreezeSparseVector.zeros[T](size)
     }
     
     new GilbertVector(vector)
   }
   
-  implicit val canZipMapValues: CanZipMapValues[GilbertVector, Double, Double, GilbertVector] = {
-    new CanZipMapValues[GilbertVector, Double, Double, GilbertVector]{
-      override def map(a: GilbertVector, b: GilbertVector, fn: (Double, Double) => Double) = {
+  implicit def canCopyGilbertVector[@specialized(Double, Boolean) T:DataWriter: DataReader: Semiring: DefaultArrayValue:
+    ClassTag]:CanCopy[GilbertVector[T]] = 
+    new CanCopy[GilbertVector[T]]{
+    override def apply(gilbert: GilbertVector[T]): GilbertVector[T] = {
+      GilbertVector[T](breeze.linalg.copy(gilbert.vector))
+    }
+  }
+  
+  implicit def canZipMapValues[@specialized(Double, Boolean) T:DataWriter: DataReader: Semiring: DefaultArrayValue: 
+    ClassTag]: CanZipMapValues[GilbertVector[T], T, T, GilbertVector[T]] = {
+    new CanZipMapValues[GilbertVector[T], T, T, GilbertVector[T]]{
+      override def map(a: GilbertVector[T], b: GilbertVector[T], fn: (T, T) => T) = {
         val result = (a.vector, b.vector) match {
-          case (x: BreezeDenseVector[Double], y: BreezeDenseVector[Double]) =>
-            val mapper = implicitly[CanZipMapValues[BreezeDenseVector[Double], Double, Double, BreezeDenseVector[Double]]]
+          case (x: BreezeDenseVector[T], y: BreezeDenseVector[T]) =>
+            val mapper = implicitly[CanZipMapValues[BreezeDenseVector[T], T, T, BreezeDenseVector[T]]]
             mapper.map(x,y,fn)
-          case (x: BreezeSparseVector[Double], y: BreezeSparseVector[Double]) =>
-            val mapper = implicitly[CanZipMapValues[BreezeSparseVector[Double], Double, Double, BreezeSparseVector[Double]]]
+          case (x: BreezeSparseVector[T], y: BreezeSparseVector[T]) =>
+            val mapper = implicitly[CanZipMapValues[BreezeSparseVector[T], T, T, BreezeSparseVector[T]]]
             mapper.map(x,y,fn)
           case _ =>
-            val mapper = implicitly[CanZipMapValues[BreezeVector[Double], Double, Double, BreezeVector[Double]]]
+            val mapper = implicitly[CanZipMapValues[BreezeVector[T], T, T, BreezeVector[T]]]
             mapper.map(a.vector,b.vector,fn)
         }
         GilbertVector(result)

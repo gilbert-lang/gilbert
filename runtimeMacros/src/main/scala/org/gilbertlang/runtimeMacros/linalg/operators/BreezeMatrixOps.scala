@@ -14,10 +14,40 @@ import breeze.linalg.support.CanCollapseAxis
 import breeze.linalg.Axis
 import scala.collection.mutable.ArrayBuilder
 import breeze.linalg.norm
+import breeze.linalg.operators.OpLT
+import breeze.linalg.operators.OpGT
+import breeze.linalg.operators.OpEq
+import breeze.linalg.operators.OpNe
+import breeze.macros.expand
+import breeze.linalg.operators.OpLTE
+import breeze.linalg.operators.OpGTE
+import org.gilbertlang.runtimeMacros.linalg.Bitmatrix
+import breeze.linalg.support.CanCopy
 
 trait BreezeMatrixOps {
+  
+  @expand
+  @expand.valify
+  implicit def comp_MM[@expand.args(OpLT, OpLTE, OpGT, OpGTE, OpEq, OpNe) Op <: OpType](
+      implicit @expand.sequence[Op]( {_ < _ }, {_ <= _}, {_ > _}, {_ >= _}, {_ == _}, {_ != _})
+      comp: Op.Impl2[Double, Double, Boolean]): Op.Impl2[Matrix[Double], Matrix[Double], Bitmatrix] = 
+      new Op.Impl2[Matrix[Double], Matrix[Double], Bitmatrix]{
+    override def apply(a: Matrix[Double], b: Matrix[Double]): Bitmatrix = {
+      val result = new Bitmatrix(a.rows, a.cols)
+      
+      for(col <- 0 until a.cols; row <- 0 until a.rows){
+        result.update(row, col, comp(a(row,col), b(row, col)))
+      }
+      
+      result
+    }
+  }
+  
+  implicit def canCopySparseMatrix[T: ClassTag]: CanCopy[CSCMatrix[T]] = new CanCopy[CSCMatrix[T]]{
+    override def apply(matrix: CSCMatrix[T]): CSCMatrix[T] = matrix.copy.asInstanceOf[CSCMatrix[T]]
+  }
 
-  implicit def canSliceRowSparseMatrix[T: ClassTag: Semiring: DefaultArrayValue]: 
+  implicit def canSliceRowSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue]: 
   CanSlice2[CSCMatrix[T],Int, ::.type, CSCMatrix[T]] = {
     new CanSlice2[CSCMatrix[T],Int, ::.type, CSCMatrix[T]] {
       override def apply(matrix: CSCMatrix[T], row: Int, ignored: ::.type) = {
@@ -40,7 +70,7 @@ trait BreezeMatrixOps {
     }
   }
 
-  implicit def canSliceRowsSparseMatrix[T: ClassTag: Semiring: DefaultArrayValue]: 
+  implicit def canSliceRowsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue]: 
   CanSlice2[CSCMatrix[T], Range, ::.type, CSCMatrix[T]] = {
     new CanSlice2[CSCMatrix[T],Range, ::.type, CSCMatrix[T]] {
       override def apply(matrix: CSCMatrix[T], rows: Range, ignored: ::.type) = {
@@ -69,7 +99,7 @@ trait BreezeMatrixOps {
     }
   }
 
-  implicit def canSliceColSparseMatrix[T: ClassTag: DefaultArrayValue]: 
+  implicit def canSliceColSparseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue]: 
   CanSlice2[CSCMatrix[T], ::.type,Int, SparseVector[T]] = {
     new CanSlice2[CSCMatrix[T], ::.type,Int, SparseVector[T]] {
       override def apply(matrix: CSCMatrix[T], ignored: ::.type, col: Int): SparseVector[T]= {
@@ -90,7 +120,7 @@ trait BreezeMatrixOps {
     }
   }
 
-  implicit def canSliceColsSparseMatrix[T: ClassTag: Semiring: DefaultArrayValue]: 
+  implicit def canSliceColsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue]: 
   CanSlice2[CSCMatrix[T], ::.type, Range, CSCMatrix[T]] = {
     new CanSlice2[CSCMatrix[T], ::.type, Range, CSCMatrix[T]] {
       override def apply(matrix: CSCMatrix[T], ignored: ::.type, cols: Range) = {
@@ -119,15 +149,17 @@ trait BreezeMatrixOps {
     }
   }
   
-  implicit val canZipMapValuesSparseMatrix: CanZipMapValues[CSCMatrix[Double], Double, Double, CSCMatrix[Double]] = {
-    new CanZipMapValues[CSCMatrix[Double], Double, Double, CSCMatrix[Double]]{
-      override def map(a: CSCMatrix[Double], b: CSCMatrix[Double], fn: (Double, Double) => Double) = {
-        val leaveOutZeros = fn(0,0) == 0
+  implicit def canZipMapValuesSparseMatrix[@specialized(Double, Boolean) T: DefaultArrayValue: ClassTag: Semiring]: CanZipMapValues[CSCMatrix[T], T, T, CSCMatrix[T]] = {
+    new CanZipMapValues[CSCMatrix[T], T, T, CSCMatrix[T]]{
+      override def map(a: CSCMatrix[T], b: CSCMatrix[T], fn: (T, T) => T) = {
+        val ring = implicitly[Semiring[T]]
+        val zero = ring.zero
+        val leaveOutZeros = fn(zero,zero) == zero
         val initSize = if (leaveOutZeros) a.activeSize + b.activeSize else a.rows* a.cols
-        val builder = new CSCMatrix.Builder[Double](a.rows, a.cols, initSize)
+        val builder = new CSCMatrix.Builder[T](a.rows, a.cols, initSize)
         
         if(!leaveOutZeros){
-          val value = fn(0,0)
+          val value = fn(zero,zero)
           
           for(r <- 0 until a.rows; c <- 0 until a.cols){
             builder.add(r, c, value)
@@ -150,22 +182,22 @@ trait BreezeMatrixOps {
               bRow += 1
             }else{
               if(aRowIdx < bRowIdx){
-                builder.add(aRowIdx, col, fn(a.data(aRow), 0))
+                builder.add(aRowIdx, col, fn(a.data(aRow), zero))
                 aRow += 1
               }else{
-                builder.add(bRowIdx, col, fn(0,b.data(bRow)))
+                builder.add(bRowIdx, col, fn(zero,b.data(bRow)))
                 bRow += 1
               }
             }
           }
           
           while(aRow < endARowIndex){
-            builder.add(a.rowIndices(aRow), col, fn(a.data(aRow),0))
+            builder.add(a.rowIndices(aRow), col, fn(a.data(aRow),zero))
             aRow += 1
           }
           
           while(bRow < endBRowIndex){
-            builder.add(b.rowIndices(bRow), col, fn(0, b.data(bRow)))
+            builder.add(b.rowIndices(bRow), col, fn(zero, b.data(bRow)))
             bRow += 1
           }
         }
@@ -175,21 +207,22 @@ trait BreezeMatrixOps {
     }
   }
   
-  implicit val canZipMapValuesMatrix: CanZipMapValues[Matrix[Double], Double, Double, Matrix[Double]] = {
-    new CanZipMapValues[Matrix[Double], Double, Double, Matrix[Double]]{
-      override def map(a: Matrix[Double], b:Matrix[Double], fn: (Double, Double) => Double) = {
-        val data = ((a.valuesIterator zip (b.valuesIterator)) map { case (a,b) => fn(a,b) }).toArray[Double]
-        new DenseMatrix[Double](a.rows, a.cols, data)
+  implicit def canZipMapValuesMatrix[@specialized(Double, Boolean) T: ClassTag]: CanZipMapValues[Matrix[T], T, T, Matrix[T]] = {
+    new CanZipMapValues[Matrix[T], T, T, Matrix[T]]{
+      override def map(a: Matrix[T], b:Matrix[T], fn: (T, T) => T) = {
+        val data = ((a.valuesIterator zip (b.valuesIterator)) map { case (a,b) => fn(a,b) }).toArray[T]
+        new DenseMatrix[T](a.rows, a.cols, data)
       }
       
     }
   }
   
-  implicit val canCollapseRowsSparseMatrix: CanCollapseAxis[CSCMatrix[Double], Axis._0.type, SparseVector[Double], 
-    Double, CSCMatrix[Double]] = new CanCollapseAxis[CSCMatrix[Double], Axis._0.type, SparseVector[Double], Double,
-      CSCMatrix[Double]]{
-    override def apply(matrix: CSCMatrix[Double], axis: Axis._0.type)(fn: SparseVector[Double] => Double) = {
-      val builder = new CSCMatrix.Builder[Double](1,matrix.cols, matrix.cols)
+  implicit def canCollapseRowsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue: Semiring]:
+  CanCollapseAxis[CSCMatrix[T], Axis._0.type, SparseVector[T], 
+    T, CSCMatrix[T]] = new CanCollapseAxis[CSCMatrix[T], Axis._0.type, SparseVector[T], T,
+      CSCMatrix[T]]{
+    override def apply(matrix: CSCMatrix[T], axis: Axis._0.type)(fn: SparseVector[T] => T) = {
+      val builder = new CSCMatrix.Builder[T](1,matrix.cols, matrix.cols)
       
       for(col <- 0 until matrix.cols){
         builder.add(0,col, fn(matrix(::,col)))
@@ -199,11 +232,11 @@ trait BreezeMatrixOps {
     }
   }
   
-  implicit val canCollapseColsSparseMatrix: CanCollapseAxis[CSCMatrix[Double], Axis._1.type, SparseVector[Double], 
-    Double, SparseVector[Double]] = new CanCollapseAxis[CSCMatrix[Double], Axis._1.type, SparseVector[Double], Double,
-      SparseVector[Double]]{
-    override def apply(matrix: CSCMatrix[Double], axis: Axis._1.type)(fn: SparseVector[Double] => Double) = {
-      val dataBuilder = new ArrayBuilder.ofDouble
+  implicit def canCollapseColsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue: Semiring]: 
+  CanCollapseAxis[CSCMatrix[T], Axis._1.type, SparseVector[T], T, SparseVector[T]] = 
+    new CanCollapseAxis[CSCMatrix[T], Axis._1.type, SparseVector[T], T, SparseVector[T]]{
+    override def apply(matrix: CSCMatrix[T], axis: Axis._1.type)(fn: SparseVector[T] => T) = {
+      val dataBuilder = ArrayBuilder.make[T]
       val indexBuilder = new ArrayBuilder.ofInt
       
       val t = matrix.t
@@ -222,8 +255,5 @@ trait BreezeMatrixOps {
     }
   }
   
-  val dense = DenseMatrix((1,2),(2,3))
-  val slices2 = dense(::, breeze.linalg.*)
-  val slices = dense(breeze.linalg.*, ::)
-  val result = norm(slices)
+  
 }
