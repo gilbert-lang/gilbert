@@ -26,8 +26,8 @@ object GilbertFunctions {
   }
 
   object fixpoint {
-    def apply(initialState: Matrix, updateFunction: Matrix => Matrix) = {
-      new FixpointIteration(initialState, updateFunction)
+    def apply(initialState: Matrix, updateFunction: Matrix => Matrix, maxIterations: ScalarRef) = {
+      new FixpointIteration(initialState, updateFunction, maxIterations)
     }
   }
 

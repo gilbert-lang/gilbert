@@ -704,11 +704,11 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       } 
 
       case executable: FixpointIteration => {
-        handle[FixpointIteration, Matrix](
+        handle[FixpointIteration, (Matrix, Scalar[Double])](
           executable,
-          { exec => evaluate[Matrix](exec.initialState) },
-          { (exec, initialState) =>
-            val numberIterations = 10
+          { exec => (evaluate[Matrix](exec.initialState), evaluate[Scalar[Double]](exec.maxIterations)) },
+          { case (exec, (initialState, maxIterations)) =>
+            val numberIterations = maxIterations.contract.asInstanceOf[LiteralDataSource[Double]].values.head.toInt
             def stepFunction(partialSolution: Matrix) = {
               val oldStatePlaceholderValue = iterationStatePlaceholderValue
               iterationStatePlaceholderValue = Some(partialSolution)

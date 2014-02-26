@@ -151,7 +151,7 @@ trait Compiler {
       }
 
       case "fixpoint" => {
-        function(2, FixpointIteration(MatrixParameter(0), FunctionParameter(1)))
+        function(3, FixpointIteration(MatrixParameter(0), FunctionParameter(1), ScalarParameter(2)))
       }
 
       case "spones" => {

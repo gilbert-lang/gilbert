@@ -447,7 +447,8 @@ object Executables {
     }
   }
 
-  case class FixpointIteration(initialState: Matrix, updateFunction: FunctionRef) extends Matrix {
+  case class FixpointIteration(initialState: Matrix, updateFunction: FunctionRef, maxIterations: ScalarRef) extends 
+  Matrix {
     val updatePlan = updateFunction.apply(IterationStatePlaceholder)
 
     val rows = initialState.rows
@@ -459,10 +460,12 @@ object Executables {
       anyInstantiated |= Executable.instantiated
       val instantiatedUpdateFunction = updateFunction.instantiate(args: _*)
       anyInstantiated |= Executable.instantiated
+      val instantiatedMaxIterations = maxIterations.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
       
       if(anyInstantiated){
         Executable.instantiated = true
-        FixpointIteration(instantiatedState, instantiatedUpdateFunction)
+        FixpointIteration(instantiatedState, instantiatedUpdateFunction, instantiatedMaxIterations)
       }else
         this
     }
