@@ -4,8 +4,7 @@ import java.io.DataInput
 import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector, SparseVector => BreezeSparseVector}
 import java.io.DataOutput
 import breeze.linalg.VectorBuilder
-import org.gilbertlang.runtimeMacros.linalg.io.DataReader
-import org.gilbertlang.runtimeMacros.linalg.io.DataWriter
+import org.gilbertlang.runtimeMacros.linalg.io.Serializer
 import breeze.storage.DefaultArrayValue
 import scala.reflect.ClassTag
 import breeze.math.Semiring
@@ -14,7 +13,7 @@ object VectorSerialization {
   val sparseVectorId = "sparseVector"
   val denseVectorId = "denseVector"
   
-  def read[@specialized(Double, Boolean) T: DataReader: Semiring: ClassTag: DefaultArrayValue](in: DataInput): BreezeVector[T] = {
+  def read[@specialized(Double, Boolean) T: Serializer](in: DataInput): BreezeVector[T] = {
     val id = in.readUTF()
     
     id match {
@@ -23,18 +22,18 @@ object VectorSerialization {
     }
   }
   
-  def write[@specialized(Double, Boolean) T: DataWriter](vector: BreezeVector[T], out: DataOutput) {
+  def write[@specialized(Double, Boolean) T: Serializer](vector: BreezeVector[T], out: DataOutput) {
     vector match {
       case x: BreezeSparseVector[T] => writeSparseVector(x, out)
       case x: BreezeDenseVector[T] => writeDenseVector(x, out)
     }
   }
   
-  def writeSparseVector[@specialized(Double, Boolean) T: DataWriter](vector: BreezeSparseVector[T], out: DataOutput){
+  def writeSparseVector[@specialized(Double, Boolean) T: Serializer](vector: BreezeSparseVector[T], out: DataOutput){
     out.writeUTF(sparseVectorId)
     out.writeInt(vector.length)
     out.writeInt(vector.activeSize)
-    val writer = implicitly[DataWriter[T]]
+    val writer = implicitly[Serializer[T]]
     
     for((index,value) <- vector.activeIterator){
       out.writeInt(index)
@@ -42,20 +41,23 @@ object VectorSerialization {
     }
   }
   
-  def writeDenseVector[@specialized(Double, Boolean) T: DataWriter](vector: BreezeDenseVector[T], out: DataOutput){
+  def writeDenseVector[@specialized(Double, Boolean) T: Serializer](vector: BreezeDenseVector[T], out: DataOutput){
     out.writeUTF(denseVectorId)
     out.writeInt(vector.length)
-    val writer = implicitly[DataWriter[T]]
+    val writer = implicitly[Serializer[T]]
     
     for(index <- 0 until vector.length){
       writer.write(vector(index),out)
     }
   }
   
-  def readSparseVector[@specialized(Double, Boolean) T: DataReader: Semiring: ClassTag: DefaultArrayValue](in: DataInput) = {
+  def readSparseVector[@specialized(Double, Boolean) T: Serializer](in: DataInput) = {
     val length = in.readInt()
     val used = in.readInt()
-    val reader = implicitly[DataReader[T]]
+    val reader = implicitly[Serializer[T]]
+    implicit val classTag = reader.classTag
+    implicit val defaultArrayValue = reader.defaultArrayValue
+    implicit val semiring = reader.semiring
     
     val builder = new VectorBuilder[T](length, used)
     
@@ -69,10 +71,11 @@ object VectorSerialization {
     builder.toSparseVector
   }
   
-  def readDenseVector[@specialized(Double, Boolean) T: DataReader: ClassTag](in: DataInput) = {
+  def readDenseVector[@specialized(Double, Boolean) T: Serializer](in: DataInput) = {
     val length = in.readInt()
+    val reader = implicitly[Serializer[T]]
+    implicit val classTag = reader.classTag
     val data = new Array[T](length)
-    val reader = implicitly[DataReader[T]]
     
     for(index <- 0 until length)
       data(index) = reader.read(in)

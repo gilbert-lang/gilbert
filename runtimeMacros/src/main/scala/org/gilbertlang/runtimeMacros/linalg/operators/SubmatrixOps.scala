@@ -10,8 +10,6 @@ import breeze.linalg.operators.{OpAnd, OpOr}
 import org.gilbertlang.runtimeMacros.linalg.Submatrix
 import breeze.linalg.operators.OpMulMatrix
 import org.gilbertlang.runtimeMacros.linalg.Subvector
-import org.gilbertlang.runtimeMacros.linalg.io.DataWriter
-import org.gilbertlang.runtimeMacros.linalg.io.DataReader
 import scala.reflect.ClassTag
 import breeze.math.Semiring
 import breeze.storage.DefaultArrayValue

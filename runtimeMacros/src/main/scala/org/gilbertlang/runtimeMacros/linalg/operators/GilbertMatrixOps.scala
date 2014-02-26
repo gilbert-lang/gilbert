@@ -11,8 +11,6 @@ import org.gilbertlang.runtimeMacros.linalg.Configuration
 import org.gilbertlang.runtimeMacros.linalg.GilbertVector
 import breeze.linalg.DenseMatrix
 import breeze.linalg.Matrix
-import org.gilbertlang.runtimeMacros.linalg.io.DataWriter
-import org.gilbertlang.runtimeMacros.linalg.io.DataReader
 import scala.reflect.ClassTag
 import breeze.math.Semiring
 import breeze.storage.DefaultArrayValue

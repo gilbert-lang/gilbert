@@ -11,13 +11,11 @@ import breeze.linalg.support.CanCollapseAxis
 import breeze.linalg.support.CanCopy
 import breeze.linalg.Axis
 import scala.util.Random
-import org.gilbertlang.runtimeMacros.linalg.io.DataWriter
-import org.gilbertlang.runtimeMacros.linalg.io.DataReader
 import scala.reflect.ClassTag
 import breeze.storage.DefaultArrayValue
 import breeze.math.Semiring
 
-case class Submatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:DefaultArrayValue] 
+case class Submatrix[@specialized(Double, Boolean) T] 
 (var matrix: GilbertMatrix[T], var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
   var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[T] with BreezeMatrixLike[T, Submatrix[T]] {
 
@@ -26,7 +24,8 @@ case class Submatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:Class
 
   override def apply(i: Int, j: Int): T = matrix(i, j)
 
-  override def copy = breeze.linalg.copy(this)
+  override def copy = new Submatrix(this.matrix.copy, rowIndex, columnIndex,
+      rowOffset, columnOffset, totalRows, totalColumns)
 
   override def update(i: Int, j: Int, value: T) = matrix.update(i, j, value)
 
@@ -58,14 +57,13 @@ case class Submatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:Class
 
 object Submatrix extends SubmatrixOps {
     
-  implicit def canCopySubmatrix[@specialized(Double, Boolean) T: DataWriter: DataReader: ClassTag: Semiring: 
-  DefaultArrayValue]: CanCopy[Submatrix[T]] = new CanCopy[Submatrix[T]]{
+  implicit def canCopySubmatrix[@specialized(Double, Boolean) T: ClassTag:DefaultArrayValue]: CanCopy[Submatrix[T]] = new CanCopy[Submatrix[T]]{
     override def apply(submatrix: Submatrix[T]): Submatrix[T] = {
       import submatrix._
       Submatrix[T](breeze.linalg.copy(submatrix.matrix), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
     }
   }
-    def apply[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:DefaultArrayValue:Semiring:MatrixFactory]
+    def apply[@specialized(Double, Boolean) T:MatrixFactory]
     (partitionInformation: Partition, entries: Seq[(Int,Int,T)]): Submatrix[T] = {
       import partitionInformation._
       val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
@@ -73,21 +71,21 @@ object Submatrix extends SubmatrixOps {
       Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
     }
   
-    def apply[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:DefaultArrayValue:Semiring:MatrixFactory]
+    def apply[@specialized(Double, Boolean) T:MatrixFactory]
     (partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix[T] = {
       import partitionInformation._
       Submatrix(GilbertMatrix(numRows, numColumns, numNonZeroElements), rowIndex, columnIndex, rowOffset,
           columnOffset, numTotalRows, numTotalColumns)
     }
     
-    def init[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:DefaultArrayValue:Semiring:MatrixFactory]
+    def init[@specialized(Double, Boolean) T:MatrixFactory]
     (partitionInformation: Partition, initialValue: T): Submatrix[T] = {
       Submatrix(GilbertMatrix.init(partitionInformation.numRows, partitionInformation.numColumns, initialValue),
           partitionInformation.rowIndex, partitionInformation.columnIndex, partitionInformation.rowOffset,
           partitionInformation.columnOffset, partitionInformation.numTotalRows, partitionInformation.numTotalColumns)
     }
     
-    def eye[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:DefaultArrayValue:Semiring:MatrixFactory]
+    def eye[@specialized(Double, Boolean) T:MatrixFactory]
     (partitionInformation: Partition): Submatrix[T] = {
       import partitionInformation._
       Submatrix(GilbertMatrix.eye(numRows, numColumns), rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
@@ -114,7 +112,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canMapValues[@specialized(Double, Boolean)  T:DataWriter:DataReader:ClassTag:Semiring:DefaultArrayValue] = { 
+  implicit def canMapValues[@specialized(Double, Boolean)  T:ClassTag:Semiring:DefaultArrayValue] = { 
     new CanMapValues[Submatrix[T], T, T, Submatrix[T]]{
       override def map(submatrix: Submatrix[T], fun: T => T) = {
         val gilbert:GilbertMatrix[T] = submatrix.matrix.map(fun)
@@ -131,8 +129,8 @@ object Submatrix extends SubmatrixOps {
   
   implicit def handholdCMV[T] = new CanMapValues.HandHold[Submatrix[T], T]
   
-  implicit def canZipMapValues[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
-    DefaultArrayValue]: CanZipMapValues[Submatrix[T], T, T, Submatrix[T]] = {
+  implicit def canZipMapValues[@specialized(Double, Boolean) T:ClassTag:Semiring:DefaultArrayValue]:
+  CanZipMapValues[Submatrix[T], T, T, Submatrix[T]] = {
     new CanZipMapValues[Submatrix[T], T, T, Submatrix[T]]{
       override def map(a: Submatrix[T], b: Submatrix[T], fn: (T, T) => T) = {
         val mapper = implicitly[CanZipMapValues[GilbertMatrix[T], T, T, GilbertMatrix[T]]]
@@ -142,8 +140,8 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canIterateValues[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
-    DefaultArrayValue]: CanTraverseValues[Submatrix[T], T] = {
+  implicit def canIterateValues[@specialized(Double, Boolean) T:ClassTag:Semiring:DefaultArrayValue]: 
+  CanTraverseValues[Submatrix[T], T] = {
     new CanTraverseValues[Submatrix[T], T]{
       override def isTraversableAgain(submatrix: Submatrix[T]): Boolean = true
       
@@ -154,7 +152,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canSliceRowSubmatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
+  implicit def canSliceRowSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
     DefaultArrayValue]: CanSlice2[Submatrix[T], Int, ::.type, Submatrix[T]] = {
     new CanSlice2[Submatrix[T], Int, ::.type, Submatrix[T]]{
       override def apply(submatrix: Submatrix[T], row: Int, ignored: ::.type) = {
@@ -164,7 +162,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canSliceRowsSubmatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
+  implicit def canSliceRowsSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
     DefaultArrayValue]: CanSlice2[Submatrix[T], Range, ::.type, Submatrix[T]] = {
     new CanSlice2[Submatrix[T], Range, ::.type, Submatrix[T]]{
       override def apply(submatrix: Submatrix[T], rows: Range, ignored: ::.type) = {
@@ -174,7 +172,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canSliceColSubmatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
+  implicit def canSliceColSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
     DefaultArrayValue]: CanSlice2[Submatrix[T], ::.type, Int, Subvector[T]] = {
     new CanSlice2[Submatrix[T], ::.type, Int, Subvector[T]]{
       override def apply(submatrix: Submatrix[T], ignored: ::.type, col: Int) ={
@@ -183,7 +181,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canSliceColsSubmatrix[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
+  implicit def canSliceColsSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
     DefaultArrayValue]: CanSlice2[Submatrix[T], ::.type, Range, Submatrix[T]] = {
       new CanSlice2[Submatrix[T], ::.type, Range, Submatrix[T]]{
         override def apply(submatrix: Submatrix[T], ignored: ::.type, cols: Range) = {
@@ -193,7 +191,7 @@ object Submatrix extends SubmatrixOps {
       }
   }
   
-  implicit def canCollapseRows[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
+  implicit def canCollapseRows[@specialized(Double, Boolean) T:ClassTag:Semiring:
     DefaultArrayValue]: CanCollapseAxis[Submatrix[T], Axis._0.type, BreezeVector[T], T, Submatrix[T]] = {
     new CanCollapseAxis[Submatrix[T], Axis._0.type, BreezeVector[T], T, Submatrix[T]]{
       override def apply(submatrix: Submatrix[T], axis: Axis._0.type)(fn: BreezeVector[T] => T) = {
@@ -205,7 +203,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canCollapseCols[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:
+  implicit def canCollapseCols[@specialized(Double, Boolean) T:ClassTag:Semiring:
     DefaultArrayValue]: CanCollapseAxis[Submatrix[T], Axis._1.type, BreezeVector[T], T, Subvector[T]] = {
     new CanCollapseAxis[Submatrix[T], Axis._1.type, BreezeVector[T], T, Subvector[T]]{
       override def apply(submatrix: Submatrix[T], axis: Axis._1.type)(fn: BreezeVector[T] => T) = {

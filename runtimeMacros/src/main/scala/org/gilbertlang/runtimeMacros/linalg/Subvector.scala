@@ -4,13 +4,11 @@ import breeze.linalg.{Vector => BreezeVector, VectorLike => BreezeVectorLike}
 import org.gilbertlang.runtimeMacros.linalg.operators.SubvectorOps
 import breeze.linalg.support.CanZipMapValues
 import breeze.linalg.support.CanMapValues
-import org.gilbertlang.runtimeMacros.linalg.io.DataWriter
-import org.gilbertlang.runtimeMacros.linalg.io.DataReader
 import scala.reflect.ClassTag
 import breeze.storage.DefaultArrayValue
 import breeze.math.Semiring
 
-case class Subvector[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:Semiring:DefaultArrayValue]
+case class Subvector[@specialized(Double, Boolean) T]
 (vector: GilbertVector[T], index: Int, offset: Int, totalEntries: Int) extends 
   BreezeVector[T] with BreezeVectorLike[T, Subvector[T]]{
   
@@ -32,7 +30,8 @@ case class Subvector[@specialized(Double, Boolean) T:DataWriter:DataReader:Class
   def copy = Subvector(vector.copy, index, offset, totalEntries)
   
   
-  def asMatrix: Submatrix[T] = {
+  def asMatrix(implicit classTag: ClassTag[T], semiring: Semiring[T], defaultArrayValue: DefaultArrayValue[T]): 
+  Submatrix[T] = {
     Submatrix[T](vector.asMatrix, index, 0, offset, 0, totalEntries, 1)
   }
   
@@ -47,13 +46,13 @@ case class Subvector[@specialized(Double, Boolean) T:DataWriter:DataReader:Class
 }
 
 object Subvector extends SubvectorOps{
-  def apply[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:DefaultArrayValue:Semiring]
+  def apply[@specialized(Double, Boolean) T: DefaultArrayValue: ClassTag]
   (size:Int, index: Int, offset: Int, totalEntries: Int): Subvector[T] = {
     Subvector(GilbertVector[T](size),index, offset, totalEntries)
   }
   
-  implicit def canZipMapValues[@specialized(Double, Boolean) T:DataWriter:DataReader:ClassTag:DefaultArrayValue:
-    Semiring]: CanZipMapValues[Subvector[T], T, T, Subvector[T]] = {
+  implicit def canZipMapValues[@specialized(Double, Boolean) T:ClassTag:DefaultArrayValue]: 
+  CanZipMapValues[Subvector[T], T, T, Subvector[T]] = {
     new CanZipMapValues[Subvector[T], T, T, Subvector[T]]{
       override def map(a: Subvector[T], b: Subvector[T], fn: (T, T) => T) = {
         val mapper = implicitly[CanZipMapValues[GilbertVector[T], T, T, GilbertVector[T]]]
