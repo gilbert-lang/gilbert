@@ -8,10 +8,13 @@ import breeze.linalg.operators.OpMulScalar
 import org.gilbertlang.runtimeMacros.linalg.Subvector
 
 trait SubvectorOps {
+  this: Subvector.type => 
+    
   @expand
   @expand.valify
-  implicit def opSM_SM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op](implicit @expand.sequence[Op](
-      { _ + _ }, { _ - _ }, { _ / _ }, { _ :* _ }) op: Op.Impl2[GilbertVector, GilbertVector, GilbertVector]): 
+  implicit def opSM_SM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op]
+  (implicit @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ :* _ }) op: Op.Impl2[GilbertVector, 
+    GilbertVector, GilbertVector]): 
       Op.Impl2[Subvector, Subvector, Subvector] = {
     new Op.Impl2[Subvector, Subvector, Subvector] {
       def apply(a: Subvector, b: Subvector) = {
@@ -26,8 +29,9 @@ trait SubvectorOps {
   
   @expand
   @expand.valify
-  implicit def opSM_SMUpdate[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op](implicit @expand.sequence[Op](
-      { _ += _ }, { _ -= _ }, { _ :/= _ }, { _ :*= _ }) op: Op.InPlaceImpl2[GilbertVector, GilbertVector]): 
+  implicit def opSM_SMUpdate[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op]
+  (implicit @expand.sequence[Op]({ _ += _ }, { _ -= _ }, { _ :/= _ }, { _ :*= _ }) op: 
+      Op.InPlaceImpl2[GilbertVector, GilbertVector]): 
       Op.InPlaceImpl2[Subvector, Subvector] = {
     new Op.InPlaceImpl2[Subvector, Subvector] {
       override def apply(a: Subvector, b: Subvector):Unit = {

@@ -8,6 +8,11 @@ import java.io.DataInput
 import org.gilbertlang.runtimeMacros.linalg.operators.GilbertVectorOps
 import breeze.linalg.support.CanZipMapValues
 import org.gilbertlang.runtimeMacros.linalg.operators.BreezeVectorOps
+import org.gilbertlang.runtimeMacros.linalg.io.Serializer
+import scala.reflect.ClassTag
+import breeze.math.Semiring
+import breeze.storage.DefaultArrayValue
+import breeze.linalg.support.CanCopy
 
 class GilbertVector(var vector: BreezeVector[Double]) extends BreezeVector[Double] with 
 BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorOps {
@@ -36,7 +41,7 @@ BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorOps {
     vector.update(i,value)
   }
   
-  def copy = GilbertVector(vector.copy)
+  def copy = GilbertVector(this.vector.copy)
   
   def asMatrix: GilbertMatrix = {
     val result = vector match {
@@ -64,7 +69,14 @@ object GilbertVector extends GilbertVectorOps {
     new GilbertVector(vector)
   }
   
-  implicit val canZipMapValues: CanZipMapValues[GilbertVector, Double, Double, GilbertVector] = {
+  implicit def canCopyGilbertVector:CanCopy[GilbertVector] = 
+    new CanCopy[GilbertVector]{
+    override def apply(gilbert: GilbertVector): GilbertVector = {
+      GilbertVector(breeze.linalg.copy(gilbert.vector))
+    }
+  }
+  
+  implicit def canZipMapValues: CanZipMapValues[GilbertVector, Double, Double, GilbertVector] = {
     new CanZipMapValues[GilbertVector, Double, Double, GilbertVector]{
       override def map(a: GilbertVector, b: GilbertVector, fn: (Double, Double) => Double) = {
         val result = (a.vector, b.vector) match {

@@ -2,4 +2,4 @@
 target/*
 .*
 *.output
-
+*.sublime-project

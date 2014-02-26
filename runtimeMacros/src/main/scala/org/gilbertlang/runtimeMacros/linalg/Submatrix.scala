@@ -1,6 +1,6 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, Vector => BreezeVector }
+import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, Vector => BreezeVector, DenseMatrix => BreezeDenseMatrix }
 import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixOps
 import breeze.linalg.support.CanTraverseValues
 import CanTraverseValues.ValuesVisitor
@@ -8,19 +8,24 @@ import breeze.linalg.support.CanMapValues
 import breeze.linalg.support.CanZipMapValues
 import breeze.linalg.support.CanSlice2
 import breeze.linalg.support.CanCollapseAxis
+import breeze.linalg.support.CanCopy
 import breeze.linalg.Axis
 import scala.util.Random
+import scala.reflect.ClassTag
+import breeze.storage.DefaultArrayValue
+import breeze.math.Semiring
 
-case class Submatrix (var matrix: GilbertMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
-  var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[Double]
-  with BreezeMatrixLike[Double, Submatrix] {
+case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
+  var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[Double] with 
+  BreezeMatrixLike[Double, Submatrix] {
 
   override def rows = matrix.rows
   override def cols = matrix.cols
 
   override def apply(i: Int, j: Int): Double = matrix(i, j)
 
-  override def copy = Submatrix(matrix.copy, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
+  override def copy = new Submatrix(this.matrix.copy, rowIndex, columnIndex,
+      rowOffset, columnOffset, totalRows, totalColumns)
 
   override def update(i: Int, j: Int, value: Double) = matrix.update(i, j, value)
 
@@ -51,7 +56,13 @@ case class Submatrix (var matrix: GilbertMatrix, var rowIndex: Int, var columnIn
 }
 
 object Submatrix extends SubmatrixOps {
-
+    
+  implicit def canCopySubmatrix:CanCopy[Submatrix] = new CanCopy[Submatrix]{
+    override def apply(submatrix: Submatrix): Submatrix = {
+      import submatrix._
+      Submatrix(breeze.linalg.copy(submatrix.matrix), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
+    }
+  }
     def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Double)]): Submatrix = {
       import partitionInformation._
       val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
@@ -60,9 +71,9 @@ object Submatrix extends SubmatrixOps {
     }
   
     def apply(partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix = {
-      Submatrix(GilbertMatrix(partitionInformation.numRows, partitionInformation.numColumns, numNonZeroElements),
-          partitionInformation.rowIndex, partitionInformation.columnIndex, partitionInformation.rowOffset,
-          partitionInformation.columnOffset, partitionInformation.numTotalRows, partitionInformation.numTotalColumns)
+      import partitionInformation._
+      Submatrix(GilbertMatrix(numRows, numColumns, numNonZeroElements), rowIndex, columnIndex, rowOffset,
+          columnOffset, numTotalRows, numTotalColumns)
     }
     
     def init(partitionInformation: Partition, initialValue: Double): Submatrix = {
@@ -97,11 +108,12 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val canMapValues = { 
+  implicit def canMapValues = { 
     new CanMapValues[Submatrix, Double, Double, Submatrix]{
       override def map(submatrix: Submatrix, fun: Double => Double) = {
-        Submatrix(submatrix.matrix.map(fun), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
-            submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
+        val gilbert:GilbertMatrix = submatrix.matrix.map(fun)
+        import submatrix._
+        Submatrix(gilbert, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
       }
       
       override def mapActive(submatrix: Submatrix, fun: Double => Double) = {
@@ -111,9 +123,9 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val handholdCMV = new CanMapValues.HandHold[Submatrix, Double]
+  implicit def handholdCMV = new CanMapValues.HandHold[Submatrix, Double]
   
-  implicit val canZipMapValues: CanZipMapValues[Submatrix, Double, Double, Submatrix] = {
+  implicit def canZipMapValues:CanZipMapValues[Submatrix, Double, Double, Submatrix] = {
     new CanZipMapValues[Submatrix, Double, Double, Submatrix]{
       override def map(a: Submatrix, b: Submatrix, fn: (Double, Double) => Double) = {
         val mapper = implicitly[CanZipMapValues[GilbertMatrix, Double, Double, GilbertMatrix]]
@@ -123,7 +135,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val canIterateValues: CanTraverseValues[Submatrix, Double] = {
+  implicit def canIterateValues:CanTraverseValues[Submatrix, Double] = {
     new CanTraverseValues[Submatrix, Double]{
       override def isTraversableAgain(submatrix: Submatrix): Boolean = true
       
@@ -134,7 +146,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val canSliceRowSubmatrix: CanSlice2[Submatrix, Int, ::.type, Submatrix] = {
+  implicit def canSliceRowSubmatrix: CanSlice2[Submatrix, Int, ::.type, Submatrix] = {
     new CanSlice2[Submatrix, Int, ::.type, Submatrix]{
       override def apply(submatrix: Submatrix, row: Int, ignored: ::.type) = {
         Submatrix(submatrix.matrix(row, ::), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
@@ -143,7 +155,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val canSliceRowsSubmatrix: CanSlice2[Submatrix, Range, ::.type, Submatrix] = {
+  implicit def canSliceRowsSubmatrix: CanSlice2[Submatrix, Range, ::.type, Submatrix] = {
     new CanSlice2[Submatrix, Range, ::.type, Submatrix]{
       override def apply(submatrix: Submatrix, rows: Range, ignored: ::.type) = {
         Submatrix(submatrix.matrix(rows, ::), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
@@ -152,7 +164,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val canSliceColSubmatrix: CanSlice2[Submatrix, ::.type, Int, Subvector] = {
+  implicit def canSliceColSubmatrix: CanSlice2[Submatrix, ::.type, Int, Subvector] = {
     new CanSlice2[Submatrix, ::.type, Int, Subvector]{
       override def apply(submatrix: Submatrix, ignored: ::.type, col: Int) ={
         Subvector(submatrix.matrix(::, col), submatrix.rowIndex, submatrix.rowOffset, submatrix.totalRows)
@@ -160,7 +172,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val canSliceColsSubmatrix: CanSlice2[Submatrix, ::.type, Range, Submatrix] = {
+  implicit def canSliceColsSubmatrix: CanSlice2[Submatrix, ::.type, Range, Submatrix] = {
       new CanSlice2[Submatrix, ::.type, Range, Submatrix]{
         override def apply(submatrix: Submatrix, ignored: ::.type, cols: Range) = {
           Submatrix(submatrix.matrix(::, cols), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset, 
@@ -169,7 +181,7 @@ object Submatrix extends SubmatrixOps {
       }
   }
   
-  implicit val canCollapseRows: CanCollapseAxis[Submatrix, Axis._0.type, BreezeVector[Double], Double, Submatrix] = {
+  implicit def canCollapseRows: CanCollapseAxis[Submatrix, Axis._0.type, BreezeVector[Double], Double, Submatrix] = {
     new CanCollapseAxis[Submatrix, Axis._0.type, BreezeVector[Double], Double, Submatrix]{
       override def apply(submatrix: Submatrix, axis: Axis._0.type)(fn: BreezeVector[Double] => Double) = {
         val collapser = 
@@ -180,7 +192,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val canCollapseCols: CanCollapseAxis[Submatrix, Axis._1.type, BreezeVector[Double], Double, Subvector] = {
+  implicit def canCollapseCols: CanCollapseAxis[Submatrix, Axis._1.type, BreezeVector[Double], Double, Subvector] = {
     new CanCollapseAxis[Submatrix, Axis._1.type, BreezeVector[Double], Double, Subvector]{
       override def apply(submatrix: Submatrix, axis: Axis._1.type)(fn: BreezeVector[Double] => Double) = {
         val collapser = 
@@ -190,10 +202,10 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit val handholdCanMapCols: CanCollapseAxis.HandHold[Submatrix, Axis._1.type, BreezeVector[Double]] = 
+  implicit def handholdCanMapCols: CanCollapseAxis.HandHold[Submatrix, Axis._1.type, BreezeVector[Double]] = 
     new CanCollapseAxis.HandHold[Submatrix, Axis._1.type, BreezeVector[Double]]()
     
-  implicit val handholdCanMapRows: CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]] = 
+  implicit def handholdCanMapRows: CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]] = 
     new CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]]()
 
 }

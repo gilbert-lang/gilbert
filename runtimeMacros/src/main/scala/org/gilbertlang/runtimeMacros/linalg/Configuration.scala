@@ -5,6 +5,10 @@ import breeze.linalg.{Matrix => BreezeMatrix, CSCMatrix => BreezeSparseMatrix, D
 import breeze.linalg.{CSCMatrix => BreezeSparseMatrix}
 import breeze.linalg.{DenseMatrix => BreezeDenseMatrix}
 import breeze.linalg.{Matrix => BreezeMatrix}
+import scala.reflect.ClassTag
+import breeze.storage.DefaultArrayValue
+import breeze.util.ArrayUtil
+import breeze.math.Semiring
 
 object Configuration {
   val BLOCKSIZE = 10
@@ -18,30 +22,38 @@ object Configuration {
   type SparseVector = BreezeSparseVector[Double]
   type DenseVector=  BreezeDenseVector[Double]
   
-  def newDenseMatrix(rows: Int, cols: Int, initialValue: Double = 0) = {
-    val data = Array.fill[Double](rows*cols)( initialValue)
-    new DenseMatrix(rows, cols, data)
+  def newDenseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue](rows: Int, cols: Int) = {
+    val data = new Array[T](rows*cols)
+    if(implicitly[DefaultArrayValue[T]] != null && rows* cols != 0 && data(0) != implicitly[DefaultArrayValue[T]].value)
+      ArrayUtil.fill(data,0, data.length, implicitly[DefaultArrayValue[T]].value)
+    new BreezeDenseMatrix[T](rows, cols, data)
   }
   
-  def newSparseMatrix(rows: Int, cols: Int, initialNonZero: Int = 0) = {
-    BreezeSparseMatrix.zeros[Double](rows, cols, initialNonZero)
+  def newDenseMatrix[@specialized(Double, Boolean) T: ClassTag](rows: Int, cols: Int, initialValue: T) = {
+    val data = Array.fill[T](rows*cols)(initialValue)
+    new BreezeDenseMatrix[T](rows, cols, data)
   }
   
-  def eyeDenseMatrix(rows: Int, cols: Int) = {
-    val result = BreezeDenseMatrix.zeros[Double](rows, cols)
-    
+  def newSparseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue](rows: Int, cols: Int) = {
+    BreezeSparseMatrix.zeros[T](rows, cols)
+  }
+  
+  def eyeDenseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue](rows: Int, cols: Int) = {
+    val result = BreezeDenseMatrix.zeros[T](rows, cols)
+    val ring = implicitly[Semiring[T]]
     for(idx <- 0 until math.min(rows, cols)){
-      result.update(idx,idx, 1)
+      result.update(idx,idx, ring.one)
     }
     
     result
   }
   
-  def eyeSparseMatrix(rows: Int, cols: Int) = {
-    val builder = new BreezeSparseMatrix.Builder[Double](rows, cols, math.min(rows, cols))
-    
+  def eyeSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue]
+  (rows: Int, cols: Int) = {
+    val builder = new BreezeSparseMatrix.Builder[T](rows, cols, math.min(rows, cols))
+    val ring = implicitly[Semiring[T]]
     for(idx <- 0 until math.min(rows, cols)){
-      builder.add(idx,idx,1)
+      builder.add(idx,idx,ring.one)
     }
     
     builder.result

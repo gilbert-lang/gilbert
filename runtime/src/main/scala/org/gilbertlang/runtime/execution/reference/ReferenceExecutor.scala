@@ -102,12 +102,41 @@ class ReferenceExecutor extends Executor {
               transformation.operation match {
                 case Addition => left.plus(right)
                 case Subtraction => left.minus(right)
-                case Multiplication => left.assign(right, CellwiseFunctions.times)
-                case Division => left.assign(right, CellwiseFunctions.divide)
+                case Multiplication =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.times)
+                case Division => 
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.divide)
+                case GreaterThan =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.greaterThan)
+                case GreaterEqualThan =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.greaterEqualThan)
+                case LessThan =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.lessThan)
+                case LessEqualThan =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.lessEqualThan)
+                case Equals =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.equals)
+                case And =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.logicalAnd)
+                case Or =>
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.logicalOr)
                 //TODO do we need this?
-                case Maximum => left.assign(right, CellwiseFunctions.max)
+                case Maximum => 
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.max)
                 //TODO do we need this?
-                case Minimum => left.assign(right, CellwiseFunctions.min)
+                case Minimum => 
+                  val result = CloneHelper.clone(left)
+                  result.assign(right, CellwiseFunctions.min)
               }
             }
           })
@@ -163,6 +192,27 @@ class ReferenceExecutor extends Executor {
                   val minuend = new SparseMatrix(matrix.rowSize(), matrix.columnSize()).assign(scalar)
                   minuend.minus(matrix)
                 }
+                case GreaterThan => 
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) < scalar})
+                case GreaterEqualThan =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) <= scalar})
+                case LessThan =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) > scalar})
+                case LessEqualThan =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) >= scalar})
+                case Equals =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) == scalar})
+                case And =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) && scalar})
+                case Or =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) || scalar})
               }
             }
           })
@@ -180,6 +230,27 @@ class ReferenceExecutor extends Executor {
                 case Subtraction => matrix.plus(-scalar)
                 case Multiplication => matrix.times(scalar)
                 case Division => matrix.divide(scalar)
+                case GreaterThan => 
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) > scalar})
+                case GreaterEqualThan =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) >= scalar})
+                case LessThan =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) < scalar})
+                case LessEqualThan =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) <= scalar})
+                case Equals =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) == scalar})
+                case And =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) && scalar})
+                case Or =>
+                  val result = CloneHelper.clone(matrix)
+                  result.assign({(_:Double) || scalar})
               }
             }
           })
@@ -366,14 +437,23 @@ class ReferenceExecutor extends Executor {
         handle[ScalarScalarTransformation, (Double, Double)](transformation,
           { transformation => (evaluate[Double](transformation.left), evaluate[Double](transformation.right)) },
           {
-            case (transformation, (left, right)) => transformation.operation match {
+            case (transformation, (left, right)) => 
+              val result: Double = transformation.operation match {
               case Addition => left + right
               case Subtraction => left - right
               case Division => left / right
               case Multiplication => left * right
+              case GreaterThan => left > right
+              case GreaterEqualThan => left >= right
+              case LessThan => left < right
+              case LessEqualThan => left <= right
+              case Equals => left == right
+              case And => left && right
+              case Or => left || right
               case Maximum => math.max(left, right)
               case Minimum => math.min(left, right)
-            }
+              }
+              result
           })
       }
       

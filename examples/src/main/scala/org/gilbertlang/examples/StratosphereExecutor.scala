@@ -22,5 +22,4 @@ object StratosphereExecutor {
     val plan = withStratosphere(executable)
     LocalExecutor.execute(plan)
   }
-
 }

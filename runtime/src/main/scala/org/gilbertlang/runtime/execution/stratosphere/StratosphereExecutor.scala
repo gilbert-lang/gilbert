@@ -15,6 +15,7 @@ import eu.stratosphere.api.scala.ScalaSink
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg.Submatrix
+import org.gilbertlang.runtimeMacros.linalg.SubmatrixBoolean
 import org.gilbertlang.runtimeMacros.linalg.Partition
 import org.gilbertlang.runtimeMacros.linalg.numerics
 import org.gilbertlang.runtime.execution.CellwiseFunctions
@@ -28,8 +29,8 @@ import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 
 class StratosphereExecutor extends Executor with WrapAsScala {
-  type Entry = Submatrix
-  type Matrix = DataSet[Entry]
+  type Matrix = DataSet[Submatrix]
+  type BooleanMatrix = DataSet[SubmatrixBoolean]
   type Scalar[T] = DataSet[T]
   private var tempFileCounter = 0
   private var iterationStatePlaceholderValue: Option[Matrix] = None
@@ -94,87 +95,276 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       }
 
       case executable: ScalarMatrixTransformation => {
-        handle[ScalarMatrixTransformation, (Scalar[Double], Matrix)](
+        executable.operation match {
+          case logicOperation: LogicOperation => {
+            handle[ScalarMatrixTransformation, (Scalar[Boolean], BooleanMatrix)](
+                executable,
+                { exec => (evaluate[Scalar[Boolean]](exec.scalar), evaluate[BooleanMatrix](exec.matrix))},
+                { case (_, (scalar, matrix)) =>{
+                  logicOperation match {
+                    case And => {
+                      val result = scalar cross matrix map { (scalar, submatrix) => submatrix :& scalar }
+                      result.setName("SM: Logical And")
+                      result
+                    }
+                    case Or => {
+                      val result = scalar cross matrix map { (scalar, submatrix) => submatrix :| scalar }
+                      result.setName("SM: Logical Or")
+                      result
+                    }
+                  }
+                }})
+          }
+          case operation => {
+            handle[ScalarMatrixTransformation, (Scalar[Double], Matrix)](
           executable,
           { exec => (evaluate[Scalar[Double]](exec.scalar), evaluate[Matrix](exec.matrix)) },
           {
-            case (exec, (scalar, matrix)) => {
-              exec.operation match {
+            case (_, (scalar, matrix)) => {
+              operation match {
                 case Addition => {
-                  scalar cross matrix map { (scalar, submatrix) => submatrix + scalar }
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix + scalar }
+                  result.setName("SM: Addition")
+                  result
                 }
                 case Subtraction => {
-                  scalar cross matrix map { (scalar, submatrix) => submatrix + -scalar }
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix + -scalar }
+                  result.setName("SM: Subtraction")
+                  result
                 }
                 case Multiplication => {
-                  scalar cross matrix map { (scalar, submatrix) => submatrix * scalar }
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix * scalar }
+                  result.setName("SM: Multiplication")
+                  result
                 }
                 case Division => {
-                  scalar cross matrix map { (scalar, submatrix) =>
+                  val result = scalar cross matrix map { (scalar, submatrix) =>
                     {
                       val partition = submatrix.getPartition
                       val result = Submatrix.init(partition, scalar)
                       result / submatrix
                     }
                   }
+                  result.setName("SM: Division")
+                  result
                 }
+                case GreaterThan => {
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix :< scalar }
+                  result.setName("SM: Greater than")
+                  result
+                }
+                case GreaterEqualThan => {
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix :<= scalar }
+                  result.setName("SM: Greater equal than")
+                  result
+                }
+                case LessThan => {
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix :> scalar }
+                  result.setName("SM: Less than")
+                  result
+                }
+                case LessEqualThan => {
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix :>= scalar }
+                  result.setName("SM: Less equal than")
+                  result
+                }
+                case Equals => {
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix :== scalar }
+                  result.setName("SM: Equals")
+                  result
+                }
+                case NotEquals => {
+                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix :!= scalar }
+                  result.setName("SM: Not equals")
+                  result
+                } 
               }
             }
           })
+          }
+        }
       }
 
       case executable: MatrixScalarTransformation => {
-        handle[MatrixScalarTransformation, (Matrix, Scalar[Double])](
+        executable.operation match {
+          case logicOperation: LogicOperation => {
+            handle[MatrixScalarTransformation, (BooleanMatrix, Scalar[Boolean])](
+                executable,
+                {exec => (evaluate[BooleanMatrix](exec.matrix), evaluate[Scalar[Boolean]](exec.scalar))},
+                { case (_, (matrix, scalar)) => {
+                  logicOperation match {
+                    case And => {
+                      val result = matrix cross scalar map { (submatrix, scalar) => submatrix :& scalar }
+                      result.setName("MS: Logical And")
+                      result
+                    }
+                    case Or => {
+                      val result = matrix cross scalar map { (submatrix, scalar) => submatrix :| scalar }
+                      result.setName("MS: Logical Or")
+                      result
+                    } 
+                  }
+                } 
+                })
+          }
+          case operation => {
+              handle[MatrixScalarTransformation, (Matrix, Scalar[Double])](
           executable,
           { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.scalar)) },
           {
-            case (exec, (matrix, scalar)) => {
-              exec.operation match {
+            case (_, (matrix, scalar)) => {
+              operation match {
                 case Addition => {
-                  matrix cross scalar map { (submatrix, scalar) => submatrix + scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix + scalar }
+                  result.setName("MS: Addition")
+                  result
                 }
                 case Subtraction => {
-                  matrix cross scalar map { (submatrix, scalar) => submatrix - scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix - scalar }
+                  result.setName("MS: Subtraction")
+                  result
                 }
                 case Multiplication => {
-                  matrix cross scalar map { (submatrix, scalar) => submatrix * scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix * scalar }
+                  result.setName("MS: Multiplication")
+                  result
                 }
                 case Division => {
-                  matrix cross scalar map { (submatrix, scalar) => submatrix / scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix / scalar }
+                  result.setName("MS: Division")
+                  result
+                }
+                case GreaterThan => {
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :> scalar }
+                  result.setName("MS: Greater than")
+                  result
+                }
+                case GreaterEqualThan => {
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :>= scalar }
+                  result.setName("MS: Greater equal than")
+                  result
+                }
+                case LessThan => {
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :< scalar }
+                  result.setName("MS: Less than")
+                  result
+                }
+                case LessEqualThan => {
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :<= scalar }
+                  result.setName("MS: Less equal than")
+                  result
+                }
+                case Equals => {
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :== scalar }
+                  result.setName("MS: Equals")
+                  result
+                }
+                case NotEquals => {
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :!= scalar }
+                  result.setName("MS: Not equals")
+                  result
                 }
               }
             }
           })
+          }
+        }
+      
       }
 
       case executable: ScalarScalarTransformation => {
-        handle[ScalarScalarTransformation, (Scalar[Double], Scalar[Double])](
-          executable,
-          { exec => (evaluate[Scalar[Double]](exec.left), evaluate[Scalar[Double]](exec.right)) },
-          {
-            case (exec, (left, right)) => {
-              exec.operation match {
-                case Addition => {
-                  left cross right map { (left, right) => left + right }
-                }
-                case Subtraction => {
-                  left cross right map { (left, right) => left - right }
-                }
-                case Multiplication => {
-                  left cross right map { (left, right) => left * right }
-                }
-                case Division => {
-                  left cross right map { (left, right) => left / right }
-                }
-                case Maximum => {
-                  left union right combinableReduceAll { elements => elements.max }
-                }
-                case Minimum => {
-                  left union right combinableReduceAll { elements => elements.min }
+
+        executable.operation match {
+          case logicOperation: LogicOperation =>
+            handle[ScalarScalarTransformation, (Scalar[Boolean], Scalar[Boolean])](
+              executable,
+              {exec => (evaluate[Scalar[Boolean]](exec.left), evaluate[Scalar[Boolean]](exec.right))},
+              {case (_, (left, right)) => 
+                logicOperation match {
+                  case And => { 
+                    val result = left cross right map { (left, right) => left && right }
+                    result.setName("SS: Logical And")
+                    result
+                  }
+                  case Or => { 
+                    val result = left cross right map { (left, right) => left || right }
+                    result.setName("SS: Logical Or")
+                    result
+                  }
                 }
               }
-            }
-          })
+            )
+          case operation =>
+            handle[ScalarScalarTransformation, (Scalar[Double], Scalar[Double])](
+              executable,
+              { exec => (evaluate[Scalar[Double]](exec.left), evaluate[Scalar[Double]](exec.right)) },
+              {
+                case (_, (left, right)) => {
+                  operation match {
+                    case Addition => {
+                      val result = left cross right map { (left, right) => left + right }
+                      result.setName("SS: Addition")
+                      result
+                    }
+                    case Subtraction => {
+                      val result = left cross right map { (left, right) => left - right }
+                      result.setName("SS: Subtraction")
+                      result
+                    }
+                    case Multiplication => {
+                      val result = left cross right map { (left, right) => left * right }
+                      result.setName("SS: Multiplication")
+                      result
+                    }
+                    case Division => {
+                      val result =left cross right map { (left, right) => left / right }
+                      result.setName("SS: Division")
+                      result
+                    }
+                    case Maximum => {
+                      val result = left union right combinableReduceAll { elements => elements.max }
+                      result.setName("SS: Maximum")
+                      result
+                    }
+                    case Minimum => {
+                      val result = left union right combinableReduceAll { elements => elements.min }
+                      result.setName("SS: Minimum")
+                      result
+                    }
+                    case GreaterThan => {
+                      val result = left cross right map { (left, right) => left > right }
+                      result.setName("SS: Greater than")
+                      result
+                    }
+                    case GreaterEqualThan => {
+                      val result = left cross right map { (left, right) => left >= right }
+                      result.setName("SS: Greater equal than")
+                      result
+                    }
+                    case LessThan => {
+                      val result = left cross right map { (left, right) => left < right }
+                      result.setName("SS: Less than")
+                      result
+                    }
+                    case LessEqualThan => {
+                      val result = left cross right map { (left, right) => left <= right }
+                      result.setName("SS: Less equal than")
+                      result
+                    }
+                    case Equals => {
+                      val result = left cross right map { (left, right) => left == right}
+                      result.setName("SS: Equals")
+                      result
+                    }
+                    case NotEquals => {
+                      val result = left cross right map { (left, right) => left != right }
+                      result.setName("SS: Not equals")
+                      result
+                    }
+                  }
+                }
+              })
+        }
       }
 
       case executable: AggregateMatrixTransformation => {
@@ -226,6 +416,13 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { _ => },
           { (exec, _) => LiteralDataSource(exec.value, LiteralInputFormat[Double]()) })
       }
+      
+      case executable: boolean => {
+        handle[boolean, Unit](
+            executable,
+            {_ => },
+            { (exec, _) => LiteralDataSource(exec.value, LiteralInputFormat[Boolean]())})
+      }
 
       case executable: string => {
         handle[string, Unit](
@@ -258,12 +455,38 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       
       case executable: CellwiseMatrixMatrixTransformation =>
         {
-          handle[CellwiseMatrixMatrixTransformation, (Matrix, Matrix)](
+          executable.operation match {
+            case logicOperation: LogicOperation => {
+              handle[CellwiseMatrixMatrixTransformation, (BooleanMatrix, BooleanMatrix)](
+                  executable,
+                  { exec => (evaluate[BooleanMatrix](exec.left), evaluate[BooleanMatrix](exec.right))},
+                  { case (_, (left, right)) => {
+                    logicOperation match {
+                      case And => {
+                        val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                        { y => (y.rowIndex, y.columnIndex) } map 
+                        { (left, right) => left :& right }
+                        result.setName("MM: Logical And")
+                        result
+                      }
+                      case Or => {
+                        val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                        { y => (y.rowIndex, y.columnIndex) } map 
+                        { (left, right) => left :| right }
+                        result.setName("MM: Logical Or")
+                        result
+                      }
+                    }
+                  }
+                  })
+            }
+            case operation => {
+               handle[CellwiseMatrixMatrixTransformation, (Matrix, Matrix)](
             executable,
             { exec => (evaluate[Matrix](exec.left), evaluate[Matrix](exec.right)) },
             {
-              case (exec, (left, right)) => {
-                exec.operation match {
+              case (_ , (left, right)) => {
+                operation match {
                   case Addition => {
                     val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
@@ -312,9 +535,53 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     result.setName("MM: Minimum")
                     result
                   }
+                  case GreaterThan => {
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    { y => (y.rowIndex, y.columnIndex) } map 
+                    { (left,right) => left :> right }
+                    result.setName("MM: Greater than")
+                    result
+                  }
+                  case GreaterEqualThan => {
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    {y => (y.rowIndex, y.columnIndex) } map 
+                    { (left, right) => left :>= right }
+                    result.setName("MM: Greater equal than")
+                    result
+                  }
+                  case LessThan => {
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    { y => (y.rowIndex, y.columnIndex) } map
+                    { (left, right) => left :< right }
+                    result.setName("MM: Less than")
+                    result
+                  }
+                  case LessEqualThan => {
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    { y => (y.rowIndex, y.columnIndex) } map
+                    { (left, right) => left :<= right }
+                    result.setName("MM: Less equal than")
+                    result
+                  }
+                  case Equals =>
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    { y => (y.rowIndex, y.columnIndex) } map
+                    { (left, right) => left :== right }
+                    result.setName("MM: Equals")
+                    result
+                  case NotEquals => { 
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
+                    { y => (y.rowIndex, y.columnIndex) } map
+                    { (left, right) => left :!= right }
+                    result.setName("MM: NotEquals")
+                    result
+                  }
                 }
               }
             })
+            }
+          }
+         
         }
 
       case executable: MatrixMult => {
@@ -521,7 +788,6 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   }
                 }
               }
-                
               result.setName("Eye")
               result
             }})

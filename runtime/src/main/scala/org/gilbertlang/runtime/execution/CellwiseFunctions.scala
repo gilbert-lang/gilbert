@@ -16,7 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.gilbertlang.runtime.execution
+package org.gilbertlang.runtime
+package execution
 
 import org.apache.mahout.math.function.DoubleDoubleFunction
 import org.apache.mahout.math.function.DoubleFunction
@@ -47,5 +48,33 @@ object CellwiseFunctions {
         1
       }
     }
+  }
+  
+  def greaterThan = new DoubleDoubleFunction {
+    def apply(a: Double, b: Double) = a > b
+  }
+  
+  def greaterEqualThan = new DoubleDoubleFunction {
+    def apply(a: Double, b: Double) = a >= b
+  }
+  
+  def lessThan = new DoubleDoubleFunction {
+    def apply(a: Double, b: Double) = a < b
+  }
+  
+  def lessEqualThan = new DoubleDoubleFunction {
+    def apply(a: Double, b: Double) = a <= b
+  }
+  
+  def equals = new DoubleDoubleFunction {
+    def apply(a: Double, b: Double) = a == b
+  }
+  
+  def logicalAnd = new DoubleDoubleFunction {
+    def apply(a: Double, b: Double) = a && b
+  }
+  
+  def logicalOr = new DoubleDoubleFunction {
+    def apply(a: Double, b: Double) = a || b
   }
 }

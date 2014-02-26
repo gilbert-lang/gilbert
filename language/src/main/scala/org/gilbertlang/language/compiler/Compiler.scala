@@ -222,8 +222,14 @@ trait Compiler {
           case PlusOp => CellwiseMatrixMatrixTransformation(x,y,Addition)
           case MinusOp => CellwiseMatrixMatrixTransformation(x,y,Subtraction)
           case CellwiseMultOp => CellwiseMatrixMatrixTransformation(x,y,Multiplication)
-          case BinaryAndOp | BinaryOrOp | LogicalAndOp | LogicalOrOp | ExpOp | CellwiseExpOp | GTOp |
-               GTEOp | LTOp | LTEOp | DEQOp => {
+          case GTOp => CellwiseMatrixMatrixTransformation(x,y, GreaterThan)
+          case GTEOp => CellwiseMatrixMatrixTransformation(x,y, GreaterEqualThan)
+          case LTOp => CellwiseMatrixMatrixTransformation(x,y, LessThan)
+          case LTEOp => CellwiseMatrixMatrixTransformation(x,y, LessEqualThan)
+          case DEQOp => CellwiseMatrixMatrixTransformation(x,y, Equals)
+          case LogicalAndOp => CellwiseMatrixMatrixTransformation(x,y, And)
+          case LogicalOrOp => CellwiseMatrixMatrixTransformation(x,y,Or)
+          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp  => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }
@@ -234,8 +240,14 @@ trait Compiler {
           case DivOp | CellwiseDivOp => MatrixScalarTransformation(x,y,Division)
           case PlusOp => MatrixScalarTransformation(x,y,Addition)
           case MinusOp => MatrixScalarTransformation(x,y,Subtraction)
-          case BinaryAndOp | BinaryOrOp | LogicalAndOp | LogicalOrOp | ExpOp | CellwiseExpOp | GTOp |
-               GTEOp | LTOp | LTEOp | DEQOp => {
+          case GTOp => MatrixScalarTransformation(x,y, GreaterThan)
+          case GTEOp => MatrixScalarTransformation(x,y, GreaterEqualThan)
+          case LTOp => MatrixScalarTransformation(x,y, LessThan)
+          case LTEOp => MatrixScalarTransformation(x,y, LessEqualThan)
+          case DEQOp => MatrixScalarTransformation(x,y, Equals)
+          case LogicalAndOp => MatrixScalarTransformation(x,y, And)
+          case LogicalOrOp => MatrixScalarTransformation(x,y,Or)
+          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }
@@ -246,8 +258,14 @@ trait Compiler {
           case DivOp | CellwiseDivOp => ScalarMatrixTransformation(x,y,Division)
           case PlusOp => ScalarMatrixTransformation(x,y,Addition)
           case MinusOp => ScalarMatrixTransformation(x,y,Subtraction)
-          case BinaryAndOp | BinaryOrOp | LogicalAndOp | LogicalOrOp | ExpOp | CellwiseExpOp | GTOp |
-               GTEOp | LTOp | LTEOp | DEQOp => {
+          case GTOp => ScalarMatrixTransformation(x,y, GreaterThan)
+          case GTEOp => ScalarMatrixTransformation(x,y, GreaterEqualThan)
+          case LTOp => ScalarMatrixTransformation(x,y, LessThan)
+          case LTEOp => ScalarMatrixTransformation(x,y, LessEqualThan)
+          case DEQOp => ScalarMatrixTransformation(x,y, Equals)
+          case LogicalAndOp => ScalarMatrixTransformation(x,y, And)
+          case LogicalOrOp => ScalarMatrixTransformation(x,y,Or)
+          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }
@@ -258,8 +276,14 @@ trait Compiler {
           case DivOp | CellwiseDivOp => ScalarScalarTransformation(x,y,Division)
           case PlusOp => ScalarScalarTransformation(x,y,Addition)
           case MinusOp => ScalarScalarTransformation(x,y,Subtraction)
-          case BinaryAndOp | BinaryOrOp | LogicalAndOp | LogicalOrOp | ExpOp | CellwiseExpOp | GTOp |
-               GTEOp | LTOp | LTEOp | DEQOp => {
+          case GTOp => ScalarScalarTransformation(x,y, GreaterThan)
+          case GTEOp => ScalarScalarTransformation(x,y, GreaterEqualThan)
+          case LTOp => ScalarScalarTransformation(x,y, LessThan)
+          case LTEOp => ScalarScalarTransformation(x,y, LessEqualThan)
+          case DEQOp => ScalarScalarTransformation(x,y, Equals)
+          case LogicalAndOp => ScalarScalarTransformation(x,y, And)
+          case LogicalOrOp => ScalarScalarTransformation(x,y,Or)
+          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }

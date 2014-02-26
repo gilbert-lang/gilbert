@@ -1,15 +1,22 @@
 package org.gilbertlang.runtimeMacros.linalg
 
 import java.io.DataInput
-import breeze.linalg.{Vector => BreezeVector}
+import breeze.linalg.{Vector => BreezeVector, DenseVector => BreezeDenseVector, SparseVector => BreezeSparseVector,
+  BitVector => BreezeBitVector}
 import java.io.DataOutput
 import breeze.linalg.VectorBuilder
+import org.gilbertlang.runtimeMacros.linalg.io.Serializer
+import breeze.storage.DefaultArrayValue
+import scala.reflect.ClassTag
+import breeze.math.Semiring
+import breeze.linalg.BitVector
 
 object VectorSerialization {
   val sparseVectorId = "sparseVector"
   val denseVectorId = "denseVector"
+  val bitVectorId = "bitVector"
   
-  def read(in: DataInput): BreezeVector[Double] = {
+  def read[@specialized(Double, Boolean) T: Serializer: ClassTag: Semiring: DefaultArrayValue](in: DataInput): BreezeVector[T] = {
     val id = in.readUTF()
     
     id match {
@@ -18,42 +25,55 @@ object VectorSerialization {
     }
   }
   
-  def write(vector: BreezeVector[Double], out: DataOutput) {
+  def write[@specialized(Double, Boolean) T: Serializer](vector: BreezeVector[T], out: DataOutput) {
     vector match {
-      case x: Configuration.SparseVector => writeSparseVector(x, out)
-      case x: Configuration.DenseVector => writeDenseVector(x, out)
+      case x: BreezeSparseVector[T] => 
+        out.writeUTF(sparseVectorId)
+        writeSparseVector(x, out)
+      case x: BreezeDenseVector[T] => 
+        out.writeUTF(denseVectorId)
+        writeDenseVector(x, out)
     }
   }
   
-  def writeSparseVector(vector: Configuration.SparseVector, out: DataOutput){
-    out.writeUTF(sparseVectorId)
+  def writeSparseVector[@specialized(Double, Boolean) T: Serializer](vector: BreezeSparseVector[T], out: DataOutput){
     out.writeInt(vector.length)
     out.writeInt(vector.activeSize)
+    val writer = implicitly[Serializer[T]]
     
     for((index,value) <- vector.activeIterator){
       out.writeInt(index)
-      out.writeDouble(value)
+      writer.write(value, out)
     }
   }
   
-  def writeDenseVector(vector: Configuration.DenseVector, out: DataOutput){
-    out.writeUTF(denseVectorId)
+  def writeDenseVector[@specialized(Double, Boolean) T: Serializer](vector: BreezeDenseVector[T], out: DataOutput){
     out.writeInt(vector.length)
+    val writer = implicitly[Serializer[T]]
     
     for(index <- 0 until vector.length){
-      out.writeDouble(vector(index))
+      writer.write(vector(index),out)
     }
   }
   
-  def readSparseVector(in: DataInput) = {
+  def writeBitVector(vector: BreezeBitVector, out: DataOutput){
+    out.writeInt(vector.size)
+    out.writeInt(vector.activeSize)
+    for(index <- vector.activeKeysIterator){
+      out.writeInt(index)
+    }
+  }
+  
+  def readSparseVector[@specialized(Double, Boolean) T: Serializer: ClassTag: Semiring: DefaultArrayValue](in: DataInput) = {
     val length = in.readInt()
     val used = in.readInt()
+    val reader = implicitly[Serializer[T]]
     
-    val builder = new VectorBuilder[Double](length, used)
+    val builder = new VectorBuilder[T](length, used)
     
     for(_ <- 0 until used){
       val index = in.readInt()
-      val value = in.readDouble()
+      val value = reader.read(in)
       
       builder.add(index, value)
     }
@@ -61,13 +81,27 @@ object VectorSerialization {
     builder.toSparseVector
   }
   
-  def readDenseVector(in: DataInput) = {
+  def readDenseVector[@specialized(Double, Boolean) T: Serializer: ClassTag](in: DataInput) = {
     val length = in.readInt()
-    val data = new Array[Double](length)
+    val reader = implicitly[Serializer[T]]
+    val data = new Array[T](length)
     
     for(index <- 0 until length)
-      data(index) = in.readDouble()
+      data(index) = reader.read(in)
     
-    new Configuration.DenseVector(data)
+    new BreezeDenseVector[T](data)
+  }
+  
+  def readBitVector(in:DataInput) = {
+    val length = in.readInt()
+    val used = in.readInt()
+    val bitset = new java.util.BitSet(length)
+    
+    for(_ <- 0 until used){
+      val index = in.readInt()
+      bitset.set(index)
+    }
+    
+    new BitVector(bitset, length)
   }
 }

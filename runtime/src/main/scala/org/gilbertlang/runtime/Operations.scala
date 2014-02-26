@@ -29,6 +29,18 @@ object Operations {
   case object Subtraction extends ArithmeticOperation
   case object Multiplication extends ArithmeticOperation
   case object Division extends ArithmeticOperation
+  
+  sealed trait ComparisonOperation extends ScalarsOperation with ScalarMatrixOperation
+  case object GreaterThan extends ComparisonOperation
+  case object GreaterEqualThan extends ComparisonOperation
+  case object LessThan extends ComparisonOperation
+  case object LessEqualThan extends ComparisonOperation
+  case object Equals extends ComparisonOperation
+  case object NotEquals extends ComparisonOperation
+  
+  sealed trait LogicOperation extends ScalarsOperation with ScalarMatrixOperation
+  case object And extends LogicOperation
+  case object Or extends LogicOperation
 
   //TODO do we need this on vectors?
   sealed trait MinMax extends ScalarsOperation with VectorwiseOperation with AggregateMatrixOperation

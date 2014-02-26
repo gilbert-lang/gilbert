@@ -5,15 +5,23 @@ import breeze.linalg.operators.OpAdd
 import breeze.linalg.operators.OpSub
 import breeze.linalg.operators.OpDiv
 import breeze.linalg.operators.OpMulScalar
+import breeze.linalg.operators.{OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe}
+import breeze.linalg.operators.{OpAnd, OpOr}
 import org.gilbertlang.runtimeMacros.linalg.Submatrix
 import breeze.linalg.operators.OpMulMatrix
 import org.gilbertlang.runtimeMacros.linalg.Subvector
+import scala.reflect.ClassTag
+import breeze.math.Semiring
+import breeze.storage.DefaultArrayValue
+import org.gilbertlang.runtimeMacros.linalg.SubmatrixBoolean
 
 trait SubmatrixOps {
+    
   @expand
   @expand.valify
-  implicit def opSM_SM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op](implicit @expand.sequence[Op](
-      { _ + _ }, { _ - _ }, { _ / _ }, { _ :* _ }) op: Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrix]): 
+  implicit def opSM_SM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op]
+  (implicit @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ :* _ }) op:
+      Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrix]): 
       Op.Impl2[Submatrix, Submatrix, Submatrix] = {
     new Op.Impl2[Submatrix, Submatrix, Submatrix] {
       def apply(a: Submatrix, b: Submatrix) = {
@@ -27,7 +35,27 @@ trait SubmatrixOps {
     }
   }
 
-  implicit val mulSM_SM: OpMulMatrix.Impl2[Submatrix, Submatrix, Submatrix] = {
+   @expand
+  @expand.valify
+  implicit def compOpSM_SM[@expand.args(OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe) Op]
+  (implicit @expand.sequence[Op]( {_ :> _}, {_ :>= _}, {_ :< _}, {_ :<= _}, {_ :== _}, {_ :!= _}) op:
+      Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrixBoolean]): 
+      Op.Impl2[Submatrix, Submatrix, SubmatrixBoolean] = {
+    new Op.Impl2[Submatrix, Submatrix, SubmatrixBoolean] {
+      def apply(a: Submatrix, b: Submatrix) = {
+        require((a.rowIndex, a.columnIndex, a.rowOffset, a.columnOffset, a.totalRows, a.totalColumns) ==
+          (b.rowIndex, b.columnIndex, b.rowOffset, b.columnOffset, b.totalRows, b.totalColumns),
+          "Submatrix meta data has to be equal")
+
+        SubmatrixBoolean(op(a.matrix, b.matrix), a.rowIndex, a.columnIndex, a.rowOffset, a.columnOffset, a.totalRows,
+          a.totalColumns)
+      }
+    }
+  }
+  
+  @expand
+  @expand.valify
+  implicit def mulSM_SM: OpMulMatrix.Impl2[Submatrix, Submatrix, Submatrix] = {
     new OpMulMatrix.Impl2[Submatrix, Submatrix, Submatrix] {
       def apply(a: Submatrix, b: Submatrix) = {
         require(a.cols == b.rows, "Submatrices cannot be multiplied due to unfitting dimensions.")
@@ -41,13 +69,26 @@ trait SubmatrixOps {
 
   @expand
   @expand.valify
-  implicit def opSM_S[@expand.args(OpAdd, OpSub, OpDiv, OpMulMatrix, OpMulScalar) Op](implicit 
-      @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ * _ }, { _ * _ }) op: 
+  implicit def opSM_S[@expand.args(OpAdd, OpSub, OpDiv, OpMulMatrix, OpMulScalar) Op]
+  (implicit @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ * _ }, { _ * _ }) op: 
       Op.Impl2[GilbertMatrix, Double, GilbertMatrix]): Op.Impl2[Submatrix, Double, Submatrix] = {
     new Op.Impl2[Submatrix, Double, Submatrix] {
       def apply(a: Submatrix, b: Double) = {
         import a._
         Submatrix(op(a.matrix, b), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
+      }
+    }
+  }
+
+  @expand
+  @expand.valify
+  implicit def compOpSM_S[@expand.args(OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe) Op]
+  (implicit @expand.sequence[Op]({_ :> _}, {_ :>= _}, {_ :< _}, {_ :<= _}, {_ :== _}, {_ :!= _}) op: 
+      Op.Impl2[GilbertMatrix, Double, GilbertMatrixBoolean]): Op.Impl2[Submatrix, Double, SubmatrixBoolean] = {
+    new Op.Impl2[Submatrix, Double, SubmatrixBoolean] {
+      def apply(a: Submatrix, b: Double) = {
+        import a._
+        SubmatrixBoolean(op(a.matrix, b), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
       }
     }
   }
