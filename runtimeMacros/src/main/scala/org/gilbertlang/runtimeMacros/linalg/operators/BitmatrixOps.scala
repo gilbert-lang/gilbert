@@ -14,12 +14,6 @@ import breeze.linalg.support.CanCopy
 
 trait BitmatrixOps {
   this: Bitmatrix.type => 
-
-  implicit val canCopy: CanCopy[Bitmatrix] = new CanCopy[Bitmatrix]{
-    override def apply(a: Bitmatrix) = {
-      a.copy
-    }
-  }
   
   implicit object SetBMBMOp extends OpSet.InPlaceImpl2[Bitmatrix, Bitmatrix]{
     def apply(a: Bitmatrix, b: Bitmatrix) {
@@ -90,17 +84,6 @@ trait BitmatrixOps {
     }
   }
 
-  @expand
-  @expand.valify
-  implicit def op_BMS[@expand.args(OpOr, OpAnd) Op <: OpType]: BinaryRegistry[Bitmatrix, Boolean, Op.type, Bitmatrix] =
-    new BinaryRegistry[Bitmatrix, Boolean, Op.type, Bitmatrix] {
-    val uop = implicitly[BinaryUpdateRegistry[Bitmatrix, Boolean, Op.type]]
-    override def bindingMissing(a: Bitmatrix, b: Boolean): Bitmatrix = {
-      val c = copy(a)
-      uop(c,b)
-      c
-    }
-  }
   
   implicit object AndBMBMOp extends OpAnd.Impl2[Bitmatrix, Bitmatrix, Bitmatrix]{
     override def apply(a: Bitmatrix, b: Bitmatrix): Bitmatrix = {
@@ -120,7 +103,6 @@ trait BitmatrixOps {
       result
     }
     implicitly[BinaryRegistry[Matrix[Boolean], Boolean, OpAnd.type, Matrix[Boolean]]].register(this)
-    implicitly[BinaryRegistry[Bitmatrix, Boolean, OpAnd.type, Bitmatrix]].register(this)
   }
   
   implicit object OrBMBMOp extends OpOr.Impl2[Bitmatrix, Bitmatrix, Bitmatrix]{
@@ -142,7 +124,6 @@ trait BitmatrixOps {
       result
     }
     implicitly[BinaryRegistry[Matrix[Boolean], Boolean, OpOr.type, Matrix[Boolean]]].register(this)
-    implicitly[BinaryRegistry[Bitmatrix, Boolean, OpOr.type, Bitmatrix]].register(this)
   }
   
   implicit val AndBMBMOpInPlace:OpAnd.InPlaceImpl2[Bitmatrix, Bitmatrix] = 

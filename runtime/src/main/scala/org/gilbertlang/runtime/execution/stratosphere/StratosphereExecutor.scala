@@ -15,6 +15,7 @@ import eu.stratosphere.api.scala.ScalaSink
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg.Submatrix
+import org.gilbertlang.runtimeMacros.linalg.SubmatrixBoolean
 import org.gilbertlang.runtimeMacros.linalg.Partition
 import org.gilbertlang.runtimeMacros.linalg.numerics
 import org.gilbertlang.runtime.execution.CellwiseFunctions
@@ -28,8 +29,8 @@ import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 
 class StratosphereExecutor extends Executor with WrapAsScala {
-  type Matrix = DataSet[Submatrix[Double]]
-  type BooleanMatrix = DataSet[Submatrix[Boolean]]
+  type Matrix = DataSet[Submatrix]
+  type BooleanMatrix = DataSet[SubmatrixBoolean]
   type Scalar[T] = DataSet[T]
   private var tempFileCounter = 0
   private var iterationStatePlaceholderValue: Option[Matrix] = None
@@ -234,32 +235,32 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   result
                 }
                 case GreaterThan => {
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix > scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :> scalar }
                   result.setName("MS: Greater than")
                   result
                 }
                 case GreaterEqualThan => {
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix >= scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :>= scalar }
                   result.setName("MS: Greater equal than")
                   result
                 }
                 case LessThan => {
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix < scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :< scalar }
                   result.setName("MS: Less than")
                   result
                 }
                 case LessEqualThan => {
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix <= scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :<= scalar }
                   result.setName("MS: Less equal than")
                   result
                 }
                 case Equals => {
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix == scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :== scalar }
                   result.setName("MS: Equals")
                   result
                 }
                 case NotEquals => {
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix != scalar }
+                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix :!= scalar }
                   result.setName("MS: Not equals")
                   result
                 }

@@ -8,7 +8,7 @@ class SubmatrixTest extends Assertions {
   
   @Test def testSubmatrixRowBroadcasting(){
     val partition = Partition(-1, 0,0,10,10,0,0,10,10)
-    val expected = Subvector[Double](10,0,0,10)
+    val expected = Subvector(10,0,0,10)
     
     for(idx <- 0 until expected.length-1){
       expected.update(idx, idx-1)
@@ -16,7 +16,7 @@ class SubmatrixTest extends Assertions {
     
     expected.update(expected.length-1, expected.length-1)
     
-    val submatrix = Submatrix[Double](partition)
+    val submatrix = Submatrix(partition)
     for(idx <- 0 until submatrix.rows){
       submatrix.update(idx,idx,idx)
     }

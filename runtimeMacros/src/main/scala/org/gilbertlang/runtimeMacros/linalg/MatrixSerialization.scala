@@ -12,15 +12,21 @@ import breeze.storage.DefaultArrayValue
 object MatrixSerialization {
   val sparseMatrixId = "SparseMatrix"
   val denseMatrixId = "DenseMatrix"
+  val bitMatrixId = "BitMatrix"
   
   def write[@specialized(Double, Boolean) T: Serializer](matrix: BreezeMatrix[T], out: DataOutput) {
     matrix match {
-      case x: BreezeSparseMatrix[T] => writeBreezeSparseMatrix(x, out)
-      case x: BreezeDenseMatrix[T] => writeBreezeDenseMatrix(x, out)
+      case x: BreezeSparseMatrix[T] => 
+        out.writeUTF(sparseMatrixId)
+        writeBreezeSparseMatrix(x, out)
+      case x: BreezeDenseMatrix[T] => 
+        out.writeUTF(denseMatrixId)
+        writeBreezeDenseMatrix(x, out)
     }
   }
   
-  def read[@specialized(Double, Boolean) T: Serializer](in: DataInput): BreezeMatrix[T] = {
+  def read[@specialized(Double, Boolean) T: Serializer:ClassTag:DefaultArrayValue:Semiring](in: DataInput): 
+  BreezeMatrix[T] = {
     val id = in.readUTF()
     id match {
       case `sparseMatrixId` => readBreezeSparseMatrix[T](in)
@@ -30,7 +36,6 @@ object MatrixSerialization {
   
   
   def writeBreezeSparseMatrix[@specialized(Double, Boolean) T: Serializer](matrix: BreezeSparseMatrix[T], out: DataOutput) {
-    out.writeUTF(sparseMatrixId)
     out.writeInt(matrix.rows)
     out.writeInt(matrix.cols)
     out.writeInt(matrix.activeSize)
@@ -43,14 +48,12 @@ object MatrixSerialization {
     } 
   }
   
-  def readBreezeSparseMatrix[@specialized(Double, Boolean) T: Serializer](in: DataInput): BreezeSparseMatrix[T] = {
+  def readBreezeSparseMatrix[@specialized(Double, Boolean) T:Serializer:ClassTag:Semiring:DefaultArrayValue]
+  (in: DataInput): BreezeSparseMatrix[T] = {
     val rows = in.readInt()
     val cols = in.readInt()
     val nnzs = in.readInt()
     val reader = implicitly[Serializer[T]]
-    implicit val classTag = reader.classTag
-    implicit val defaultArrayValue = reader.defaultArrayValue
-    implicit val semiring = reader.semiring
         
     val builder = new BreezeSparseMatrix.Builder[T](rows, cols, nnzs)
     
@@ -65,7 +68,6 @@ object MatrixSerialization {
   }
   
   def writeBreezeDenseMatrix[@specialized(Double, Boolean) T: Serializer](matrix: BreezeDenseMatrix[T], out: DataOutput){
-    out.writeUTF(denseMatrixId)
     out.writeInt(matrix.rows)
     out.writeInt(matrix.cols)
     val writer = implicitly[Serializer[T]]
@@ -75,17 +77,45 @@ object MatrixSerialization {
     }
   }
   
-  def readBreezeDenseMatrix[@specialized(Double, Boolean) T:Serializer](in: DataInput): BreezeDenseMatrix[T] = {
+  def readBreezeDenseMatrix[@specialized(Double, Boolean) T:Serializer:ClassTag](in: DataInput): BreezeDenseMatrix[T] = {
     val rows = in.readInt()
     val cols = in.readInt()
     val reader = implicitly[Serializer[T]]
-    implicit val classTag = reader.classTag
     
     val result = new BreezeDenseMatrix[T](rows, cols)
     
     for(i <- Iterator.range(0,rows); j <- Iterator.range(0,cols)){
       val v = reader.read(in)
       result(i,j) = v
+    }
+    
+    result
+  }
+  
+  def writeBitMatrix(matrix: Bitmatrix, out: DataOutput){
+    out.writeInt(matrix.rows)
+    out.writeInt(matrix.cols)
+    out.writeBoolean(matrix.isTranspose)
+    out.writeInt(matrix.activeSize)
+    
+    for((row, col) <- matrix.activeKeysIterator){
+      out.writeInt(row)
+      out.writeInt(col)
+    }
+  }
+  
+  def readBitMatrix(in: DataInput): Bitmatrix = {
+    val rows = in.readInt()
+    val cols = in.readInt()
+    val transposed = in.readBoolean()
+    val used = in.readInt()
+    val result = new Bitmatrix(rows, cols)
+    
+    for(_ <- 0 until used){
+      val row = in.readInt()
+      val col = in.readInt()
+      
+      result.update(row, col, true)
     }
     
     result

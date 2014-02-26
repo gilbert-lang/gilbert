@@ -15,19 +15,19 @@ import scala.reflect.ClassTag
 import breeze.storage.DefaultArrayValue
 import breeze.math.Semiring
 
-case class Submatrix[@specialized(Double, Boolean) T] 
-(var matrix: GilbertMatrix[T], var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
-  var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[T] with BreezeMatrixLike[T, Submatrix[T]] {
+case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
+  var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[Double] with 
+  BreezeMatrixLike[Double, Submatrix] {
 
   override def rows = matrix.rows
   override def cols = matrix.cols
 
-  override def apply(i: Int, j: Int): T = matrix(i, j)
+  override def apply(i: Int, j: Int): Double = matrix(i, j)
 
   override def copy = new Submatrix(this.matrix.copy, rowIndex, columnIndex,
       rowOffset, columnOffset, totalRows, totalColumns)
 
-  override def update(i: Int, j: Int, value: T) = matrix.update(i, j, value)
+  override def update(i: Int, j: Int, value: Double) = matrix.update(i, j, value)
 
   override def repr = this
 
@@ -57,50 +57,46 @@ case class Submatrix[@specialized(Double, Boolean) T]
 
 object Submatrix extends SubmatrixOps {
     
-  implicit def canCopySubmatrix[@specialized(Double, Boolean) T: ClassTag:DefaultArrayValue]: CanCopy[Submatrix[T]] = new CanCopy[Submatrix[T]]{
-    override def apply(submatrix: Submatrix[T]): Submatrix[T] = {
+  implicit def canCopySubmatrix:CanCopy[Submatrix] = new CanCopy[Submatrix]{
+    override def apply(submatrix: Submatrix): Submatrix = {
       import submatrix._
-      Submatrix[T](breeze.linalg.copy(submatrix.matrix), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
+      Submatrix(breeze.linalg.copy(submatrix.matrix), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
     }
   }
-    def apply[@specialized(Double, Boolean) T:MatrixFactory]
-    (partitionInformation: Partition, entries: Seq[(Int,Int,T)]): Submatrix[T] = {
+    def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Double)]): Submatrix = {
       import partitionInformation._
       val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
       val gilbertMatrix = GilbertMatrix(numRows, numColumns, adjustedEntries)
       Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
     }
   
-    def apply[@specialized(Double, Boolean) T:MatrixFactory]
-    (partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix[T] = {
+    def apply(partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix = {
       import partitionInformation._
       Submatrix(GilbertMatrix(numRows, numColumns, numNonZeroElements), rowIndex, columnIndex, rowOffset,
           columnOffset, numTotalRows, numTotalColumns)
     }
     
-    def init[@specialized(Double, Boolean) T:MatrixFactory]
-    (partitionInformation: Partition, initialValue: T): Submatrix[T] = {
+    def init(partitionInformation: Partition, initialValue: Double): Submatrix = {
       Submatrix(GilbertMatrix.init(partitionInformation.numRows, partitionInformation.numColumns, initialValue),
           partitionInformation.rowIndex, partitionInformation.columnIndex, partitionInformation.rowOffset,
           partitionInformation.columnOffset, partitionInformation.numTotalRows, partitionInformation.numTotalColumns)
     }
     
-    def eye[@specialized(Double, Boolean) T:MatrixFactory]
-    (partitionInformation: Partition): Submatrix[T] = {
+    def eye(partitionInformation: Partition): Submatrix = {
       import partitionInformation._
       Submatrix(GilbertMatrix.eye(numRows, numColumns), rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
           numTotalColumns)
     }
     
-    def rand(partition: Partition, random: Random = new Random()): Submatrix[Double] = {
+    def rand(partition: Partition, random: Random = new Random()): Submatrix = {
       import partition._
       Submatrix(GilbertMatrix.rand(numRows, numColumns, random), rowIndex, columnIndex, rowOffset, columnOffset,
           numTotalRows, numTotalColumns)
     }
   
-  def outputFormatter[@specialized(Double, Boolean) T](elementDelimiter: String, fieldDelimiter: String) = {
-    new Function1[Submatrix[T], String] {
-      def apply(submatrix: Submatrix[T]): String = {
+  def outputFormatter(elementDelimiter: String, fieldDelimiter: String) = {
+    new Function1[Submatrix, String] {
+      def apply(submatrix: Submatrix): String = {
         var result = "";
         for (((row, col), value) <- submatrix.activeIterator) {
           result += ((row+1)+submatrix.rowOffset) + fieldDelimiter + ((col+1)+submatrix.columnOffset) + fieldDelimiter + 
@@ -112,113 +108,105 @@ object Submatrix extends SubmatrixOps {
     }
   }
   
-  implicit def canMapValues[@specialized(Double, Boolean)  T:ClassTag:Semiring:DefaultArrayValue] = { 
-    new CanMapValues[Submatrix[T], T, T, Submatrix[T]]{
-      override def map(submatrix: Submatrix[T], fun: T => T) = {
-        val gilbert:GilbertMatrix[T] = submatrix.matrix.map(fun)
+  implicit def canMapValues = { 
+    new CanMapValues[Submatrix, Double, Double, Submatrix]{
+      override def map(submatrix: Submatrix, fun: Double => Double) = {
+        val gilbert:GilbertMatrix = submatrix.matrix.map(fun)
         import submatrix._
-        Submatrix[T](gilbert, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
+        Submatrix(gilbert, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
       }
       
-      override def mapActive(submatrix: Submatrix[T], fun: T => T) = {
+      override def mapActive(submatrix: Submatrix, fun: Double => Double) = {
         Submatrix(submatrix.matrix.mapActiveValues(fun), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
             submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
       }
     }
   }
   
-  implicit def handholdCMV[T] = new CanMapValues.HandHold[Submatrix[T], T]
+  implicit def handholdCMV = new CanMapValues.HandHold[Submatrix, Double]
   
-  implicit def canZipMapValues[@specialized(Double, Boolean) T:ClassTag:Semiring:DefaultArrayValue]:
-  CanZipMapValues[Submatrix[T], T, T, Submatrix[T]] = {
-    new CanZipMapValues[Submatrix[T], T, T, Submatrix[T]]{
-      override def map(a: Submatrix[T], b: Submatrix[T], fn: (T, T) => T) = {
-        val mapper = implicitly[CanZipMapValues[GilbertMatrix[T], T, T, GilbertMatrix[T]]]
+  implicit def canZipMapValues:CanZipMapValues[Submatrix, Double, Double, Submatrix] = {
+    new CanZipMapValues[Submatrix, Double, Double, Submatrix]{
+      override def map(a: Submatrix, b: Submatrix, fn: (Double, Double) => Double) = {
+        val mapper = implicitly[CanZipMapValues[GilbertMatrix, Double, Double, GilbertMatrix]]
         val result = mapper.map(a.matrix, b.matrix, fn)
         Submatrix(result, a.rowIndex, a.columnIndex, a.rowOffset, a.columnOffset, a.totalRows, a.totalColumns)
       }
     }
   }
   
-  implicit def canIterateValues[@specialized(Double, Boolean) T:ClassTag:Semiring:DefaultArrayValue]: 
-  CanTraverseValues[Submatrix[T], T] = {
-    new CanTraverseValues[Submatrix[T], T]{
-      override def isTraversableAgain(submatrix: Submatrix[T]): Boolean = true
+  implicit def canIterateValues:CanTraverseValues[Submatrix, Double] = {
+    new CanTraverseValues[Submatrix, Double]{
+      override def isTraversableAgain(submatrix: Submatrix): Boolean = true
       
-      override def traverse(submatrix: Submatrix[T], fn: ValuesVisitor[T]) {
-        val traversal = implicitly[CanTraverseValues[GilbertMatrix[T], T]]
+      override def traverse(submatrix: Submatrix, fn: ValuesVisitor[Double]) {
+        val traversal = implicitly[CanTraverseValues[GilbertMatrix, Double]]
         traversal.traverse(submatrix.matrix, fn)
       }
     }
   }
   
-  implicit def canSliceRowSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
-    DefaultArrayValue]: CanSlice2[Submatrix[T], Int, ::.type, Submatrix[T]] = {
-    new CanSlice2[Submatrix[T], Int, ::.type, Submatrix[T]]{
-      override def apply(submatrix: Submatrix[T], row: Int, ignored: ::.type) = {
+  implicit def canSliceRowSubmatrix: CanSlice2[Submatrix, Int, ::.type, Submatrix] = {
+    new CanSlice2[Submatrix, Int, ::.type, Submatrix]{
+      override def apply(submatrix: Submatrix, row: Int, ignored: ::.type) = {
         Submatrix(submatrix.matrix(row, ::), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
             submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
       }
     }
   }
   
-  implicit def canSliceRowsSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
-    DefaultArrayValue]: CanSlice2[Submatrix[T], Range, ::.type, Submatrix[T]] = {
-    new CanSlice2[Submatrix[T], Range, ::.type, Submatrix[T]]{
-      override def apply(submatrix: Submatrix[T], rows: Range, ignored: ::.type) = {
+  implicit def canSliceRowsSubmatrix: CanSlice2[Submatrix, Range, ::.type, Submatrix] = {
+    new CanSlice2[Submatrix, Range, ::.type, Submatrix]{
+      override def apply(submatrix: Submatrix, rows: Range, ignored: ::.type) = {
         Submatrix(submatrix.matrix(rows, ::), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
             submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
       }
     }
   }
   
-  implicit def canSliceColSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
-    DefaultArrayValue]: CanSlice2[Submatrix[T], ::.type, Int, Subvector[T]] = {
-    new CanSlice2[Submatrix[T], ::.type, Int, Subvector[T]]{
-      override def apply(submatrix: Submatrix[T], ignored: ::.type, col: Int) ={
+  implicit def canSliceColSubmatrix: CanSlice2[Submatrix, ::.type, Int, Subvector] = {
+    new CanSlice2[Submatrix, ::.type, Int, Subvector]{
+      override def apply(submatrix: Submatrix, ignored: ::.type, col: Int) ={
         Subvector(submatrix.matrix(::, col), submatrix.rowIndex, submatrix.rowOffset, submatrix.totalRows)
       }
     }
   }
   
-  implicit def canSliceColsSubmatrix[@specialized(Double, Boolean) T:ClassTag:Semiring:
-    DefaultArrayValue]: CanSlice2[Submatrix[T], ::.type, Range, Submatrix[T]] = {
-      new CanSlice2[Submatrix[T], ::.type, Range, Submatrix[T]]{
-        override def apply(submatrix: Submatrix[T], ignored: ::.type, cols: Range) = {
+  implicit def canSliceColsSubmatrix: CanSlice2[Submatrix, ::.type, Range, Submatrix] = {
+      new CanSlice2[Submatrix, ::.type, Range, Submatrix]{
+        override def apply(submatrix: Submatrix, ignored: ::.type, cols: Range) = {
           Submatrix(submatrix.matrix(::, cols), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset, 
               submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
         }
       }
   }
   
-  implicit def canCollapseRows[@specialized(Double, Boolean) T:ClassTag:Semiring:
-    DefaultArrayValue]: CanCollapseAxis[Submatrix[T], Axis._0.type, BreezeVector[T], T, Submatrix[T]] = {
-    new CanCollapseAxis[Submatrix[T], Axis._0.type, BreezeVector[T], T, Submatrix[T]]{
-      override def apply(submatrix: Submatrix[T], axis: Axis._0.type)(fn: BreezeVector[T] => T) = {
+  implicit def canCollapseRows: CanCollapseAxis[Submatrix, Axis._0.type, BreezeVector[Double], Double, Submatrix] = {
+    new CanCollapseAxis[Submatrix, Axis._0.type, BreezeVector[Double], Double, Submatrix]{
+      override def apply(submatrix: Submatrix, axis: Axis._0.type)(fn: BreezeVector[Double] => Double) = {
         val collapser = 
-          implicitly[CanCollapseAxis[GilbertMatrix[T], Axis._0.type, BreezeVector[T], T, GilbertMatrix[T]]]
+          implicitly[CanCollapseAxis[GilbertMatrix, Axis._0.type, BreezeVector[Double], Double, GilbertMatrix]]
         Submatrix(collapser(submatrix.matrix, axis)(fn), 0, submatrix.columnIndex, 0, submatrix.columnOffset,
             1, submatrix.totalColumns)
       }
     }
   }
   
-  implicit def canCollapseCols[@specialized(Double, Boolean) T:ClassTag:Semiring:
-    DefaultArrayValue]: CanCollapseAxis[Submatrix[T], Axis._1.type, BreezeVector[T], T, Subvector[T]] = {
-    new CanCollapseAxis[Submatrix[T], Axis._1.type, BreezeVector[T], T, Subvector[T]]{
-      override def apply(submatrix: Submatrix[T], axis: Axis._1.type)(fn: BreezeVector[T] => T) = {
+  implicit def canCollapseCols: CanCollapseAxis[Submatrix, Axis._1.type, BreezeVector[Double], Double, Subvector] = {
+    new CanCollapseAxis[Submatrix, Axis._1.type, BreezeVector[Double], Double, Subvector]{
+      override def apply(submatrix: Submatrix, axis: Axis._1.type)(fn: BreezeVector[Double] => Double) = {
         val collapser = 
-          implicitly[CanCollapseAxis[GilbertMatrix[T], Axis._1.type, BreezeVector[T], T, GilbertVector[T]]]
+          implicitly[CanCollapseAxis[GilbertMatrix, Axis._1.type, BreezeVector[Double], Double, GilbertVector]]
         Subvector(collapser(submatrix.matrix, axis)(fn), submatrix.rowIndex, submatrix.rowOffset, submatrix.totalRows)
       }
     }
   }
   
-  implicit def handholdCanMapCols[T]: CanCollapseAxis.HandHold[Submatrix[T], Axis._1.type, BreezeVector[T]] = 
-    new CanCollapseAxis.HandHold[Submatrix[T], Axis._1.type, BreezeVector[T]]()
+  implicit def handholdCanMapCols: CanCollapseAxis.HandHold[Submatrix, Axis._1.type, BreezeVector[Double]] = 
+    new CanCollapseAxis.HandHold[Submatrix, Axis._1.type, BreezeVector[Double]]()
     
-  implicit def handholdCanMapRows[T]: CanCollapseAxis.HandHold[Submatrix[T], Axis._0.type, BreezeVector[T]] = 
-    new CanCollapseAxis.HandHold[Submatrix[T], Axis._0.type, BreezeVector[T]]()
+  implicit def handholdCanMapRows: CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]] = 
+    new CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]]()
 
 }
 

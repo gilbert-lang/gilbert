@@ -22,6 +22,7 @@ import breeze.linalg.operators.OpLTE
 import breeze.linalg.operators.OpEq
 import breeze.linalg.operators.OpAnd
 import breeze.linalg.operators.OpOr
+import org.gilbertlang.runtimeMacros.linalg.GilbertMatrixBoolean
 
 trait GilbertMatrixOps{
 
@@ -29,12 +30,12 @@ trait GilbertMatrixOps{
   
   @expand
   @expand.valify
-  implicit def opGM_GM[@expand.args(Double) T, @expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op]
+  implicit def opGM_GM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op]
   (implicit @expand.sequence[Op]({_ + _}, {_ - _}, {_ / _}, {_ :* _}) op: 
-      Op.Impl2[BreezeMatrix[T],BreezeMatrix[T],BreezeMatrix[T]]): 
-      Op.Impl2[GilbertMatrix[T], GilbertMatrix[T], GilbertMatrix[T]] = {
-    new Op.Impl2[GilbertMatrix[T], GilbertMatrix[T], GilbertMatrix[T]]{
-      def apply(a: GilbertMatrix[T], b: GilbertMatrix[T]): GilbertMatrix[T] = {
+      Op.Impl2[BreezeMatrix[Double],BreezeMatrix[Double],BreezeMatrix[Double]]): 
+      Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrix] = {
+    new Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrix]{
+      def apply(a: GilbertMatrix, b: GilbertMatrix): GilbertMatrix = {
         GilbertMatrix(op(a.matrix, b.matrix))
       }
     }
@@ -42,37 +43,25 @@ trait GilbertMatrixOps{
 
   @expand
   @expand.valify
-  implicit def compOpGM_GM[@expand.args(Double) T, @expand.args(OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe) Op]
+  implicit def compOpGM_GM[@expand.args(OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe) Op]
   (implicit @expand.sequence[Op]({_ :> _}, {_ :>= _}, {_ :< _}, {_ :<= _}, {_ :== _}, {_ :!= _}) op: 
-    Op.Impl2[BreezeMatrix[T], BreezeMatrix[T], BreezeMatrix[Boolean]]):
-  Op.Impl2[GilbertMatrix[T], GilbertMatrix[T], GilbertMatrix[Boolean]] =
-  new Op.Impl2[GilbertMatrix[T], GilbertMatrix[T], GilbertMatrix[Boolean]]{
-    override def apply(a: GilbertMatrix[T], b: GilbertMatrix[T]): GilbertMatrix[Boolean] = {
-      GilbertMatrix(op(a.matrix, b.matrix))
+    Op.Impl2[BreezeMatrix[Double], BreezeMatrix[Double], Bitmatrix]):
+  Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrixBoolean] =
+  new Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrixBoolean]{
+    override def apply(a: GilbertMatrix, b: GilbertMatrix): GilbertMatrixBoolean = {
+      GilbertMatrixBoolean(op(a.matrix, b.matrix))
     }
   }
   
   @expand
   @expand.valify
-  implicit def logicalOpGM_GM[@expand.args(Boolean) T, @expand.args(OpAnd, OpOr) Op](implicit @expand.sequence[Op]({_ :& _}, 
-      {_ :| _}) op: Op.Impl2[BreezeMatrix[T],BreezeMatrix[T],BreezeMatrix[T]]): 
-      Op.Impl2[GilbertMatrix[T], GilbertMatrix[T], GilbertMatrix[T]] = {
-    new Op.Impl2[GilbertMatrix[T], GilbertMatrix[T], GilbertMatrix[T]]{
-      def apply(a: GilbertMatrix[T], b: GilbertMatrix[T]): GilbertMatrix[T] = {
-        GilbertMatrix(op(a.matrix, b.matrix))
-      }
-    }
-  }
-  
-  @expand
-  @expand.valify
-  implicit def GilbertMatrixMulGilbertMatrix[@expand.args(Double) T]:
-  OpMulMatrix.Impl2[GilbertMatrix[T],GilbertMatrix[T], GilbertMatrix[T]] = 
-    new OpMulMatrix.Impl2[GilbertMatrix[T],GilbertMatrix[T], GilbertMatrix[T]] {
-    def apply(a: GilbertMatrix[T], b: GilbertMatrix[T]): GilbertMatrix[T] = {
-      val result: Matrix[T] = (a.matrix, b.matrix) match {
-        case (x: DenseMatrix[T], y: DenseMatrix[T]) => x * y
-        case (x: Matrix[T], y: Matrix[T]) => x * y
+  implicit def GilbertMatrixMulGilbertMatrix:
+  OpMulMatrix.Impl2[GilbertMatrix,GilbertMatrix, GilbertMatrix] = 
+    new OpMulMatrix.Impl2[GilbertMatrix,GilbertMatrix, GilbertMatrix] {
+    def apply(a: GilbertMatrix, b: GilbertMatrix): GilbertMatrix = {
+      val result: Matrix[Double] = (a.matrix, b.matrix) match {
+        case (x: DenseMatrix[Double], y: DenseMatrix[Double]) => x * y
+        case (x: Matrix[Double], y: Matrix[Double]) => x * y
       }
       GilbertMatrix(result)
     }
@@ -80,12 +69,12 @@ trait GilbertMatrixOps{
   
   @expand
   @expand.valify
-  implicit def opGM_S[@expand.args(Double) T, @expand.args(OpAdd, OpSub, OpDiv, OpMulMatrix, OpMulScalar) Op] 
+  implicit def opGM_S[@expand.args(OpAdd, OpSub, OpDiv, OpMulMatrix, OpMulScalar) Op] 
   (implicit @expand.sequence[Op]({_ + _}, {_ - _}, {_ / _}, {_ * _}, {_ * _}) op: 
-      Op.Impl2[BreezeMatrix[T],T,BreezeMatrix[T]]): 
-      Op.Impl2[GilbertMatrix[T], T, GilbertMatrix[T]] = {
-    new Op.Impl2[GilbertMatrix[T], T, GilbertMatrix[T]] {
-      def apply(a: GilbertMatrix[T], b: T) = {
+      Op.Impl2[BreezeMatrix[Double],Double,BreezeMatrix[Double]]): 
+      Op.Impl2[GilbertMatrix, Double, GilbertMatrix] = {
+    new Op.Impl2[GilbertMatrix, Double, GilbertMatrix] {
+      def apply(a: GilbertMatrix, b: Double) = {
         GilbertMatrix(op(a.matrix, b))
       }
     }
@@ -93,26 +82,14 @@ trait GilbertMatrixOps{
 
   @expand
   @expand.valify
-  implicit def compOpGM_S[@expand.args(Double) T, @expand.args(OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe) Op]
+  implicit def compOpGM_S[@expand.args(OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe) Op]
   (implicit @expand.sequence[Op]({_ :> _}, {_ :>= _}, {_ :< _}, {_ :<= _}, {_ :== _}, {_ :!= _}) op: 
-    Op.Impl2[BreezeMatrix[T], T, BreezeMatrix[Boolean]]):
-  Op.Impl2[GilbertMatrix[T], T, GilbertMatrix[Boolean]] =
-  new Op.Impl2[GilbertMatrix[T], T, GilbertMatrix[Boolean]]{
-    override def apply(a: GilbertMatrix[T], b: T): GilbertMatrix[Boolean] = {
-      GilbertMatrix(op(a.matrix, b))
+    Op.Impl2[BreezeMatrix[Double], Double, Bitmatrix]):
+  Op.Impl2[GilbertMatrix, Double, GilbertMatrixBoolean] =
+  new Op.Impl2[GilbertMatrix, Double, GilbertMatrixBoolean]{
+    override def apply(a: GilbertMatrix, b: Double): GilbertMatrixBoolean = {
+      GilbertMatrixBoolean(op(a.matrix, b))
     }
   }
   
-  @expand
-  @expand.valify
-  implicit def logicalOpGM_S[@expand.args(Boolean) T, @expand.args(OpAnd, OpOr) Op](implicit @expand.sequence[Op]({_ :& _}, 
-      {_ :| _}) op: 
-      Op.Impl2[BreezeMatrix[T],T,BreezeMatrix[T]]): 
-      Op.Impl2[GilbertMatrix[T],T, GilbertMatrix[T]] = {
-    new Op.Impl2[GilbertMatrix[T], T, GilbertMatrix[T]]{
-      def apply(a: GilbertMatrix[T], b:T): GilbertMatrix[T] = {
-        GilbertMatrix(op(a.matrix, b))
-      }
-    }
-  }
 }

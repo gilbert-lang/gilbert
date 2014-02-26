@@ -5,6 +5,8 @@ import breeze.linalg.MatrixLike
 import org.gilbertlang.runtimeMacros.linalg.operators.BitmatrixOps
 import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixOps
 import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixRegistries
+import breeze.linalg.support.CanCopy
+import breeze.linalg.support.CanTranspose
 
 class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
     val isTranspose: Boolean) 
@@ -99,5 +101,17 @@ object Bitmatrix extends BitmatrixOps with BreezeMatrixRegistries{
     val data = new java.util.BitSet(rows*cols)
     data.set(0,rows*cols, initialValue)
     new Bitmatrix(rows, cols, data, false)
+  }
+  
+  implicit val canTranspose = new CanTranspose[Bitmatrix, Bitmatrix]{
+    override def apply(bitmatrix: Bitmatrix): Bitmatrix = {
+      new Bitmatrix(bitmatrix.cols, bitmatrix.rows, bitmatrix.data,!bitmatrix.isTranspose)
+    }
+  }
+  
+  implicit val canCopy = new CanCopy[Bitmatrix]{
+    override def apply(bitmatrix: Bitmatrix): Bitmatrix = {
+      bitmatrix.copy
+    }
   }
 }

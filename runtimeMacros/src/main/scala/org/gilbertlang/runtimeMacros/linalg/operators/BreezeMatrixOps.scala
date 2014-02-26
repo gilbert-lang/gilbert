@@ -32,9 +32,9 @@ trait BreezeMatrixOps {
   @expand.valify
   implicit def comp_MM[@expand.args(Double) T, @expand.args(OpLT, OpLTE, OpGT, OpGTE, OpEq, OpNe) Op <: OpType](
       implicit @expand.sequence[Op]( {_ < _ }, {_ <= _}, {_ > _}, {_ >= _}, {_ == _}, {_ != _})
-      comp: Op.Impl2[T, T, Boolean]): Op.Impl2[Matrix[T], Matrix[T], Matrix[Boolean]] = 
-      new Op.Impl2[Matrix[T], Matrix[T], Matrix[Boolean]]{
-    override def apply(a: Matrix[T], b: Matrix[T]): Matrix[Boolean] = {
+      comp: Op.Impl2[T, T, Boolean]): Op.Impl2[Matrix[T], Matrix[T], Bitmatrix] = 
+      new Op.Impl2[Matrix[T], Matrix[T],Bitmatrix]{
+    override def apply(a: Matrix[T], b: Matrix[T]): Bitmatrix = {
       val result = new Bitmatrix(a.rows, a.cols)
       
       for(col <- 0 until a.cols; row <- 0 until a.rows){
@@ -49,9 +49,9 @@ trait BreezeMatrixOps {
   @expand.valify
   implicit def comp_MS[@expand.args(Double) T, @expand.args(OpLT, OpLTE, OpGT, OpGTE, OpEq, OpNe) Op <: OpType](
       implicit @expand.sequence[Op]( {_ < _ }, {_ <= _}, {_ > _}, {_ >= _}, {_ == _}, {_ != _})
-      comp: Op.Impl2[T, T, Boolean]): Op.Impl2[Matrix[T], T, Matrix[Boolean]] = 
-      new Op.Impl2[Matrix[T], T, Matrix[Boolean]]{
-    override def apply(a: Matrix[T], b: T): Matrix[Boolean] = {
+      comp: Op.Impl2[T, T, Boolean]): Op.Impl2[Matrix[T], T, Bitmatrix] = 
+      new Op.Impl2[Matrix[T], T,Bitmatrix]{
+    override def apply(a: Matrix[T], b: T): Bitmatrix = {
       val result = new Bitmatrix(a.rows, a.cols)
       
       for(col <- 0 until a.cols; row <- 0 until a.rows){

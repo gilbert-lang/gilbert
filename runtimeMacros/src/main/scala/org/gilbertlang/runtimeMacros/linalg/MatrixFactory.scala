@@ -5,7 +5,7 @@ import breeze.linalg.{DenseMatrix => BreezeDenseMatrix, CSCMatrix => BreezeSpars
 
 trait MatrixFactory[@specialized T] {
   def create(rows: Int, cols: Int, dense: Boolean): Matrix[T]
-  def create(rows: Int, cols: Int, initialValue: T, dense: Boolean): Matrix[T]
+  def init(rows: Int, cols: Int, initialValue: T, dense: Boolean): Matrix[T]
   def create(rows: Int, cols: Int, entries: Seq[(Int, Int, T)], dense: Boolean): Matrix[T]
   def eye(rows: Int, cols: Int, dense: Boolean): Matrix[T]
 }
@@ -20,7 +20,7 @@ object MatrixFactory{
       }
     }
     
-    def create(rows: Int, cols: Int, initialValue: Double, dense: Boolean): Matrix[Double] = {
+    def init(rows: Int, cols: Int, initialValue: Double, dense: Boolean): Matrix[Double] = {
       val data = Array.fill[Double](rows*cols)(initialValue)
       if(dense){
         BreezeDenseMatrix.create[Double](rows, cols, data)
@@ -69,7 +69,7 @@ object MatrixFactory{
       Bitmatrix.zeros(rows, cols)
     }
     
-    def create(rows: Int, cols: Int, initialValue: Boolean, dense: Boolean): Bitmatrix = {
+    def init(rows: Int, cols: Int, initialValue: Boolean, dense: Boolean): Bitmatrix = {
       Bitmatrix.init(rows, cols, initialValue)
     }
 
