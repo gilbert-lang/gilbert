@@ -46,7 +46,9 @@ object Types {
   
   private val wideableTypes = scala.collection.immutable.Map[Type, List[Type]](
     IntegerType -> List(DoubleType),
-    CharacterType -> List(DoubleType, IntegerType))
+    CharacterType -> List(DoubleType, IntegerType),
+    BooleanType -> List(DoubleType, IntegerType)
+  )
 
   sealed trait Type {
     def isWideableTo(other: Type): Boolean = {
@@ -59,6 +61,7 @@ object Types {
   case object IntegerType extends NumericType
   case object DoubleType extends NumericType
   case object CharacterType extends Type
+  case object BooleanType extends Type
 
   case class FunctionType(parameters: List[Type], value: Type) extends Type {
     def this(parameter: Type, value: Type) = this(List(parameter), value)

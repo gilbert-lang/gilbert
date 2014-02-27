@@ -36,7 +36,8 @@ trait Parser extends Parsers {
   val lexer = new Lexer with DiscardWhitespaces with DiscardComments {}
   type Elem = lexer.Token
 
-  import lexer.{Keyword, Identifier, StringLiteral, IntegerLiteral, FloatingPointLiteral, EOF, TypeAnnotation}
+  import lexer.{Keyword, Identifier, StringLiteral, IntegerLiteral, FloatingPointLiteral,
+ BooleanLiteral, EOF, TypeAnnotation}
   import Keywords._
   import Delimiters._
 
@@ -193,6 +194,7 @@ trait Parser extends Parsers {
   def elementaryExpression: Parser[ASTExpression] = (functionApplication
     | identifier
     | scalar
+    | booleanLiteral
     | matrix
     | stringLiteral
     | anonymousFunction
@@ -218,6 +220,8 @@ trait Parser extends Parsers {
     { case FloatingPointLiteral(f) => ASTFloatingPoint(f) }
   def stringLiteral = elem("string", { case StringLiteral(_) => true case _ => false }) ^^
     { case StringLiteral(s) => ASTString(s) }
+  def booleanLiteral = elem("boolean", { case BooleanLiteral(_) => true case _ => false}) ^^ 
+  { case BooleanLiteral(b) => ASTBoolean(b) }
 
   def matrix = LBRACKET ~> repsep(matrixRow, newlineOrSemicolon) <~ RBRACKET ^^ { m => ASTMatrix(m) }
   def matrixRow = repsep(expression, COMMA) ^^ { r => ASTMatrixRow(r) }

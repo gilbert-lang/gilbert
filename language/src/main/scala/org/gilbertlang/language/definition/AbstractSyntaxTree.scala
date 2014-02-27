@@ -40,6 +40,7 @@ object AbstractSyntaxTree {
   sealed abstract class ASTExpression extends ASTStatementWithResult
 
   case class ASTString(value: String) extends ASTExpression
+  case class ASTBoolean(value: Boolean) extends ASTExpression
   case class ASTIdentifier(value: String) extends ASTExpression
   case class ASTMatrix(value: List[ASTMatrixRow]) extends ASTExpression
   case class ASTMatrixRow(value: List[ASTExpression]) extends ASTExpression

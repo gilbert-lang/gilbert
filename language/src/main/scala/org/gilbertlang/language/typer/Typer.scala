@@ -455,6 +455,7 @@ trait Typer {
     case ASTInteger(value) => TypedInteger(value)
     case ASTFloatingPoint(value) => TypedFloatingPoint(value)
     case ASTString(value) => TypedString(value)
+    case ASTBoolean(value) => TypedBoolean(value)
     case ASTUnaryExpression(exp, op) => {
       val typedExpression = typeExpression(exp)
       val operatorType = typeUnaryOperator(op)

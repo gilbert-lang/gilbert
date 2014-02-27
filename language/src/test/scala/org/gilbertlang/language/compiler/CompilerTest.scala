@@ -18,7 +18,7 @@ class CompilerTest extends Assertions {
     var isReader:InputStreamReader = null;
     val expected = CompoundExecutable(List(WriteMatrix(randn(scalar(10.0),scalar(10.0),scalar(0.0), scalar(1.0))), 
         WriteMatrix(FixpointIteration(randn(scalar(10.0),scalar(10.0),scalar(0.0),scalar(1.0)), 
-            function(1,MatrixParameter(0))))))
+            function(1,MatrixParameter(0)), scalar(10.0)))))
     try {
       isReader = new InputStreamReader(ClassLoader.getSystemResourceAsStream("compilerFixpoint.gb"))
       val reader = StreamReader(isReader)

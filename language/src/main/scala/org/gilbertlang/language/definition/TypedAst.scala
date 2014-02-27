@@ -26,6 +26,7 @@ import org.gilbertlang.language.definition.Operators.UnaryOperator
 import org.gilbertlang.language.definition.Operators.BinaryOperator
 import org.gilbertlang.language.definition.Types.IntegerType
 import org.gilbertlang.language.definition.Types.DoubleType
+import org.gilbertlang.language.definition.Types.BooleanType
 
 object TypedAst {
 
@@ -89,6 +90,10 @@ object TypedAst {
   
   case class TypedFloatingPoint(value: Double) extends TypedScalar {
     val datatype = DoubleType
+  }
+  
+  case class TypedBoolean(value: Boolean) extends TypedExpression{
+    val datatype = BooleanType
   }
 
 }

@@ -27,4 +27,6 @@ object Keywords extends Enumeration {
   val WHILE = Value("while")
   val FUNCTION = Value("function")
   val END = Value("end")
+  val TRUE = Value("true")
+  val FALSE = Value("false")
 }

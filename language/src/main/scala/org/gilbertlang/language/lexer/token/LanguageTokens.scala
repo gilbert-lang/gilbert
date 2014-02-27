@@ -42,6 +42,10 @@ trait LanguageTokens extends Tokens {
     def chars = "floating point " + value.toString
   }
   
+  case class BooleanLiteral(value: Boolean) extends Token{
+    def chars = "boolean " + value.toString
+  }
+  
   case class Comment(value: String) extends Token {
     def chars = "comment " + value
   }

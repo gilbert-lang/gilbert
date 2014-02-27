@@ -34,11 +34,12 @@ object Algorithms {
 
     val A = randn(size, size, 0, 1)
     val x_0 = ones(size, 1) / size
+    val maxIterations = 10
 
     fixpoint(x_0, { x => {
       val nextX = A * x
       nextX / norm2(nextX)
-    }})
+    }}, maxIterations)
   }
 
   def pageRank() = {
@@ -63,8 +64,10 @@ object Algorithms {
 
     /* compute PageRank */
     val e = ones(numVertices, 1)
+    
+    val maxIterations = 10
 
-    fixpoint(r_0, { r => .85 * T * r + .15 * e })
+    fixpoint(r_0, { r => .85 * T * r + .15 * e }, maxIterations)
   }
 
 
