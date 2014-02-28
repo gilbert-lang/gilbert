@@ -27,6 +27,8 @@ import org.gilbertlang.runtimeMacros.linalg.Configuration
 import eu.stratosphere.api.common.operators.Operator
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
+import org.gilbertlang.runtime.RuntimeTypes.{BooleanType, DoubleType}
+import scala.collection.mutable
 
 class StratosphereExecutor extends Executor with WrapAsScala {
   type Matrix = DataSet[Submatrix]
@@ -34,12 +36,22 @@ class StratosphereExecutor extends Executor with WrapAsScala {
   type Scalar[T] = DataSet[T]
   private var tempFileCounter = 0
   private var iterationStatePlaceholderValue: Option[Matrix] = None
+  private val matrixRegistry = mutable.HashMap[Int, Matrix]()
+
   
   def getCWD: String = System.getProperty("user.dir")
 
   def newTempFileName(): String = {
     tempFileCounter += 1
     "file://" + getCWD + "/gilbert" + tempFileCounter + ".output"
+  }
+
+  def registerValue(index: Int, value: Matrix){
+    matrixRegistry.put(index, value)
+  }
+
+  def getRegisteredValue(index: Int):Option[Matrix] = {
+    matrixRegistry.get(index)
   }
   
   implicit def dataset2Operator[T](dataset: DataSet[T]): Operator = dataset.contract
@@ -78,16 +90,31 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       }
 
       //TODO: Fix
-      case executable: WriteScalarRef => {
-        handle[WriteScalarRef, Scalar[Double]](
-          executable,
-          { exec => evaluate[Scalar[Double]](exec.scalar) },
-          { (_, scalar) =>
+      case executable: WriteScalar => {
+        executable.scalar.getType match {
+          case DoubleType =>
+            handle[WriteScalar, Scalar[Double]](
+            executable,
+            { exec => evaluate[Scalar[Double]](exec.scalar) },
+            { (_, scalar) =>
             {
               val completePathWithFilename = newTempFileName()
               scalar.write(completePathWithFilename, CsvOutputFormat(), s"WriteScalarRef($completePathWithFilename)")
             }
-          })
+            })
+          case BooleanType =>
+            handle[WriteScalar, Scalar[Boolean]](
+            executable,
+            { exec => evaluate[Scalar[Boolean]](exec.scalar) },
+            { (_, scalar) =>
+              val completePathWithFilename = newTempFileName()
+              scalar.write(completePathWithFilename, CsvOutputFormat(), s"WriteScalarRef($completePathWithFilename)")
+            }
+            )
+
+        }
+
+
       }
 
       case VoidExecutable => {
@@ -987,7 +1014,27 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               */
               result
             }
-            val iteration = initialState.iterate(numberIterations, stepFunction);
+
+            val convergenceFlow = (prev: Matrix, cur: Matrix) => {
+              val oldRegisteredValue0 = getRegisteredValue(0)
+              val oldRegisteredValue1 = getRegisteredValue(1)
+              registerValue(0, prev)
+              registerValue(1, cur)
+              val appliedConvergence = exec.convergence.apply(RegisteredValue(0), RegisteredValue(1))
+              val result = evaluate[Scalar[Boolean]](appliedConvergence)
+              oldRegisteredValue0 match {
+                case Some(t) => registerValue(0,t)
+                case None =>
+              }
+              oldRegisteredValue1 match{
+                case Some(t) => registerValue(1, t)
+                case None =>
+              }
+
+              result
+            }
+
+            val iteration = initialState.iterateWithConvergence(numberIterations, stepFunction, convergenceFlow)
             iteration.setName("Fixpoint iteration")
             iteration
           })
@@ -1019,6 +1066,22 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           })
       }
 
+      case executable: norm => {
+        handle[norm, (Matrix, Scalar[Double])](
+        executable,
+        { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.p))},
+        { case (_, (matrix, p)) =>
+          val exponentiation = matrix cross p map { (matrix, p) => matrix :^ p }
+          exponentiation.setName("Norm: Exponentiation")
+          val sums = exponentiation map { (matrix) => matrix.activeValuesIterator.fold(0.0)( _ + _ )}
+          sums.setName("Norm: Partial sums of submatrices")
+          val result = sums.combinableReduceAll( it => it.fold(0.0)(_ + _))
+          result.setName("Norm: Sum of partial sums")
+          result
+        }
+        )
+      }
+
       case function: function => {
         throw new StratosphereExecutionError("Cannot execute function. Needs function application")
       } 
@@ -1037,6 +1100,13 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
       case parameter: FunctionParameter => {
         throw new StratosphereExecutionError("Parameter found. Cannot execute parameters.")
+      }
+
+      case registeredValue: RegisteredValue => {
+        getRegisteredValue(registeredValue.index) match {
+          case Some(t) => t
+          case _ => throw new StratosphereExecutionError("Could not retrieve registered value.")
+        }
       }
 
     }

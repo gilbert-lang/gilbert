@@ -17,7 +17,9 @@ r_0 = ones(numVertices, 1) / numVertices
 % compute PageRank
 e = ones(numVertices, 1)
 
-ranks = fixpoint(r_0, @(r) (.85 * T * r + .15 * e), 5);
+eps = 0.1;
+
+ranks = fixpoint(r_0, @(r) (.85 * T * r + .15 * e), 5, @(prev, cur) norm(prev-cur,2) <= eps);
 
 % save result
 ranks

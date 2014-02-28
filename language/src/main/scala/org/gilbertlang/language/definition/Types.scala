@@ -28,7 +28,7 @@ object Types {
 
     def mt(elementType: Type, rows: Value, columns:Value) = MatrixType(elementType,rows,columns)
     def pt(types: List[FunctionType]) = PolymorphicType(types)
-    def utv = UniversalType(newTV())
+    def utv() = UniversalType(newTV())
     def untv = UniversalType(newNumericTV())
     
     def newTV() = {
@@ -57,11 +57,14 @@ object Types {
   }
 
   case object StringType extends Type
+  case object CharacterType extends Type
+  case object BooleanType extends Type
+
   sealed trait NumericType extends Type
   case object IntegerType extends NumericType
   case object DoubleType extends NumericType
-  case object CharacterType extends Type
-  case object BooleanType extends Type
+
+
 
   case class FunctionType(parameters: List[Type], value: Type) extends Type {
     def this(parameter: Type, value: Type) = this(List(parameter), value)

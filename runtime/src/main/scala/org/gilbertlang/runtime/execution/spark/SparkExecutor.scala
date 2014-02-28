@@ -561,9 +561,9 @@ class SparkExecutor extends Executor {
         throw new ExecutionRuntimeError("Parameters cannot be executed")
       }
 
-      case (transformation: WriteScalarRef) => {
+      case (transformation: WriteScalar) => {
 
-        handle[WriteScalarRef, Double](transformation,
+        handle[WriteScalar, Double](transformation,
             { transformation => evaluate[Double](transformation.scalar) },
             { (transformation, value) => println(value) })
       }

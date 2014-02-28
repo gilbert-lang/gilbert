@@ -20,7 +20,6 @@ package org.gilbertlang.runtime
 
 import org.gilbertlang.runtime.execution.reference.ReferenceExecutor
 import org.gilbertlang.runtime.execution.spark.SparkExecutor
-import eu.stratosphere.client.LocalExecutor
 import org.gilbertlang.runtime.execution.stratosphere.StratosphereExecutor
 import eu.stratosphere.api.scala.ScalaPlan
 import eu.stratosphere.api.scala.ScalaSink
@@ -31,7 +30,7 @@ object local {
 
     val write = executable match {
       case matrix: Matrix => WriteMatrix(matrix)
-      case scalar: ScalarRef => WriteScalarRef(scalar)
+      case scalar: ScalarRef => WriteScalar(scalar)
       case string: StringRef => WriteString(string)
       case function: FunctionRef => WriteFunction(function)
       case _ => executable
@@ -46,7 +45,7 @@ object withSpark {
 
     val write = executable match {
       case matrix: Matrix => WriteMatrix(matrix)
-      case scalar: ScalarRef => WriteScalarRef(scalar)
+      case scalar: ScalarRef => WriteScalar(scalar)
       case string: StringRef => WriteString(string)
       case function: FunctionRef => WriteFunction(function)
       case _ => executable
@@ -60,7 +59,7 @@ object withStratosphere{
   def apply(executable: Executable) = {
     val write = executable match {
       case matrix: Matrix => WriteMatrix(matrix)
-      case scalar: ScalarRef => WriteScalarRef(scalar)
+      case scalar: ScalarRef => WriteScalar(scalar)
       case string: StringRef => WriteString(string)
       case function: FunctionRef => WriteFunction(function)
       case _ => executable

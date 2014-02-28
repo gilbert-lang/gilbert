@@ -20,32 +20,32 @@ package org.gilbertlang.language.definition
 
 import Types.Type
 
-abstract class AbstractBuiltinSymbols {
+abstract class AbstractBuiltinSymbols[T] {
 
-  protected var symbols = collection.mutable.HashMap[String,SymbolEntry]()
+  protected var symbols = collection.mutable.HashMap[T,SymbolEntry]()
 
-  def builtinSymbols: Set[String] = {
+  def builtinSymbols: Set[T] = {
     symbols.keys.toSet
   }
   
-  def getType(symbol: String) = {
+  def getType(symbol: T) = {
     symbols.get(symbol) match {
       case Some(entry) => Some(entry.symbolType)
       case _ => None
     }
   }
   
-  def isSymbol(symbol: String) = {
+  def isSymbol(symbol: T) = {
     symbols.contains(symbol)
   }
 
-  def apply(symbol: String): Option[Type] = {
+  def apply(symbol: T): Option[Type] = {
     getType(symbol)
   }
   
-  protected def Symbol(symbol:String, symbolType: Type) = SymbolEntry(symbol,symbolType)
+  protected def Symbol(symbol:T, symbolType: Type) = SymbolEntry(symbol,symbolType)
   
-  protected case class SymbolEntry(symbol: String, symbolType : Type){
+  protected case class SymbolEntry(symbol: T, symbolType : Type){
     if (!symbols.contains(symbol)) {
       symbols(symbol) = this
     }

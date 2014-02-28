@@ -22,7 +22,7 @@ import org.gilbertlang.language.definition.Types._
 import org.gilbertlang.language.definition.TypedAst._
 import org.gilbertlang.language.definition.Values._
 import org.gilbertlang.language.definition.AbstractSyntaxTree._
-import org.gilbertlang.language.definition.{Values, Types, BuiltinSymbols}
+import org.gilbertlang.language.definition.{BuiltinOperators, Values, Types, BuiltinSymbols}
 import org.gilbertlang.language.definition.Values.ValueVar
 import scala.Some
 import org.gilbertlang.language.definition.Types.NumericTypeVar
@@ -53,7 +53,7 @@ trait Typer {
   def resolveTypeVars(expression: TypedExpression): TypedExpression = {
     expression match {
       case x:TypedIdentifier => resolveTypeVars(x)
-      case _ : TypedInteger | _: TypedFloatingPoint | _ : TypedString => expression
+      case _ : TypedInteger | _: TypedFloatingPoint | _ : TypedString | _ :TypedBoolean => expression
       case TypedMatrix(rows, datatype) => 
         val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {resolveTypeVars(_) })}
         TypedMatrix(resolvedRows, resolveType(datatype).asInstanceOf[MatrixType])
@@ -195,7 +195,7 @@ trait Typer {
         case MatrixType(elementType, rowValue, colValue) => {
           MatrixType(helper(elementType), helperValue(rowValue), helperValue(colValue))
         }
-        case PolymorphicType(types) => PolymorphicType(types map { helper })
+        case PolymorphicType(types) => PolymorphicType(types map { specializeType })
         case FunctionType(args, result) => FunctionType(args map { helper }, helper(result))
         case x => x
       }
@@ -223,7 +223,7 @@ trait Typer {
   def freeVariables(expression: ASTExpression): Set[String] = {
     expression match {
       case x: ASTIdentifier => freeVariables(x)
-      case _: ASTInteger | _: ASTFloatingPoint | _: ASTString => Set()
+      case _: ASTInteger | _: ASTFloatingPoint | _: ASTString | _: ASTBoolean => Set()
       case ASTUnaryExpression(exp, _) => freeVariables(exp)
       case ASTBinaryExpression(a, op, b) => freeVariables(a) ++ freeVariables(b)
       case ASTFunctionReference(id) => freeVariables(id)
@@ -381,7 +381,7 @@ trait Typer {
     def helper(exp: ASTExpression): Set[String] = {
       exp match {
         case ASTIdentifier(id) => Set(id)
-        case _: ASTInteger | _: ASTFloatingPoint | _: ASTString => Set()
+        case _: ASTInteger | _: ASTFloatingPoint | _: ASTString | _: ASTBoolean => Set()
         case ASTUnaryExpression(exp, _) => helper(exp)
         case ASTBinaryExpression(a, _, b) => helper(a) ++ helper(b)
         case ASTAnonymousFunction(parameters, body) => {
@@ -412,10 +412,10 @@ trait Typer {
   def getType(id: String): Option[Type] = {
     BuiltinSymbols.getType(id) match {
       case None => typeEnvironment.get(id) match {
-        case Some(t) => Some(resolveType(t))
+        case Some(t) => Some(resolveType(specializeType(t)))
         case None => None
       }
-      case Some(t) => Some(resolveType(t))
+      case Some(t) => Some(resolveType(specializeType(t)))
     }
   }
 
@@ -458,7 +458,7 @@ trait Typer {
     case ASTBoolean(value) => TypedBoolean(value)
     case ASTUnaryExpression(exp, op) => {
       val typedExpression = typeExpression(exp)
-      val operatorType = typeUnaryOperator(op)
+      val operatorType = typeOperator(op)
       val unificationResult = resolvePolymorphicType(operatorType, FunctionType(extractType(typedExpression), newTV()))
 
       unificationResult match {
@@ -469,7 +469,7 @@ trait Typer {
     case ASTBinaryExpression(a, op, b) => {
       val typedExpressionA = typeExpression(a)
       val typedExpressionB = typeExpression(b)
-      val operatorType = typeBinaryOperator(op)
+      val operatorType = typeOperator(op)
       val unificationResult = resolvePolymorphicType(operatorType, FunctionType(List(extractType(typedExpressionA),
         extractType(typedExpressionB)), newTV()))
 
@@ -530,87 +530,10 @@ trait Typer {
     case _ => throw new NotImplementedError("")
   }
 
-  def typeUnaryOperator(operator: UnaryOperator) = operator match {
-    case TransposeOp | CellwiseTransposeOp => {
-      val (t, a, b) = newTVV()
-      PolymorphicType(List(FunctionType(MatrixType(t, a, b), MatrixType(t, b, a)),
-        FunctionType(CharacterType, CharacterType),
-        FunctionType(IntegerType, IntegerType),
-        FunctionType(DoubleType, DoubleType)))
-    }
-    case PrePlusOp | PreMinusOp => {
-      val (t, a, b) = newNTVV()
-      PolymorphicType(List(FunctionType(MatrixType(t, a, b), MatrixType(t, a, b)),
-        FunctionType(IntegerType, IntegerType),
-        FunctionType(DoubleType, DoubleType)))
-    }
-  }
-
-  def typeBinaryOperator(operator: BinaryOperator): Type = operator match {
-    case ExpOp => {
-      val a = newVV()
-      val t = newNumericTV()
-      PolymorphicType(List(FunctionType((MatrixType(t, a, a), DoubleType), MatrixType(t, a, a)),
-        FunctionType((DoubleType, DoubleType), DoubleType)))
-    }
-    case CellwiseExpOp => {
-      val (t, a, b) = newNTVV()
-      PolymorphicType(List(FunctionType((MatrixType(t, a, b), DoubleType), MatrixType(t, a, b)),
-        FunctionType((DoubleType, DoubleType), DoubleType)))
-    }
-    case PlusOp | MinusOp => {
-      val (t, a, b) = newNTVV()
-      val (t1, a1, b1) = newNTVV()
-      val (t2, a2, b2) = newNTVV()
-      PolymorphicType(List(FunctionType((MatrixType(t, a, b), MatrixType(t, a, b)), MatrixType(t, a, b)),
-        FunctionType((MatrixType(t1, a1, b1), t1), MatrixType(t1, a1, b1)),
-        FunctionType((t2, MatrixType(t2, a2, b2)), MatrixType(t2, a2, b2)),
-        FunctionType((IntegerType, IntegerType), IntegerType),
-        FunctionType((DoubleType, DoubleType), DoubleType)))
-    }
-    case MultOp => {
-      val (t, a, b) = newNTVV()
-      val c = newVV()
-      val (t1, a1, b1) = newNTVV()
-      val (t2, a2, b2) = newNTVV()
-      PolymorphicType(List(FunctionType((MatrixType(t, a, b), MatrixType(t, b, c)), MatrixType(t, a, c)),
-        FunctionType((MatrixType(t1, a1, b1), t1), MatrixType(t1, a1, b1)),
-        FunctionType((t2, MatrixType(t2, a2, b2)), MatrixType(t2, a2, b2)),
-        FunctionType((IntegerType, IntegerType), IntegerType),
-        FunctionType((DoubleType, DoubleType), DoubleType)))
-    }
-    case DivOp => {
-      val (t, a, b) = newNTVV()
-      PolymorphicType(List(FunctionType((MatrixType(t, a, b), t), MatrixType(t, a, b)),
-        FunctionType((DoubleType, DoubleType), DoubleType)))
-    }
-    case CellwiseMultOp | CellwiseDivOp => {
-      val (t, a, b) = newNTVV()
-      val (t1, a1, b1) = newNTVV()
-      val (t2, a2, b2) = newNTVV()
-      PolymorphicType(List(FunctionType((MatrixType(t, a, b), MatrixType(t, a, b)), MatrixType(t, a, b)),
-        FunctionType((MatrixType(t1, a1, b1), t1), MatrixType(t1, a1, b1)),
-        FunctionType((t2, MatrixType(t2, a2, b2)), MatrixType(t2, a2, b2)),
-        FunctionType((IntegerType, IntegerType), IntegerType),
-        FunctionType((DoubleType, DoubleType), DoubleType)))
-    }
-    case LogicalOrOp | LogicalAndOp => {
-      FunctionType((IntegerType, IntegerType), IntegerType)
-    }
-    case BinaryOrOp | BinaryAndOp => {
-      val (t, a, b) = newNTVV()
-      val (t1, a1, b1) = newNTVV()
-      val (t2, a2, b2) = newNTVV()
-      PolymorphicType(List(FunctionType((MatrixType(t, a, b), MatrixType(t, a, b)), MatrixType(IntegerType, a, b)),
-        FunctionType((MatrixType(t1, a1, b1), t1), MatrixType(IntegerType, a1, b1)),
-        FunctionType((t2, MatrixType(t2, a2, b2)), MatrixType(IntegerType, a2, b2)),
-        FunctionType((IntegerType, IntegerType), IntegerType),
-        FunctionType((DoubleType, DoubleType), IntegerType)))
-    }
-    case GTOp | GTEOp | LTOp | LTEOp | DEQOp => {
-      val (t, a, b) = newNTVV()
-      PolymorphicType(List(FunctionType((DoubleType, DoubleType), IntegerType),
-        FunctionType((MatrixType(t, a, b), MatrixType(t, a, b)), MatrixType(IntegerType, a, b))))
+  def typeOperator(operator: Operator): Type = {
+    BuiltinOperators.getType(operator) match{
+      case Some(t) => specializeType(t)
+      case _ => throw new TypeNotFoundError("Operator " + operator + " has no type.")
     }
   }
 
@@ -620,7 +543,7 @@ trait Typer {
         case Some(t) => t
         case _ => throw new TypeNotFoundError("Identifier " + id + " is unbound")
       }
-      TypedIdentifier(id, specializeType(idType))
+      TypedIdentifier(id, idType)
     }
   }
 

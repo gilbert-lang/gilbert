@@ -118,24 +118,24 @@ trait Parser extends Parsers {
 
   def arithmeticExpression = aexp1
 
-  def aexp1: Parser[ASTExpression] = aexp2 ~ rep(LOGICAL_OR ~> aexp2) ^^ {
+  def aexp1: Parser[ASTExpression] = aexp2 ~ rep(SHORT_CIRCUIT_LOGICAL_OR ~> aexp2) ^^ {
     case e ~ Nil => e
-    case e ~ l => l.foldLeft(e) { (x, y) => ASTBinaryExpression(x, LogicalOrOp, y)}
+    case e ~ l => l.foldLeft(e) { (x, y) => ASTBinaryExpression(x, ShortCircuitLogicalOrOp, y)}
   }
 
-  def aexp2 = aexp3 ~ rep(LOGICAL_AND ~> aexp3) ^^ {
+  def aexp2 = aexp3 ~ rep(SHORT_CIRCUIT_LOGICAL_AND ~> aexp3) ^^ {
+    case e ~ Nil => e
+    case e ~ l => l.foldLeft(e) { (x, y) => ASTBinaryExpression(x, ShortCircuitLogicalAndOp, y) }
+  }
+
+  def aexp3 = aexp4 ~ rep(LOGICAL_OR ~> aexp4) ^^ {
+    case e ~ Nil => e
+    case e ~ l => l.foldLeft(e) { (x, y) => ASTBinaryExpression(x, LogicalOrOp, y) }
+  }
+
+  def aexp4 = aexp5 ~ rep(LOGICAL_AND ~> aexp5) ^^ {
     case e ~ Nil => e
     case e ~ l => l.foldLeft(e) { (x, y) => ASTBinaryExpression(x, LogicalAndOp, y) }
-  }
-
-  def aexp3 = aexp4 ~ rep(BINARY_OR ~> aexp4) ^^ {
-    case e ~ Nil => e
-    case e ~ l => l.foldLeft(e) { (x, y) => ASTBinaryExpression(x, BinaryOrOp, y) }
-  }
-
-  def aexp4 = aexp5 ~ rep(BINARY_AND ~> aexp5) ^^ {
-    case e ~ Nil => e
-    case e ~ l => l.foldLeft(e) { (x, y) => ASTBinaryExpression(x, BinaryAndOp, y) }
   }
 
   def aexp5 = aexp6 ~ rep(comparisonOperator ~ aexp6) ^^ {
@@ -146,6 +146,7 @@ trait Parser extends Parsers {
       case LT ~ c => ASTBinaryExpression(x, LTOp, c)
       case LTE ~ c => ASTBinaryExpression(x, LTEOp, c)
       case DEQ ~ c => ASTBinaryExpression(x, DEQOp, c)
+      case NEQ ~ c => ASTBinaryExpression(x, NEQOp, c)
     })
   }
 
@@ -192,13 +193,27 @@ trait Parser extends Parsers {
   def unaryExpression = elementaryExpression | LPAREN ~> expression <~ RPAREN
 
   def elementaryExpression: Parser[ASTExpression] = (functionApplication
+    | cellArrayIndexing
     | identifier
     | scalar
     | booleanLiteral
     | matrix
+    | cellArray
     | stringLiteral
     | anonymousFunction
     | functionReference)
+
+  def cellArray = {
+    LBRACE ~> repsep(expression, COMMA) <~ RBRACE ^^ {
+      case args => ASTCellArray(args)
+    }
+  }
+
+  def cellArrayIndexing = {
+    (identifier <~ LBRACE) ~ repsep(expression, COMMA) <~ RBRACE ^^ {
+      case id ~ args => ASTCellArrayIndexing(id, args)
+    }
+  }
 
   def functionReference = AT ~> identifier ^^ { x => ASTFunctionReference(x)}
 

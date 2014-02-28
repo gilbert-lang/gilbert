@@ -9,6 +9,8 @@ import java.io.FileReader
 import definition.Operators._
 import java.io.InputStreamReader
 import org.gilbertlang.language.lexer.Lexer
+import org.apache.commons.io.IOUtils
+import org.gilbertlang.language.definition.AbstractSyntaxTree
 
 class ParserTest extends Parser with Assertions {
 
@@ -119,5 +121,57 @@ class ParserTest extends Parser with Assertions {
       case _ => fail("Could not parse file " + fileName)
     }
           
+  }
+
+  @Test def testBooleanOperationParsing {
+    val expected = ASTProgram(List(
+    ASTAssignment(ASTIdentifier("x"), ASTBinaryExpression(
+    ASTBinaryExpression(ASTFloatingPoint(10.2), GTEOp, ASTFloatingPoint(3.2)),
+    LogicalAndOp,
+    ASTBoolean(true)
+    ))
+    ))
+    val filename = "booleanOperationParsing.gb"
+    val input = ClassLoader.getSystemResourceAsStream(filename)
+    var inputReader: InputStreamReader = null
+
+    try{
+      inputReader = new InputStreamReader(input)
+      val reader = StreamReader(inputReader)
+
+      phrase(program)(reader) match{
+        case Success(actual, next) =>
+          assert(next.atEnd, "Input has not been read completely.")
+          expectResult(expected)(actual)
+        case _ => fail("Could not parse file " + filename)
+      }
+    }finally{
+      IOUtils.closeQuietly(inputReader)
+    }
+  }
+
+  @Test def testCellArrayDefinitionParsing {
+    val expected = ASTProgram(List())
+    val filename = "testCellArrayDefinitionParsing.gb"
+    val input = ClassLoader.getSystemResourceAsStream(filename)
+    var inputReader: InputStreamReader = null
+
+    try{
+      inputReader = new InputStreamReader(input)
+      val reader = StreamReader(inputReader)
+
+      phrase(program)(reader) match {
+        case Success(actual, next) =>
+          assert(next.atEnd, "Input has not been read completely.")
+          expectResult(expected)(actual)
+        case _ => fail("Could not parse file " + filename)
+      }
+    }finally{
+      IOUtils.closeQuietly(inputReader)
+    }
+  }
+
+  @Test def testCellArrayIndexingParsing {
+
   }
 }

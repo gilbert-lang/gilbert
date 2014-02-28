@@ -11,6 +11,8 @@ import org.apache.commons.io.IOUtils
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.language.format.VerboseTypedASTFormatter
 import org.gilbertlang.runtime.shell.PlanPrinter
+import org.gilbertlang.language.Gilbert
+import org.gilbertlang.runtime.Operations.{LessEqualThan, Subtraction}
 
 class CompilerTest extends Assertions {
   
@@ -18,7 +20,18 @@ class CompilerTest extends Assertions {
     var isReader:InputStreamReader = null;
     val expected = CompoundExecutable(List(WriteMatrix(randn(scalar(10.0),scalar(10.0),scalar(0.0), scalar(1.0))), 
         WriteMatrix(FixpointIteration(randn(scalar(10.0),scalar(10.0),scalar(0.0),scalar(1.0)), 
-            function(1,MatrixParameter(0)), scalar(10.0)))))
+            function(1,MatrixParameter(0)), scalar(10.0), function(2, ScalarScalarTransformation(
+          norm(
+            CellwiseMatrixMatrixTransformation(
+            MatrixParameter(0),
+            MatrixParameter(1),
+            Subtraction
+            ),
+            scalar(2.0)
+          ),
+          scalar(0.1),
+          LessEqualThan
+          ))))))
     try {
       isReader = new InputStreamReader(ClassLoader.getSystemResourceAsStream("compilerFixpoint.gb"))
       val reader = StreamReader(isReader)
@@ -50,6 +63,30 @@ class CompilerTest extends Assertions {
     } finally{
       IOUtils.closeQuietly(isReader)
     }
+  }
+
+  @Test def testBooleanOperationCompilation() {
+    val expected = CompoundExecutable(List(
+    WriteMatrix(ones(scalar(10.0), scalar(10.0))),
+    WriteMatrix(zeros(scalar(10.0), scalar(10.0))),
+    WriteScalar(scalar(0.1)),
+    WriteScalar(ScalarScalarTransformation(
+      norm(
+        CellwiseMatrixMatrixTransformation(
+          ones(scalar(10.0), scalar(10.0)),
+          zeros(scalar(10.0), scalar(10.0)),
+          Subtraction
+        ),
+        scalar(2.0)
+      ),
+      scalar(0.1),
+      LessEqualThan
+    ))
+
+    ))
+    val result = Gilbert.compileRessource("booleanOperationCompilation.gb")
+
+    expectResult(expected)(result)
   }
 
 }

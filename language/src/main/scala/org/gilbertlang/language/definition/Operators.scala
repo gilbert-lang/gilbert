@@ -39,8 +39,8 @@ object Operators {
   case object MultOp extends BinaryOperator
   case object DivOp extends BinaryOperator
   
-  case object BinaryAndOp extends BinaryOperator
-  case object BinaryOrOp extends BinaryOperator
+  case object ShortCircuitLogicalAndOp extends BinaryOperator
+  case object ShortCircuitLogicalOrOp extends BinaryOperator
   case object LogicalAndOp extends BinaryOperator
   case object LogicalOrOp extends BinaryOperator
   case object GTOp extends BinaryOperator
@@ -48,6 +48,7 @@ object Operators {
   case object LTOp extends BinaryOperator
   case object LTEOp extends BinaryOperator
   case object DEQOp extends BinaryOperator
+  case object NEQOp extends BinaryOperator
   
   case object CellwiseMultOp extends CellwiseBinaryOperator
   case object CellwiseDivOp extends CellwiseBinaryOperator
@@ -64,15 +65,16 @@ object Operators {
       case MinusOp => "-"
       case MultOp => "*"
       case DivOp => "/"
-      case BinaryAndOp => "&"
-      case BinaryOrOp => "|"
-      case LogicalAndOp => "&&"
-      case LogicalOrOp => "||"
+      case LogicalAndOp => "&"
+      case LogicalOrOp => "|"
+      case ShortCircuitLogicalAndOp => "&&"
+      case ShortCircuitLogicalOrOp => "||"
       case GTOp => ">"
       case GTEOp => ">="
       case LTOp => "<"
       case LTEOp => "<="
       case DEQOp => "=="
+      case NEQOp => "!="
       case CellwiseMultOp => ".*"
       case CellwiseDivOp => "./"
       case CellwiseExpOp => ".^"

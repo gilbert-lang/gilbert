@@ -41,6 +41,8 @@ object Operations {
   sealed trait LogicOperation extends ScalarsOperation with ScalarMatrixOperation
   case object And extends LogicOperation
   case object Or extends LogicOperation
+  case object SCAnd extends LogicOperation
+  case object SCOr extends LogicOperation
 
   //TODO do we need this on vectors?
   sealed trait MinMax extends ScalarsOperation with VectorwiseOperation with AggregateMatrixOperation
@@ -56,8 +58,10 @@ object Operations {
   case object NormalizeL1 extends VectorwiseOperation
 
   sealed trait AggregateMatrixOperation
+  case object SumAll extends AggregateMatrixOperation
 
   sealed trait NormOperation extends AggregateMatrixOperation with VectorwiseOperation
   case object Norm2 extends NormOperation
+
 
 }

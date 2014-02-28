@@ -25,7 +25,7 @@ import Values.Helper._
 import ConvenienceMethods._
 
 //TODO needs self explaining variable names
-object BuiltinSymbols extends AbstractBuiltinSymbols {
+object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   
   val binarize = Symbol("binarize", binarizeType)
   val load = Symbol("load", loadType)
@@ -41,6 +41,12 @@ object BuiltinSymbols extends AbstractBuiltinSymbols {
   val rand = Symbol("rand", randType)
   val zeros = Symbol("zeros", zerosType)
   val eye = Symbol("eye", eyeType)
+  val norm = Symbol("norm",normType)
+
+  def normType = {
+    val (t,a,b) = newUNTVV()
+    FunctionType((MatrixType(t,a,b),DoubleType), DoubleType)
+  }
   
   def eyeType = {
     FunctionType((IntegerType, IntegerType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
@@ -133,7 +139,8 @@ object BuiltinSymbols extends AbstractBuiltinSymbols {
   
   def fixpointType = {
     val t = utv
-    FunctionType((t, FunctionType(t, t), IntegerType), t)
+    FunctionType((t, FunctionType(t, t), IntegerType,
+      FunctionType((t,t), BooleanType)), t)
   }
   
   def writeType = {

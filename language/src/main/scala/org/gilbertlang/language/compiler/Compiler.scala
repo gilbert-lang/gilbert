@@ -20,6 +20,7 @@ package org.gilbertlang.language.compiler
 
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
+import org.gilbertlang.runtime.RuntimeTypes
 import scala.Some
 import org.gilbertlang.language.definition.TypedAst._
 import org.gilbertlang.language.definition.BuiltinSymbols
@@ -73,6 +74,7 @@ trait Compiler {
       case x: TypedInteger => scalar(x.value)
       case x: TypedFloatingPoint => scalar(x.value)
       case x: TypedString => string(x.value)
+      case x: TypedBoolean => boolean(x.value)
       case x: TypedUnaryExpression => compileUnaryExpression(x)
       case x: TypedBinaryExpression => compileBinaryExpression(x)
       case x: TypedFunctionApplication => compileFunctionApplication(x)
@@ -151,7 +153,8 @@ trait Compiler {
       }
 
       case "fixpoint" => {
-        function(3, FixpointIteration(MatrixParameter(0), FunctionParameter(1), ScalarParameter(2)))
+        function(4, FixpointIteration(MatrixParameter(0), FunctionParameter(1),
+          ScalarParameter(2), FunctionParameter(3)))
       }
 
       case "spones" => {
@@ -179,9 +182,13 @@ trait Compiler {
       case "write" => {
         datatype match {
           case FunctionType(List(_: MatrixType, StringType), _) => function(1, WriteMatrix(MatrixParameter(0)))
-          case FunctionType(List(_: NumericType, StringType), _) => function(1, WriteScalarRef(ScalarParameter(0)))
+          case FunctionType(List(_: NumericType, StringType), _) => function(1, WriteScalar(ScalarParameter(0)))
           case FunctionType(List(StringType, StringType), _) => function(1, WriteString(StringParameter(0)))
         }
+      }
+
+      case "norm" => {
+        function(2, norm(MatrixParameter(0), ScalarParameter(1)))
       }
     }
   }
@@ -227,9 +234,12 @@ trait Compiler {
           case LTOp => CellwiseMatrixMatrixTransformation(x,y, LessThan)
           case LTEOp => CellwiseMatrixMatrixTransformation(x,y, LessEqualThan)
           case DEQOp => CellwiseMatrixMatrixTransformation(x,y, Equals)
+          case NEQOp => CellwiseMatrixMatrixTransformation(x,y, NotEquals)
           case LogicalAndOp => CellwiseMatrixMatrixTransformation(x,y, And)
           case LogicalOrOp => CellwiseMatrixMatrixTransformation(x,y,Or)
-          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp  => {
+          case ShortCircuitLogicalAndOp => CellwiseMatrixMatrixTransformation(x,y,SCAnd)
+          case ShortCircuitLogicalOrOp => CellwiseMatrixMatrixTransformation(x,y,SCOr)
+          case ExpOp | CellwiseExpOp  => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }
@@ -245,9 +255,12 @@ trait Compiler {
           case LTOp => MatrixScalarTransformation(x,y, LessThan)
           case LTEOp => MatrixScalarTransformation(x,y, LessEqualThan)
           case DEQOp => MatrixScalarTransformation(x,y, Equals)
+          case NEQOp => MatrixScalarTransformation(x,y, NotEquals)
           case LogicalAndOp => MatrixScalarTransformation(x,y, And)
           case LogicalOrOp => MatrixScalarTransformation(x,y,Or)
-          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp => {
+          case ShortCircuitLogicalAndOp => MatrixScalarTransformation(x,y, SCAnd)
+          case ShortCircuitLogicalOrOp => MatrixScalarTransformation(x,y,SCOr)
+          case ExpOp | CellwiseExpOp => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }
@@ -263,9 +276,12 @@ trait Compiler {
           case LTOp => ScalarMatrixTransformation(x,y, LessThan)
           case LTEOp => ScalarMatrixTransformation(x,y, LessEqualThan)
           case DEQOp => ScalarMatrixTransformation(x,y, Equals)
+          case NEQOp => ScalarMatrixTransformation(x,y, NotEquals)
           case LogicalAndOp => ScalarMatrixTransformation(x,y, And)
           case LogicalOrOp => ScalarMatrixTransformation(x,y,Or)
-          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp => {
+          case ShortCircuitLogicalAndOp => ScalarMatrixTransformation(x,y, SCAnd)
+          case ShortCircuitLogicalOrOp => ScalarMatrixTransformation(x,y, SCOr)
+          case ExpOp | CellwiseExpOp => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }
@@ -281,9 +297,12 @@ trait Compiler {
           case LTOp => ScalarScalarTransformation(x,y, LessThan)
           case LTEOp => ScalarScalarTransformation(x,y, LessEqualThan)
           case DEQOp => ScalarScalarTransformation(x,y, Equals)
+          case NEQOp => ScalarScalarTransformation(x,y, NotEquals)
           case LogicalAndOp => ScalarScalarTransformation(x,y, And)
           case LogicalOrOp => ScalarScalarTransformation(x,y,Or)
-          case BinaryAndOp | BinaryOrOp | ExpOp | CellwiseExpOp => {
+          case ShortCircuitLogicalAndOp => ScalarScalarTransformation(x,y, SCAnd)
+          case ShortCircuitLogicalOrOp => ScalarScalarTransformation(x,y,SCOr)
+          case ExpOp | CellwiseExpOp => {
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
           }
         }
@@ -360,17 +379,26 @@ trait Compiler {
           }
           case _: NumericType => {
             compileStatement(stmt) match {
-              case x: ScalarRef => Some(WriteScalarRef(x))
+              case x: ScalarRef => Some(WriteScalar(x))
               case _ => throw new TypeCompileError("Expected executable of type ScalarRef")
             }
           }
+
+          case BooleanType => {
+            compileStatement(stmt) match {
+              case x: ScalarRef => Some(WriteScalar(x))
+              case _ => throw new TypeCompileError("Expected executable of type ScalarRef")
+            }
+          }
+
           case StringType => {
             compileStatement(stmt) match {
               case x: StringRef => Some(WriteString(x))
               case _ => throw new TypeCompileError("Expected executable of type StringRef")
             }
           }
-          case _ => None
+
+          case tpe => throw new TypeCompileError("Cannot output type " + tpe)
         }
       }
     }
@@ -394,7 +422,7 @@ trait Compiler {
             }
           case _: NumericType =>
             compileStatement(stmt) match {
-              case x: ScalarRef => WriteScalarRef(x)
+              case x: ScalarRef => WriteScalar(x)
               case _ => throw new TypeCompileError("Expected executable of type ScalarRef")
             }
           case StringType => {

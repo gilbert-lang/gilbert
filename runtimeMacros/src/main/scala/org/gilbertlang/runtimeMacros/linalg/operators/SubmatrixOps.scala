@@ -1,14 +1,8 @@
 package org.gilbertlang.runtimeMacros.linalg.operators
 
 import breeze.macros.expand
-import breeze.linalg.operators.OpAdd
-import breeze.linalg.operators.OpSub
-import breeze.linalg.operators.OpDiv
-import breeze.linalg.operators.OpMulScalar
-import breeze.linalg.operators.{OpGT, OpGTE, OpLT, OpLTE, OpEq, OpNe}
-import breeze.linalg.operators.{OpAnd, OpOr}
+import breeze.linalg.operators._
 import org.gilbertlang.runtimeMacros.linalg.Submatrix
-import breeze.linalg.operators.OpMulMatrix
 import org.gilbertlang.runtimeMacros.linalg.Subvector
 import scala.reflect.ClassTag
 import breeze.math.Semiring
@@ -69,8 +63,8 @@ trait SubmatrixOps {
 
   @expand
   @expand.valify
-  implicit def opSM_S[@expand.args(OpAdd, OpSub, OpDiv, OpMulMatrix, OpMulScalar) Op]
-  (implicit @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ * _ }, { _ * _ }) op: 
+  implicit def opSM_S[@expand.args(OpAdd, OpSub, OpDiv, OpMulMatrix, OpMulScalar, OpPow) Op <: OpType]
+  (implicit @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ * _ }, { _ * _ }, {_ :^ _}) op:
       Op.Impl2[GilbertMatrix, Double, GilbertMatrix]): Op.Impl2[Submatrix, Double, Submatrix] = {
     new Op.Impl2[Submatrix, Double, Submatrix] {
       def apply(a: Submatrix, b: Double) = {

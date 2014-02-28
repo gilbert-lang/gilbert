@@ -160,7 +160,7 @@ object PlanPrinter {
         print(op.body, depth + 1)
       }
 
-      case op: WriteScalarRef => {
+      case op: WriteScalar => {
         printIndented(depth, op, "WriteScalarRef")
         print(op.scalar, depth + 1)
       }

@@ -21,6 +21,7 @@ package org.gilbertlang
 import java.lang.String
 import scala.language.implicitConversions
 import org.apache.mahout.math.function.DoubleFunction
+import org.gilbertlang.runtime.Executables.boolean
 
 package object runtime {
   
@@ -30,8 +31,12 @@ package object runtime {
   implicit def Double2Scalar(value: Double) = scalar(value)
   implicit def String2StringRef(value: String) = string(value)
 
-  implicit def MatrixMatrix2FunctionRef(funct: Matrix => Matrix): FunctionRef = {
-    function(1, funct(MatrixParameter(0)))
+  implicit def MatrixMatrix2FunctionRef(func: Matrix => Matrix): FunctionRef = {
+    function(1, func(MatrixParameter(0)))
+  }
+
+  implicit def MatrixMatrixBoolean2FunctionRef(func: (Matrix, Matrix) => ScalarRef): FunctionRef = {
+    function(2, func(MatrixParameter(0), MatrixParameter(1)))
   }
   
   implicit def boolean2Double(b: Boolean): Double = {

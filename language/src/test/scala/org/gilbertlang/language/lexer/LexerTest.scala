@@ -2,7 +2,7 @@ package org.gilbertlang.language.lexer
 
 import org.scalatest.Assertions
 import token.DiscardWhitespaces
-import java.io.FileReader
+import java.io.{InputStreamReader, InputStream, FileReader}
 import scala.util.parsing.input.StreamReader
 import token.LanguageTokens
 import org.scalatest.FunSuite
@@ -43,7 +43,6 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
   }
 
   @Test def testEOFChar() {
-    import scala.util.parsing.input.CharArrayReader.EofCh
     val expected = List(Identifier("X"), EOF)
     val input = "X";
 
@@ -67,6 +66,21 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
       expectResult(expected)(result)
     }finally{
       IOUtils.closeQuietly(fileReader)
+    }
+  }
+
+  @Test def testBooleanLexing() {
+    val expected = List(BooleanLiteral(true), Keyword("&"), BooleanLiteral(false), EOF)
+    val input = ClassLoader.getSystemResourceAsStream("booleanLexing.gb")
+    var inputReader: InputStreamReader = null
+    try{
+      inputReader = new InputStreamReader(input)
+      val streamReader = StreamReader(inputReader)
+      val result = lex(streamReader)
+
+      expectResult(expected)(result)
+    }finally{
+      IOUtils.closeQuietly(inputReader)
     }
   }
 }

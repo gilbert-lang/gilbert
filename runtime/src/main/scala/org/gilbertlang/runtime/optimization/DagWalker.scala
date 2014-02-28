@@ -177,7 +177,7 @@ abstract class DagWalker {
         onLeave(transformation)
       }
 
-      case (transformation: WriteScalarRef) => {
+      case (transformation: WriteScalar) => {
         onArrival(transformation)
         visit(transformation.scalar)
         onLeave(transformation)

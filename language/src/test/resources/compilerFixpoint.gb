@@ -1,2 +1,2 @@
 A=rand(10,10,0,1)
-fixpoint(A, @(B) B, 10)
+fixpoint(A, @(B) B, 10, @(A,B) norm(A-B,2) <= 0.1)

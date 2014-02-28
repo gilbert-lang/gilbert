@@ -1,0 +1,4 @@
+prev=ones(10,10)
+cur = zeros(10,10)
+eps = 0.1
+norm(prev-cur,2) <= eps

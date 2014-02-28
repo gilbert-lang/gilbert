@@ -24,6 +24,7 @@ import org.gilbertlang.runtime.Executables.ones
 import org.gilbertlang.runtime.Executables.randn
 import org.gilbertlang.runtime.Executables.sum
 import org.gilbertlang.runtime.Executables.diag
+import org.gilbertlang.runtime.Executables.Matrix
 
 object Algorithms {
 
@@ -39,7 +40,7 @@ object Algorithms {
     fixpoint(x_0, { x => {
       val nextX = A * x
       nextX / norm2(nextX)
-    }}, maxIterations)
+    }}, maxIterations, (prev: Matrix, cur: Matrix) => {norm2(prev+cur) <= 0.1})
   }
 
   def pageRank() = {
@@ -64,10 +65,11 @@ object Algorithms {
 
     /* compute PageRank */
     val e = ones(numVertices, 1)
-    
+
     val maxIterations = 10
 
-    fixpoint(r_0, { r => .85 * T * r + .15 * e }, maxIterations)
+    fixpoint(r_0, { r => .85 * T * r + .15 * e }, maxIterations,
+    (prev: Matrix, cur: Matrix) => {norm2(prev+cur) <= 0.1})
   }
 
 

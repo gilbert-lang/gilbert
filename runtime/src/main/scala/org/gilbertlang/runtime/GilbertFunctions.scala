@@ -18,16 +18,21 @@
 
 package org.gilbertlang.runtime
 
-import Executables.{StringRef, ScalarRef, LoadMatrix, Matrix, FixpointIteration}
+import org.gilbertlang.runtime.Executables._
+import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.LoadMatrix
 
 object GilbertFunctions {
+
   object load {
     def apply(path: StringRef, numRows: ScalarRef, numColumns: ScalarRef) = LoadMatrix(path, numRows, numColumns)
   }
 
   object fixpoint {
-    def apply(initialState: Matrix, updateFunction: Matrix => Matrix, maxIterations: ScalarRef) = {
-      new FixpointIteration(initialState, updateFunction, maxIterations)
+    def apply(initialState: Matrix, updateFunction: Matrix => Matrix,
+              maxIterations: ScalarRef, convergence: (Matrix,Matrix) => ScalarRef) = {
+      new FixpointIteration(initialState, updateFunction, maxIterations,
+        convergence)
     }
   }
 
@@ -42,5 +47,6 @@ object GilbertFunctions {
   object norm2 {
     def apply(matrix: Matrix) = matrix.norm(2)
   }
+
 }
 

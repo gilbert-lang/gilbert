@@ -416,9 +416,9 @@ class ReferenceExecutor extends Executor {
           { (transformation, _) => transformation.value })
       }
 
-      case (transformation: WriteScalarRef) => {
+      case (transformation: WriteScalar) => {
 
-        handle[WriteScalarRef, Double](transformation,
+        handle[WriteScalar, Double](transformation,
           { transformation => evaluate[Double](transformation.scalar) },
           { (_, scalar) => println(scalar) })
       }

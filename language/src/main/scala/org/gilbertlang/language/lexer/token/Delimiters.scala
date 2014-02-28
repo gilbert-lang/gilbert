@@ -35,7 +35,8 @@ object Delimiters extends Enumeration {
   //TODO remove until necessary
   val LTE = Value("<=")
   //TODO remove until necessary
-  val DEQ = Value("==")  
+  val DEQ = Value("==")
+  val NEQ = Value("!=")
   val PLUS = Value("+")  
   val MINUS = Value("-")  
   val MULT = Value("*")  
@@ -53,13 +54,13 @@ object Delimiters extends Enumeration {
   val RBRACE = Value("}")  
   val NEWLINE = Value("\n")
   //TODO remove until necessary
-  val LOGICAL_OR = Value("||")
+  val SHORT_CIRCUIT_LOGICAL_OR = Value("||")
   //TODO remove until necessary
-  val LOGICAL_AND = Value("&&")
+  val SHORT_CIRCUIT_LOGICAL_AND = Value("&&")
   //TODO remove until necessary
-  val BINARY_OR = Value("|")
+  val LOGICAL_OR = Value("|")
   //TODO remove until necessary
-  val BINARY_AND = Value("&")  
+  val LOGICAL_AND = Value("&")
   val EXP = Value("^")  
   val CELLWISE_EXP = Value(".^")
   val AT = Value("@")
