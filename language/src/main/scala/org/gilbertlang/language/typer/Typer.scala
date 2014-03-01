@@ -67,6 +67,9 @@ trait Typer {
         TypedFunctionReference(resolveTypeVars(func), resolveType(datatype))
       case TypedFunctionApplication(fun, params, datatype) => TypedFunctionApplication(resolveTypeVars(fun), 
           params map { resolveTypeVars(_) }, resolveType(datatype))
+      case TypedCellArray(elements, datatype) => TypedCellArray(elements map {resolveTypeVars}, resolveType(datatype))
+      case TypedCellArrayIndexing(cellArray, indices, datatype) => TypedCellArrayIndexing(resolveTypeVars(cellArray),
+        indices map {resolveTypeVars}, resolveType(datatype))
     }
   }
   
@@ -93,6 +96,7 @@ trait Typer {
       }
       case FunctionType(args, result) => FunctionType(args map { resolveType }, resolveType(result))
       case PolymorphicType(types) => PolymorphicType(types map { resolveType })
+      case CellArrayType(types) => CellArrayType( types map { resolveType })
       case x => x
     }
   }
@@ -197,6 +201,7 @@ trait Typer {
         }
         case PolymorphicType(types) => PolymorphicType(types map { specializeType })
         case FunctionType(args, result) => FunctionType(args map { helper }, helper(result))
+        case CellArrayType(types) => CellArrayType(types map { specializeType })
         case x => x
       }
     }
@@ -233,6 +238,9 @@ trait Typer {
       case ASTFunctionApplication(func, args) => freeVariables(func) ++ (args flatMap { freeVariables(_) }).toSet
       case ASTMatrix(rows) => (rows flatMap { freeVariables(_) }).toSet
       case ASTMatrixRow(exps) => (exps flatMap { freeVariables(_) }).toSet
+      case ASTCellArray(cells) => (cells flatMap { freeVariables}).toSet
+      case ASTCellArrayIndexing(cellArray, positions) =>
+        freeVariables(cellArray) ++ (positions flatMap { freeVariables }).toSet
     }
   }
 
@@ -257,6 +265,7 @@ trait Typer {
         case MatrixType(elementType, rowValue, colValue) => helper(elementType)
         case PolymorphicType(types) => (types flatMap (helper)).toSet
         case FunctionType(args, result) => (args flatMap (helper)).toSet ++ helper(result)
+        case CellArrayType(types) => (types flatMap(helper)).toSet
         case _ => Set()
       }
     }
@@ -275,6 +284,7 @@ trait Typer {
         }
         case PolymorphicType(types) => PolymorphicType(types map { helper })
         case FunctionType(args, result) => FunctionType(args map { helper }, helper(result))
+        case CellArrayType(types) => CellArrayType(types map { helper })
         case x => x
       }
     }
@@ -368,6 +378,16 @@ trait Typer {
             case _ => None
           }
         }
+        case (CellArrayType(typesA), CellArrayType(typesB)) => {
+          if(typesA.length == typesB.length){
+            val unifiedTypes = typesA zip typesB flatMap { case (a,b) => unify(a,b)}
+            if(unifiedTypes.length == typesA.length){
+              Some(CellArrayType(unifiedTypes))
+            }else
+              None
+          }else
+            None
+        }
         case (PolymorphicType(typesA), PolymorphicType(typesB)) => None
         case (CharacterType, _) | (_, CharacterType) => None
         case (_, _) => None
@@ -393,6 +413,8 @@ trait Typer {
         case ASTFunctionReference(function) => helper(function)
         case ASTMatrix(rows) => rows flatMap { helper } toSet
         case ASTMatrixRow(exps) => exps flatMap { helper } toSet
+        case ASTCellArray(elements) => elements flatMap {helper} toSet
+        case ASTCellArrayIndexing(cellArray, positions) => helper(cellArray) ++ (positions flatMap {helper}).toSet
       }
     }
     helper(expression)
@@ -524,6 +546,39 @@ trait Typer {
       typedIdentifier.datatype match {
         case x: FunctionType => TypedFunctionReference(typedIdentifier, typedIdentifier.datatype)
         case _ => throw new TypingError("Identifier " + function.value + " has to be a function type")
+      }
+    }
+
+    case ASTCellArray(elements) => {
+      val typedElements = elements map {typeExpression}
+      TypedCellArray(typedElements, CellArrayType(typedElements map { extractType }))
+    }
+
+    case ASTCellArrayIndexing(exp, positions) => {
+      val typedExp = typeExpression(exp)
+
+      extractType(typedExp) match {
+        case CellArrayType(types) =>
+          val typedPositions = positions map { typeExpression }
+          val evaluatedPositions = typedPositions map { evaluateExpression }
+
+          if(evaluatedPositions.size != 1){
+            throw new TypingError(s"Cell array indexing only supports single indexing.")
+          }
+
+          evaluatedPositions(0) match {
+            case IntValue(value) =>
+              // accomodate for 1 based indexing of matlab
+              val idx = value-1
+              if(idx <0 || idx >= types.length )
+                throw new TypingError(s"Cell array index is out of bounds.")
+
+              TypedCellArrayIndexing(typedExp, typedPositions, types(idx))
+            case _ => throw new TypingError(s"Could not evaluate expression $evaluatedPositions(0) for cell array " +
+              s"typing")
+          }
+
+        case _ => throw new TypingError(s"Object $typedExp has to be a cell array in order to be indexed.")
       }
     }
 

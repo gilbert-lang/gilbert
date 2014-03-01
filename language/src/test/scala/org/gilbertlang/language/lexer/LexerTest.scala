@@ -24,7 +24,6 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
       Identifier("B"), Keyword("\'"), Keyword("*"), Identifier("B"), Keyword("\n"), Identifier("D"),
       Keyword("="), Identifier("C"), Keyword("./"), Identifier("maxValue"), Keyword("("), Identifier("C"),
       Keyword(")"), Keyword("\n"), Keyword("\n"), EOF)
-    val lexer = new Lexer with DiscardWhitespaces
 
     val inputFileURL = ClassLoader.getSystemResource("lexerInput.gb");
     var fileReader: FileReader = null

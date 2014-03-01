@@ -48,7 +48,7 @@ object AbstractSyntaxTree {
   case class ASTBinaryExpression(leftExpression: ASTExpression, operator: BinaryOperator, 
                                  rightExpression: ASTExpression) extends ASTExpression
   case class ASTFunctionApplication(function: ASTIdentifier, args: List[ASTExpression]) extends ASTExpression
-  case class ASTCellArrayIndexing(cellArray: ASTIdentifier, positions: List[ASTExpression]) extends ASTExpression
+  case class ASTCellArrayIndexing(cellArray: ASTExpression, positions: List[ASTExpression]) extends ASTExpression
   case class ASTAnonymousFunction(parameters: List[ASTIdentifier], body: ASTExpression) extends ASTExpression
   case class ASTFunctionReference(reference: ASTIdentifier) extends ASTExpression
   case class ASTCellArray(cells: List[ASTExpression]) extends ASTExpression

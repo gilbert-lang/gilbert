@@ -82,6 +82,10 @@ object TypedAst {
                                     closure: List[String], datatype: Type) extends TypedExpression
   case class TypedFunctionReference(reference: TypedIdentifier, datatype: Type) extends TypedExpression
 
+  case class TypedCellArray(elements: List[TypedExpression], datatype: Type) extends TypedExpression
+  case class TypedCellArrayIndexing(cellArray: TypedExpression, indices: List[TypedExpression],
+                                    datatype: Type) extends TypedExpression
+
   sealed abstract class TypedScalar extends TypedExpression
 
   case class TypedInteger(value: Int) extends TypedScalar {

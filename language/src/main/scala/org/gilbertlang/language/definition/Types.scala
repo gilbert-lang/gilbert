@@ -79,6 +79,8 @@ object Types {
   
   case class PolymorphicType(types:List[Type]) extends Type
 
+  case class CellArrayType(types: List[Type]) extends Type
+
   case object VoidType extends Type
   case object UndefinedType extends Type
   

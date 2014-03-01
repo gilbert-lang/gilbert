@@ -1,16 +1,10 @@
 package org.gilbertlang.language
 package parser
 
-import definition.AbstractSyntaxTree._
 import org.scalatest.Assertions
 import org.junit.Test
-import scala.util.parsing.input.StreamReader
-import java.io.FileReader
 import definition.Operators._
-import java.io.InputStreamReader
-import org.gilbertlang.language.lexer.Lexer
-import org.apache.commons.io.IOUtils
-import org.gilbertlang.language.definition.AbstractSyntaxTree
+import org.gilbertlang.language.TestUtils
 
 class ParserTest extends Parser with Assertions {
 
@@ -24,35 +18,19 @@ class ParserTest extends Parser with Assertions {
       ASTBinaryExpression(ASTUnaryExpression(ASTIdentifier("B"), TransposeOp), MultOp, ASTIdentifier("B"))),
       ASTOutputResultStatement(ASTAssignment(ASTIdentifier("D"), ASTBinaryExpression(ASTIdentifier("C"),
         CellwiseDivOp, ASTFunctionApplication(ASTIdentifier("maxValue"), List(ASTIdentifier("C"))))))))
-    val fileName = "parserInput.gb"
-    val inputURL = ClassLoader.getSystemResource(fileName);
-    val inputReader = StreamReader(new FileReader(inputURL.toURI().getPath()));
+    val filename = "parserInput.gb"
 
-    val ast = phrase(program)(inputReader)
-
-    ast match {
-      case Success(value, in) =>
-        assert(in.atEnd); expectResult(expected)(value)
-      case _ => fail("Could not parse file " + fileName)
-    }
+    TestUtils.testParsingRessource(filename, expected)
   }
 
   @Test def testFunctionDefinitions {
-    val fileName = "parserFunction.gb"
-    val inputReader = StreamReader(new InputStreamReader(ClassLoader.getSystemResourceAsStream(fileName)))
-
+    val filename = "parserFunction.gb"
     val expected = ASTProgram(List(ASTFunction(List(ASTIdentifier("X")), ASTIdentifier("foobar"),
       List(ASTIdentifier("Y"), ASTIdentifier("Z")), ASTProgram(List(ASTAssignment(ASTIdentifier("A"),
         ASTBinaryExpression(ASTIdentifier("Y"), MultOp, ASTIdentifier("Z"))), ASTOutputResultStatement(
         ASTAssignment(ASTIdentifier("X"), ASTIdentifier("A"))))))))
-    val ast = phrase(program)(inputReader)
 
-    ast match {
-      case Success(program: ASTProgram, _) =>
-        expectResult(expected)(program)
-      case _ => fail("Could not parse file " + fileName)
-    }
-
+    TestUtils.testParsingRessource(filename, expected)
   }
 
   @Test def testFunctionParameters {
@@ -61,7 +39,6 @@ class ParserTest extends Parser with Assertions {
 
     functionParams(input) match {
       case Success(result, in) => {
-        assert(in.first == EOF)
         expectResult(expected)(result)
       }
       case _ => fail()
@@ -83,8 +60,7 @@ class ParserTest extends Parser with Assertions {
   }
 
   @Test def testAnonymousFunction {
-    val fileName = "parserAnonymousFunction.gb"
-    val inputReader = StreamReader(new InputStreamReader(ClassLoader.getSystemResourceAsStream(fileName)))
+    val filename = "parserAnonymousFunction.gb"
     val expected = ASTProgram(List(
       ASTOutputResultStatement(
         ASTAssignment(
@@ -97,30 +73,18 @@ class ParserTest extends Parser with Assertions {
               PlusOp,
               ASTIdentifier("B")))))))
               
-    phrase(program)(inputReader) match {
-      case Success(actual, _) => {
-        expectResult(expected)(actual)
-      }
-      case _ => fail("Could not parse file " + fileName)
-    }
+    TestUtils.testParsingRessource(filename, expected)
   }
 
   @Test def testFunctionReference {
-    val fileName = "parserFunctionReference.gb"
-    val inputReader = StreamReader(new InputStreamReader(ClassLoader.getSystemResourceAsStream(fileName)))
+    val filename = "parserFunctionReference.gb"
     val expected = ASTProgram(List(
       ASTAssignment(
         ASTIdentifier("X"),
         ASTFunctionReference(
           ASTIdentifier("foobar")))))
-          
-   phrase(program)(inputReader) match{
-      case Success(actual,_) =>{
-        expectResult(expected)(actual)
-      }
-      case _ => fail("Could not parse file " + fileName)
-    }
-          
+
+    TestUtils.testParsingRessource(filename, expected)
   }
 
   @Test def testBooleanOperationParsing {
@@ -132,46 +96,44 @@ class ParserTest extends Parser with Assertions {
     ))
     ))
     val filename = "booleanOperationParsing.gb"
-    val input = ClassLoader.getSystemResourceAsStream(filename)
-    var inputReader: InputStreamReader = null
-
-    try{
-      inputReader = new InputStreamReader(input)
-      val reader = StreamReader(inputReader)
-
-      phrase(program)(reader) match{
-        case Success(actual, next) =>
-          assert(next.atEnd, "Input has not been read completely.")
-          expectResult(expected)(actual)
-        case _ => fail("Could not parse file " + filename)
-      }
-    }finally{
-      IOUtils.closeQuietly(inputReader)
-    }
+    TestUtils.testParsingRessource(filename, expected)
   }
 
   @Test def testCellArrayDefinitionParsing {
-    val expected = ASTProgram(List())
+    val expected = ASTProgram(List(
+    ASTAssignment(
+      ASTIdentifier("cell"),
+      ASTCellArray(List(
+        ASTBoolean(true),
+        ASTBinaryExpression(
+          ASTInteger(5),
+          MultOp,
+          ASTInteger(7)
+        ),
+        ASTFunctionApplication(
+          ASTIdentifier("zeros"),
+          List(
+            ASTInteger(10),
+            ASTInteger(10)
+          )
+        )
+    ))
+    )
+    ))
     val filename = "testCellArrayDefinitionParsing.gb"
-    val input = ClassLoader.getSystemResourceAsStream(filename)
-    var inputReader: InputStreamReader = null
 
-    try{
-      inputReader = new InputStreamReader(input)
-      val reader = StreamReader(inputReader)
-
-      phrase(program)(reader) match {
-        case Success(actual, next) =>
-          assert(next.atEnd, "Input has not been read completely.")
-          expectResult(expected)(actual)
-        case _ => fail("Could not parse file " + filename)
-      }
-    }finally{
-      IOUtils.closeQuietly(inputReader)
-    }
+    TestUtils.testParsingRessource(filename, expected)
   }
 
   @Test def testCellArrayIndexingParsing {
+    val expected = ASTProgram(List(
+      ASTCellArrayIndexing(
+        ASTCellArrayIndexing(ASTIdentifier("a"), List(ASTInteger(1), ASTInteger(2))),
+        List(ASTInteger(2))
+      )
+    ))
+    val filename = "testCellArrayIndexingParsing.gb"
 
+    TestUtils.testParsingRessource(filename, expected)
   }
 }

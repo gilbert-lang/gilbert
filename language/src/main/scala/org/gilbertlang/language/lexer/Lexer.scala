@@ -18,10 +18,7 @@
 
 package org.gilbertlang.language.lexer
 
-import scala.util.parsing.input.Reader
 
-import scala.collection.mutable.ListBuffer
-import scala.util.parsing.input.CharArrayReader
 import scala.util.parsing.input.CharArrayReader.EofCh
 import org.gilbertlang.language.lexer.token.{Delimiters, Keywords, LanguageTokens}
 import scala.collection.immutable.HashSet

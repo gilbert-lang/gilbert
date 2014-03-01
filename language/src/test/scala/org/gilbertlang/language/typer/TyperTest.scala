@@ -78,4 +78,24 @@ class TyperTest extends Comparisons {
     checkTypeEquality(expected,result)
   }
 
+  @Test def testCellArrayTyping {
+    val filename = "testCellArrayTyping.gb"
+    val expected = TypedProgram(List(TypedCellArray(List(TypedBoolean(true), TypedBinaryExpression(TypedInteger(2),
+      PlusOp,TypedFloatingPoint(2.0),IntegerType), TypedFunctionApplication(TypedIdentifier("zeros",
+      FunctionType(List(IntegerType, IntegerType),MatrixType(DoubleType,ReferenceValue(0),ReferenceValue(1)))),
+      List(TypedInteger(10), TypedInteger(10)),MatrixType(DoubleType,IntValue(10),IntValue(10)))),
+      CellArrayType(List(BooleanType, IntegerType, MatrixType(DoubleType,IntValue(10),IntValue(10)))))))
+    TestUtils.testTypingRessource(filename, expected)
+  }
+
+  @Test def testCellArrayIndexingTyping{
+    val filename = "testCellArrayIndexingTyping.gb"
+    val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x",CellArrayType(List(BooleanType,
+      DoubleType))),TypedCellArray(List(TypedBoolean(true), TypedFloatingPoint(2.0)),CellArrayType(List(BooleanType,
+      DoubleType)))), TypedCellArrayIndexing(TypedIdentifier("x",CellArrayType(List(BooleanType, DoubleType))),
+      List(TypedInteger(1)),BooleanType)))
+
+    TestUtils.testTypingRessource(filename, expected)
+  }
+
 }

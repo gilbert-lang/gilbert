@@ -85,7 +85,10 @@ trait Parser extends Parsers {
   def identifier = elem("identifier", {
       case Identifier(_) => true
       case _ => false }) ^^
-        { case Identifier(id) => ASTIdentifier(id) }
+        {
+          case Identifier(id) =>
+            ASTIdentifier(id)
+        }
 
   def typeAnnotation = elem("type annotation", { case TypeAnnotation(_) => true case _ => false}) ^^
     { case TypeAnnotation(value) => ASTTypeAnnotation(value)}
@@ -150,7 +153,10 @@ trait Parser extends Parsers {
     })
   }
 
-  def aexp6 = aexp7 ~ repsep(aexp7, COLON) ^^ { case e ~ _ => e }
+  def aexp6: Parser[ASTExpression] = rep1sep(aexp7, COLON) ^^ {
+    case head::Nil => head
+    case head::tail => throw new ParseError("Does not support slicing yet")
+  }
 
   def aexp7 = aexp8 ~ rep(additionOperator ~ aexp8) ^^ {
     case e ~ Nil => e
@@ -190,7 +196,7 @@ trait Parser extends Parsers {
     case e ~ None => e
   }
 
-  def unaryExpression = elementaryExpression | LPAREN ~> expression <~ RPAREN
+  def unaryExpression = (elementaryExpression | LPAREN ~> expression <~ RPAREN )
 
   def elementaryExpression: Parser[ASTExpression] = (functionApplication
     | cellArrayIndexing
@@ -210,8 +216,9 @@ trait Parser extends Parsers {
   }
 
   def cellArrayIndexing = {
-    (identifier <~ LBRACE) ~ repsep(expression, COMMA) <~ RBRACE ^^ {
-      case id ~ args => ASTCellArrayIndexing(id, args)
+    identifier ~ rep1(LBRACE ~> repsep(expression, COMMA) <~ RBRACE) ^^ {
+      case id ~ accesses =>
+        accesses.foldLeft[ASTExpression](id)(ASTCellArrayIndexing(_, _))
     }
   }
 
@@ -230,7 +237,10 @@ trait Parser extends Parsers {
   def scalar: Parser[ASTScalar] = integerLiteral | floatingPointLiteral
 
   def integerLiteral = elem("integer", { case IntegerLiteral(_) => true case _ => false }) ^^
-    { case IntegerLiteral(i) => ASTInteger(i) }
+    {
+      case IntegerLiteral(i) =>
+        ASTInteger(i)
+    }
   def floatingPointLiteral = elem("floating point", { case FloatingPointLiteral(_) => true case _ => false }) ^^
     { case FloatingPointLiteral(f) => ASTFloatingPoint(f) }
   def stringLiteral = elem("string", { case StringLiteral(_) => true case _ => false }) ^^
