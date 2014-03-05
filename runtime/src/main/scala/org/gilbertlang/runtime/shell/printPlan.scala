@@ -43,8 +43,18 @@ object PlanPrinter {
         print(op.updatePlan, depth + 1)
       }
 
+      case op: FixpointIterationCellArray => {
+        printIndented(depth, op, "FixpointIterationCellArray")
+        print(op.initialState, depth + 1)
+        print(op.updatePlan, depth + 1)
+      }
+
       case IterationStatePlaceholder => {
         printIndented(depth, IterationStatePlaceholder, "IterationState")
+      }
+
+      case op: IterationStatePlaceholderCellArray => {
+        printIndented(depth, op, "IterationStateCellArray")
       }
 
       case op: CellwiseMatrixTransformation => {
@@ -160,6 +170,10 @@ object PlanPrinter {
         print(op.body, depth + 1)
       }
 
+      case op: boolean => {
+        printIndented(depth, op, op.value.toString)
+      }
+
       case op: WriteScalar => {
         printIndented(depth, op, "WriteScalarRef")
         print(op.scalar, depth + 1)
@@ -175,6 +189,11 @@ object PlanPrinter {
         print(op.function, depth + 1)
       }
 
+      case op:WriteCellArray => {
+        printIndented(depth, op, "WriteCellArray")
+        print(op.cellArray, depth+1)
+      }
+
       case op: CompoundExecutable => {
         printIndented(depth, op, "CompoundExecutable(")
         op.executables foreach { print(_, depth + 1) }
@@ -183,6 +202,10 @@ object PlanPrinter {
       
       case op:Parameter => {
         printIndented(depth, op, "Parameter(" + op.position + ")")
+      }
+
+      case op:RegisteredValue => {
+        printIndented(depth, op, "RegisteredValue(" + op.index + ")")
       }
       
       case VoidExecutable => {
@@ -199,6 +222,47 @@ object PlanPrinter {
         printIndented(depth, op, "eye")
         print(op.numRows, depth+1)
         print(op.numCols, depth+1)
+      }
+
+      case op: norm => {
+        printIndented(depth, op, "norm")
+        print(op.matrix, depth+1)
+        print(op.p, depth+1)
+      }
+
+      case op: CellArrayReferenceMatrix => {
+        printIndented(depth, op, "CellArrayReferenceMatrix")
+        print(op.parent, depth+1)
+        print(scalar(op.reference), depth+1)
+      }
+
+      case op: CellArrayReferenceCellArray => {
+        printIndented(depth, op, "CellArrayReferenceCellArray")
+        print(op.parent, depth+1)
+        print(scalar(op.reference), depth+1)
+      }
+
+      case op: CellArrayReferenceFunction => {
+        printIndented(depth, op, "CellArrayReferenceFunction")
+        print(op.parent, depth+1)
+        print(scalar(op.reference), depth+1)
+      }
+
+      case op: CellArrayReferenceScalar => {
+        printIndented(depth, op, "CellArrayReferenceScalar")
+        print(op.parent, depth+1)
+        print(scalar(op.reference), depth+1)
+      }
+
+      case op: CellArrayReferenceString => {
+        printIndented(depth, op, "CellArrayReferenceString")
+        print(op.parent, depth+1)
+        print(scalar(op.reference), depth+1)
+      }
+
+      case op: CellArrayExecutable => {
+        printIndented(depth, op, "CellArrayExecutable")
+        op.elements foreach { print(_, depth+1)}
       }
     }
 

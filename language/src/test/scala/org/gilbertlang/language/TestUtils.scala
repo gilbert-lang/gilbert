@@ -9,11 +9,12 @@ import org.scalatest.Assertions
 import scala.collection.mutable.ListBuffer
 import org.gilbertlang.language.definition.TypedAst.TypedProgram
 import org.gilbertlang.language.typer.Typer
+import org.gilbertlang.language.typer.Comparisons
 
 /**
  * Created by till on 28/02/14.
  */
-object TestUtils extends Parser with Assertions
+object TestUtils extends Parser with Assertions with Comparisons
 {
   def testParsingRessource(filename: String, expected: ASTProgram) {
     val input = ClassLoader.getSystemResourceAsStream(filename)
@@ -50,8 +51,8 @@ object TestUtils extends Parser with Assertions
           val typer = new Typer{}
 
           val typedAST = typer.typeProgram(actual)
-
-          expectResult(expected)(typedAST)
+          checkTypeEquality(expected,typedAST)
+        case _ => fail(s"Could not type ressource $filename")
       }
 
     }

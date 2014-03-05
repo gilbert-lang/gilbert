@@ -1,3 +1,3 @@
 A=zeros(10,10)
 C=rand(10,10,0,1)
-fixpoint(A, @(B) B+C)
+fixpoint(A, @(B) B+C, 10, @(prev, cur) false)

@@ -6,7 +6,6 @@ import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, C
   SparseVector => BreezeSparseVector}
 import java.io.DataOutput
 import java.io.DataInput
-import breeze.storage.DefaultArrayValue
 import org.gilbertlang.runtimeMacros.linalg.operators.GilbertMatrixOps
 import breeze.linalg.support.CanTraverseValues
 import CanTraverseValues.ValuesVisitor
@@ -17,12 +16,7 @@ import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixOps
 import breeze.linalg.support.CanTranspose
 import breeze.linalg.support.CanCollapseAxis
 import breeze.linalg.support.CanCopy
-import breeze.math.Semiring
-import breeze.storage.DefaultArrayValue
 import scala.util.Random
-import io.Serializer
-import breeze.linalg.Axis
-import scala.reflect.ClassTag
 import breeze.linalg._
 import operators.BreezeMatrixRegistries
 

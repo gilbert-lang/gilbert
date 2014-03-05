@@ -77,14 +77,16 @@ object TypedAst {
   
   case class TypedFunctionApplication(id: TypedIdentifier, args: List[TypedExpression], datatype: Type)
     extends TypedExpression
-  
-  case class TypedAnonymousFunction(parameters: List[TypedIdentifier], body: TypedExpression,
-                                    closure: List[String], datatype: Type) extends TypedExpression
-  case class TypedFunctionReference(reference: TypedIdentifier, datatype: Type) extends TypedExpression
 
-  case class TypedCellArray(elements: List[TypedExpression], datatype: Type) extends TypedExpression
-  case class TypedCellArrayIndexing(cellArray: TypedExpression, indices: List[TypedExpression],
-                                    datatype: Type) extends TypedExpression
+  sealed trait TypedFunctionExpression extends TypedExpression
+  case class TypedAnonymousFunction(parameters: List[TypedIdentifier], body: TypedExpression,
+                                    closure: List[String], datatype: Type) extends TypedFunctionExpression
+  case class TypedFunctionReference(reference: TypedIdentifier, datatype: Type) extends TypedFunctionExpression
+
+  sealed trait TypedCellExpression extends TypedExpression
+  case class TypedCellArray(elements: List[TypedExpression], datatype: Type) extends TypedCellExpression
+  case class TypedCellArrayIndexing(cellArray: TypedExpression, index: TypedInteger,
+                                    datatype: Type) extends TypedCellExpression
 
   sealed abstract class TypedScalar extends TypedExpression
 

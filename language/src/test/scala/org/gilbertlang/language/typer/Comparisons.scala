@@ -1,7 +1,6 @@
 package org.gilbertlang.language
 package typer
 
-import definition.AbstractSyntaxTree._
 import definition.Types._
 import definition.Values._
 import definition.TypedAst._
@@ -124,6 +123,16 @@ trait Comparisons extends Assertions {
         checkIdentifier(exp,act)
         checkType(expType, actType)
       }
+
+      case (TypedCellArray(elementsA, typeA), TypedCellArray(elementsB, typeB)) => {
+        elementsA zip elementsB foreach { case (a,b) => checkExpression(a,b) }
+        checkType(typeA, typeB)
+      }
+      case (TypedCellArrayIndexing(cellArrayA, indexA, typeA), TypedCellArrayIndexing(cellArrayB, indexB, typeB)) => {
+        checkExpression(cellArrayA, cellArrayB)
+        checkExpression(indexA, indexB)
+        checkType(typeA, typeB)
+      }
       case _ => expectResult(expected)(actual)
     }
   }
@@ -154,6 +163,10 @@ trait Comparisons extends Assertions {
         checkType(expEType,actEType)
         checkValue(expRows,actRows)
         checkValue(expCols, actCols)
+      }
+      case (a: CellArrayType, b: CellArrayType) => {
+        expectResult(a.types.length)(b.types.length)
+        a.types zip b.types foreach { case (a,b) => checkType(a,b)}
       }
       case _ => expectResult(expected)(actual)
     }

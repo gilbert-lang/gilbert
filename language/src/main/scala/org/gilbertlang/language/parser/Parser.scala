@@ -199,15 +199,17 @@ trait Parser extends Parsers {
   def unaryExpression = (elementaryExpression | LPAREN ~> expression <~ RPAREN )
 
   def elementaryExpression: Parser[ASTExpression] = (functionApplication
-    | cellArrayIndexing
+    | cellExpression
     | identifier
     | scalar
     | booleanLiteral
     | matrix
-    | cellArray
     | stringLiteral
     | anonymousFunction
     | functionReference)
+
+  def cellExpression: Parser[ASTExpression] = (cellArray
+    | cellArrayIndexing)
 
   def cellArray = {
     LBRACE ~> repsep(expression, COMMA) <~ RBRACE ^^ {
@@ -216,9 +218,11 @@ trait Parser extends Parsers {
   }
 
   def cellArrayIndexing = {
-    identifier ~ rep1(LBRACE ~> repsep(expression, COMMA) <~ RBRACE) ^^ {
+    identifier ~ rep1(LBRACE ~> integerLiteral <~ RBRACE) ^^ {
       case id ~ accesses =>
-        accesses.foldLeft[ASTExpression](id)(ASTCellArrayIndexing(_, _))
+        //accommodate for the matlab index base => subtract 1
+        val shiftedAccesses = accesses map { case ASTInteger(value) => ASTInteger(value-1)}
+        shiftedAccesses.foldLeft[ASTExpression](id)(ASTCellArrayIndexing(_, _))
     }
   }
 

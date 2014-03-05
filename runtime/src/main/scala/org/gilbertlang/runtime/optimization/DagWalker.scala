@@ -33,6 +33,11 @@ abstract class DagWalker {
 
     transformation match {
 
+      case transformation: RegisteredValue => {
+        onArrival(transformation)
+        onLeave(transformation)
+      }
+
       case x: Parameter => {
         onArrival(x)
         onLeave(x)
@@ -57,7 +62,23 @@ abstract class DagWalker {
         iteration -= 1
       }
 
+      case (transformation: FixpointIterationCellArray) => {
+        iteration += 1
+
+        onArrival(transformation)
+        visit(transformation.initialState)
+        visit(transformation.updatePlan)
+        onLeave(transformation)
+
+        iteration -= 1
+      }
+
       case IterationStatePlaceholder => {
+        onArrival(transformation)
+        onLeave(transformation)
+      }
+
+      case transformation: IterationStatePlaceholderCellArray => {
         onArrival(transformation)
         onLeave(transformation)
       }
@@ -177,6 +198,11 @@ abstract class DagWalker {
         onLeave(transformation)
       }
 
+      case transformation: boolean =>{
+        onArrival(transformation)
+        onLeave(transformation)
+      }
+
       case (transformation: WriteScalar) => {
         onArrival(transformation)
         visit(transformation.scalar)
@@ -192,6 +218,12 @@ abstract class DagWalker {
       case transformation: WriteFunction => {
         onArrival(transformation)
         visit(transformation.function)
+        onLeave(transformation)
+      }
+
+      case transformation: WriteCellArray => {
+        onArrival(transformation)
+        visit(transformation.cellArray)
         onLeave(transformation)
       }
 
@@ -236,6 +268,25 @@ abstract class DagWalker {
         onArrival(transformation)
         visit(transformation.numRows)
         visit(transformation.numCols)
+        onLeave(transformation)
+      }
+
+      case transformation: norm => {
+        onArrival(transformation)
+        visit(transformation.matrix)
+        visit(transformation.p)
+        onLeave(transformation)
+      }
+
+      case transformation: CellArrayReference[_] => {
+        onArrival(transformation)
+        visit(transformation.parent)
+        onLeave(transformation)
+      }
+
+      case transformation: CellArrayExecutable => {
+        onArrival(transformation)
+        transformation.elements foreach { visit(_) }
         onLeave(transformation)
       }
     }

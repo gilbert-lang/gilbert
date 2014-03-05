@@ -41,7 +41,23 @@ trait Compiler {
       case _: MatrixType => assignments.update(id, MatrixParameter(position))
       case StringType => assignments.update(id, StringParameter(position))
       case _: FunctionType => assignments.update(id, FunctionParameter(position))
+      case cellArray : CellArrayType =>
+        val cellArrayType = createCellArrayRuntimeType(cellArray)
+        assignments.update(id, CellArrayParameter(position, cellArrayType))
       case _ => throw new ParameterInsertionError("Cannot insert parameter of type " + datatype)
+    }
+  }
+  private def createCellArrayRuntimeType(x: CellArrayType): RuntimeTypes.CellArrayType = {
+    RuntimeTypes.CellArrayType(x.types map { createRuntimeType })
+  }
+
+  private def createRuntimeType(x: Type): RuntimeTypes.RuntimeType = {
+    x match {
+      case m: MatrixType => RuntimeTypes.MatrixType(createRuntimeType(m.elementType))
+      case _: NumericType => RuntimeTypes.ScalarType
+      case StringType => RuntimeTypes.StringType
+      case f: FunctionType => RuntimeTypes.FunctionType
+      case cellArray: CellArrayType => RuntimeTypes.CellArrayType(cellArray.types map (createRuntimeType))
     }
   }
 
@@ -81,6 +97,27 @@ trait Compiler {
       case x: TypedAnonymousFunction => compileAnonymousFunction(x)
       case x: TypedFunctionReference => compileFunctionReference(x)
       case x: TypedMatrix => compileMatrix(x)
+      case x: TypedCellExpression => compileCellExpression(x)
+    }
+  }
+
+  def compileCellExpression(cellExpression: TypedCellExpression): ExpressionExecutable = {
+    cellExpression match {
+      case x: TypedCellArray => compileCellArray(x)
+      case x: TypedCellArrayIndexing => compileCellArrayIndexing(x)
+    }
+  }
+
+  def compileCellArray(cellArray: TypedCellArray): ExpressionExecutable = {
+    CellArrayExecutable(cellArray.elements map { compileExpression })
+  }
+
+  def compileCellArrayIndexing(cellArrayIndexing: TypedCellArrayIndexing): ExpressionExecutable = {
+    val compiledCellArray = compileExpression(cellArrayIndexing.cellArray)
+
+    compiledCellArray match {
+      case x: CellArrayBase => x.elements(cellArrayIndexing.index.value)
+      case _ => throw new CompileError("Cell array indexing requires cell array.")
     }
   }
 
@@ -153,8 +190,16 @@ trait Compiler {
       }
 
       case "fixpoint" => {
-        function(4, FixpointIteration(MatrixParameter(0), FunctionParameter(1),
+        datatype match {
+          case FunctionType(List(_:MatrixType,_,_,_), _) => function(4, FixpointIteration(MatrixParameter(0),
+            FunctionParameter(1),
+            ScalarParameter(2), FunctionParameter(3)))
+          case FunctionType(List(x:CellArrayType,_,_,_), _) =>
+            function(4, FixpointIterationCellArray(CellArrayParameter(0,
+            createCellArrayRuntimeType(x)), FunctionParameter(1),
           ScalarParameter(2), FunctionParameter(3)))
+        }
+
       }
 
       case "spones" => {
@@ -213,7 +258,8 @@ trait Compiler {
       }
       case x: StringRef => throw new NotImplementedError("Unary operation of string is not yet implemented")
       case _: FunctionRef => throw new CompileError("Unary operations on functions are not supported")
-      case VoidExecutable => throw new CompileError("UNary operations on VoidExecutable are not supported")
+      case VoidExecutable => throw new CompileError("Unary operations on VoidExecutable are not supported")
+      case _: CellArrayExecutable => throw new CompileError("Unary operations on cell array are not supported")
     }
   }
 
@@ -395,6 +441,20 @@ trait Compiler {
             compileStatement(stmt) match {
               case x: StringRef => Some(WriteString(x))
               case _ => throw new TypeCompileError("Expected executable of type StringRef")
+            }
+          }
+
+          case _: CellArrayType => {
+            compileStatement(stmt) match {
+              case x: CellArrayBase => Some(WriteCellArray(x))
+              case _ => throw new TypeCompileError("Expected executable of type CellArrayBase")
+            }
+          }
+
+          case _: FunctionType => {
+            compileStatement(stmt) match {
+              case x: FunctionRef => Some(WriteFunction(x))
+              case _ => throw new TypeCompileError("Expected executable of type FunctionRef")
             }
           }
 

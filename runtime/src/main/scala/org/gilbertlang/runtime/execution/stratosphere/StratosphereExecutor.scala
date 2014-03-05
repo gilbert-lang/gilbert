@@ -9,33 +9,72 @@ import eu.stratosphere.api.scala.operators.CsvOutputFormat
 import eu.stratosphere.api.scala.io.LiteralInputFormat
 import eu.stratosphere.api.scala.operators.DelimitedOutputFormat
 import scala.collection.convert.WrapAsScala
-import scala.collection.mutable.ArrayBuilder
 import eu.stratosphere.api.scala.ScalaPlan
 import eu.stratosphere.api.scala.ScalaSink
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg.Submatrix
 import org.gilbertlang.runtimeMacros.linalg.SubmatrixBoolean
-import org.gilbertlang.runtimeMacros.linalg.Partition
 import org.gilbertlang.runtimeMacros.linalg.numerics
 import org.gilbertlang.runtime.execution.CellwiseFunctions
 import breeze.linalg.norm
 import breeze.linalg.*
-import org.gilbertlang.runtimeMacros.linalg.Subvector
-import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
 import org.gilbertlang.runtimeMacros.linalg.Configuration
 import eu.stratosphere.api.common.operators.Operator
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
-import org.gilbertlang.runtime.RuntimeTypes.{BooleanType, DoubleType}
+import org.gilbertlang.runtime.RuntimeTypes._
 import scala.collection.mutable
+import org.gilbertlang.runtime.Executables.diag
+import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
+import org.gilbertlang.runtime.Executables.WriteMatrix
+import org.gilbertlang.runtime.Executables.MatrixParameter
+import scala.Some
+import org.gilbertlang.runtime.Executables.eye
+import org.gilbertlang.runtime.Executables.FunctionParameter
+import org.gilbertlang.runtime.Executables.WriteFunction
+import org.gilbertlang.runtime.Executables.LoadMatrix
+import org.gilbertlang.runtime.Executables.randn
+import org.gilbertlang.runtime.Executables.CompoundExecutable
+import org.gilbertlang.runtime.Executables.UnaryScalarTransformation
+import org.gilbertlang.runtime.Executables.scalar
+import org.gilbertlang.runtime.Executables.ScalarMatrixTransformation
+import org.gilbertlang.runtime.Executables.StringParameter
+import org.gilbertlang.runtime.Executables.WriteScalar
+import org.gilbertlang.runtime.Executables.zeros
+import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.ScalarParameter
+import org.gilbertlang.runtime.Executables.CellwiseMatrixTransformation
+import org.gilbertlang.runtime.Executables.MatrixMult
+import org.gilbertlang.runtime.Executables.boolean
+import org.gilbertlang.runtime.Executables.sumCol
+import org.gilbertlang.runtime.Executables.string
+import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
+import org.gilbertlang.runtime.Executables.CellArrayExecutable
+import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
+import org.gilbertlang.runtime.Executables.sum
+import org.gilbertlang.runtime.Executables.RegisteredValue
+import org.gilbertlang.runtime.Executables.spones
+import org.gilbertlang.runtime.Executables.ones
+import org.gilbertlang.runtime.Executables.AggregateMatrixTransformation
+import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
+import org.gilbertlang.runtime.Executables.MatrixScalarTransformation
+import org.gilbertlang.runtime.Executables.Transpose
+import org.gilbertlang.runtimeMacros.linalg.Partition
+import org.gilbertlang.runtime.RuntimeTypes.MatrixType
+import org.gilbertlang.runtime.Executables.function
+import org.gilbertlang.runtime.Executables.sumRow
+import org.gilbertlang.runtime.Executables.WriteString
+
 
 class StratosphereExecutor extends Executor with WrapAsScala {
   type Matrix = DataSet[Submatrix]
   type BooleanMatrix = DataSet[SubmatrixBoolean]
   type Scalar[T] = DataSet[T]
+  type CellArray = DataSet[CellEntry]
   private var tempFileCounter = 0
   private var iterationStatePlaceholderValue: Option[Matrix] = None
+  private var iterationStatePlaceholderValueCellArray: Option[CellArray] = None
   private val matrixRegistry = mutable.HashMap[Int, Matrix]()
 
   
@@ -66,10 +105,51 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "), ""), 
-                  s"WriteMatrix($completePathWithFilename)");
+              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
+                ""),
+                  s"WriteMatrix($completePathWithFilename)"))
             }
           })
+      }
+
+      case executable: WriteCellArray => {
+        handle[WriteCellArray, CellArray](
+        executable,
+        { exec => evaluate[CellArray](exec.cellArray)},
+        { (exec, cellArray) =>
+          var index = 0
+          val cellArrayType = exec.cellArray.getType
+          val result = new Array[ScalaSink[_]](cellArrayType.elementTypes.length)
+          while(index < cellArrayType.elementTypes.length){
+            val completePathWithFilename = newTempFileName()
+            val loopIndex = index
+            val filtered = cellArray filter { x => x.index == loopIndex}
+            val sink = cellArrayType.elementTypes(index) match {
+              case MatrixType(DoubleType) =>
+                val mappedCell = filtered map { x => x.wrappedValue[Submatrix]}
+                mappedCell.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
+                  ""),
+                  s"WriteCellArray(Matrix[Double], $completePathWithFilename)")
+              case StringType =>
+                val mappedCell =filtered map( x => x.wrappedValue[String])
+                mappedCell.write(completePathWithFilename, CsvOutputFormat(),
+                  s"WriteCellArray(String, $completePathWithFilename)")
+              case DoubleType =>
+                val mappedCell = filtered map(x => x.wrappedValue[Double])
+                mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Double," +
+                  s"$completePathWithFilename)")
+              case BooleanType =>
+                val mappedCell = filtered map(x => x.wrappedValue[Boolean])
+                mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Boolean," +
+                  s"$completePathWithFilename)")
+            }
+            result(index) = sink
+            index += 1
+          }
+
+          result.toList
+        }
+        )
       }
 
       case executable: WriteString => {
@@ -79,7 +159,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { (_, string) =>
             {
               val completePathWithFilename = newTempFileName()
-              string.write(completePathWithFilename, CsvOutputFormat(), s"WriteString($completePathWithFilename)")
+              List(string.write(completePathWithFilename, CsvOutputFormat(), s"WriteString($completePathWithFilename)" +
+                s""))
             }
           })
       }
@@ -99,7 +180,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             { (_, scalar) =>
             {
               val completePathWithFilename = newTempFileName()
-              scalar.write(completePathWithFilename, CsvOutputFormat(), s"WriteScalarRef($completePathWithFilename)")
+              List(scalar.write(completePathWithFilename, CsvOutputFormat(),
+                s"WriteScalarRef($completePathWithFilename)"))
             }
             })
           case BooleanType =>
@@ -108,7 +190,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             { exec => evaluate[Scalar[Boolean]](exec.scalar) },
             { (_, scalar) =>
               val completePathWithFilename = newTempFileName()
-              scalar.write(completePathWithFilename, CsvOutputFormat(), s"WriteScalarRef($completePathWithFilename)")
+              List(scalar.write(completePathWithFilename, CsvOutputFormat(),
+                s"WriteScalarRef($completePathWithFilename)"))
             }
             )
 
@@ -756,7 +839,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       }
   
       case compound: CompoundExecutable => {
-        val executables = compound.executables map { evaluate[ScalaSink[_]](_) }
+        val executables = compound.executables flatMap { evaluate[List[ScalaSink[_]]](_) }
         new ScalaPlan(executables)
       }
 
@@ -1034,7 +1117,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               result
             }
 
-            val iteration = initialState.iterateWithConvergence(numberIterations, stepFunction, convergenceFlow)
+            val iteration = initialState.iterate(numberIterations, stepFunction)
             iteration.setName("Fixpoint iteration")
             iteration
           })
@@ -1042,6 +1125,57 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
       case IterationStatePlaceholder => {
         iterationStatePlaceholderValue match {
+          case Some(value) => value
+          case None => throw new StratosphereExecutionError("The iteration state placeholder value was not set yet.")
+        }
+      }
+
+      case executable: FixpointIterationCellArray => {
+        handle[FixpointIterationCellArray, (CellArray, Scalar[Double])](
+        executable,
+        { exec => (evaluate[CellArray](exec.initialState), evaluate[Scalar[Double]](exec.maxIterations)) },
+        { case (exec, (initialState, maxIterations)) =>
+          val numberIterations = maxIterations.contract.asInstanceOf[LiteralDataSource[Double]].values.head.toInt
+          def stepFunction(partialSolution: CellArray) = {
+            val oldStatePlaceholderValue = iterationStatePlaceholderValueCellArray
+            iterationStatePlaceholderValueCellArray = Some(partialSolution)
+            val result = evaluate[CellArray](exec.updatePlan)
+            iterationStatePlaceholderValueCellArray = oldStatePlaceholderValue
+            /*
+             * Iteration mechanism requires that there is some kind of operation in the step function.
+             * Therefore it is not possible to use the identity function!!! A workaround for this situation
+             * would be to apply an explicit mapping operation with the identity function.
+            */
+            result
+          }
+
+          val convergenceFlow = (prev: Matrix, cur: Matrix) => {
+            val oldRegisteredValue0 = getRegisteredValue(0)
+            val oldRegisteredValue1 = getRegisteredValue(1)
+            registerValue(0, prev)
+            registerValue(1, cur)
+            val appliedConvergence = exec.convergence.apply(RegisteredValue(0), RegisteredValue(1))
+            val result = evaluate[Scalar[Boolean]](appliedConvergence)
+            oldRegisteredValue0 match {
+              case Some(t) => registerValue(0,t)
+              case None =>
+            }
+            oldRegisteredValue1 match{
+              case Some(t) => registerValue(1, t)
+              case None =>
+            }
+
+            result
+          }
+
+          val iteration = initialState.iterate(numberIterations, stepFunction)
+          iteration.setName("Fixpoint iteration")
+          iteration
+        })
+      }
+
+      case _:IterationStatePlaceholderCellArray => {
+        iterationStatePlaceholderValueCellArray match {
           case Some(value) => value
           case None => throw new StratosphereExecutionError("The iteration state placeholder value was not set yet.")
         }
@@ -1080,6 +1214,113 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           result
         }
         )
+      }
+
+      case executable: CellArrayExecutable => {
+        handle[CellArrayExecutable, (List[Any])](
+        executable,
+        { exec => evaluate[Any](exec.elements)},
+        { case (exec, elements) =>
+          if(elements.length == 0){
+            throw new StratosphereExecutionError("Cell arrays cannot be empty.")
+          }else{
+            val cellArrayEntries:List[DataSet[CellEntry]] = elements.zipWithIndex.map {
+              case (element, index) =>
+                exec.elements(index).getType match {
+                  case DoubleType =>
+                    element.asInstanceOf[Scalar[Double]] map { entry =>
+                      CellEntry(index, ValueWrapper(entry))}
+                  case BooleanType =>
+                    element.asInstanceOf[Scalar[Boolean]] map {
+                      entry => CellEntry(index, ValueWrapper(entry))
+                    }
+                  case StringType =>
+                    element.asInstanceOf[Scalar[String]] map {
+                      entry => CellEntry(index, ValueWrapper(entry))
+                    }
+                  case MatrixType(DoubleType) =>
+                    element.asInstanceOf[Matrix] map {
+                      entry => CellEntry(index, ValueWrapper(entry))
+                    }
+                  case MatrixType(BooleanType) =>
+                    element.asInstanceOf[BooleanMatrix] map {
+                      entry => CellEntry(index, ValueWrapper(entry))
+                    }
+                  case CellArrayType(_) =>
+                    element.asInstanceOf[CellArray] map {
+                      entry => CellEntry(index, ValueWrapper(entry))
+                    }
+                  case Undefined | Void | FunctionType | Unknown |
+                    MatrixType(_) =>
+                    throw new StratosphereExecutionError("Cannot create cell array from given type.")
+                }
+            }
+
+            val firstEntry = cellArrayEntries.head
+            val result = cellArrayEntries.tail.foldLeft(firstEntry)(_ union _)
+
+            result
+          }
+        }
+        )
+      }
+
+      case executable: CellArrayReferenceString => {
+        handle[CellArrayReferenceString, CellArray](
+        executable,
+        { exec => evaluate[CellArray](exec.parent)},
+        { (exec, cellArray) =>
+          cellArray filter { x => x.index == exec.reference } map { x => x.wrappedValue[String] }
+        }
+        )
+      }
+
+      case executable: CellArrayReferenceScalar => {
+        handle[CellArrayReferenceScalar, CellArray](
+        executable,
+        {exec => evaluate[CellArray](exec.parent)},
+        { (exec, cellArray) =>
+          exec.getType match {
+            case DoubleType =>
+              cellArray filter { x => x.index == exec.reference } map { x => x.wrappedValue[Double]}
+            case BooleanType =>
+              cellArray filter { x => x.index == exec.reference } map { x => x.wrappedValue[Boolean]}
+          }
+
+        }
+        )
+      }
+
+      case executable: CellArrayReferenceMatrix => {
+        handle[CellArrayReferenceMatrix, CellArray](
+        executable,
+        {exec => evaluate[CellArray](exec.parent)},
+        {(exec, cellArray) =>
+          val filtered = cellArray filter { x => x.index == exec.reference }
+          val tpe = exec.getType
+          tpe match {
+            case MatrixType(DoubleType) =>
+              filtered map {
+                x => x.wrappedValue[Submatrix]}
+            case MatrixType(BooleanType) =>
+              filtered map { x => x.wrappedValue[SubmatrixBoolean]}
+          }
+        }
+        )
+      }
+
+      case executable: CellArrayReferenceCellArray => {
+        handle[CellArrayReferenceCellArray, CellArray](
+        executable,
+        {exec => evaluate[CellArray](exec.parent)},
+        {(exec, cellArray) =>
+          cellArray filter { x => x.index == exec.reference } map { x => x.wrappedValue[CellEntry]}
+        }
+        )
+      }
+
+      case executable: CellArrayReferenceFunction => {
+        throw new StratosphereExecutionError("Cannot execute function. Needs function application")
       }
 
       case function: function => {

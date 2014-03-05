@@ -1,7 +1,6 @@
 package org.gilbertlang.language
 package typer
 
-import org.scalatest.Assertions
 import org.junit.Test
 import definition.AbstractSyntaxTree._
 import definition.TypedAst._
@@ -42,20 +41,86 @@ class TyperTest extends Comparisons {
   @Test def testFunctionTyping {
     val typer = new Typer {}
     val parser = new Parser {}
-    val expected = TypedProgram(List(
-      TypedFunction(List(TypedIdentifier("X", MatrixType(IntegerType,
-        (ValueVar(1)), (ValueVar(2))))),
-        TypedIdentifier("foobar", FunctionType(List(
-          MatrixType(IntegerType, UniversalValue(ValueVar(1)),
-            UniversalValue(ValueVar(2)))), MatrixType(IntegerType,
-          UniversalValue(ValueVar(1)), UniversalValue(ValueVar(2))))),
-        List(TypedIdentifier("Y", MatrixType(IntegerType, (ValueVar(1)),
-          (ValueVar(2))))), TypedProgram(List(
-          TypedOutputResultStatement(TypedAssignment(TypedIdentifier("X", MatrixType(IntegerType,
-            ValueVar(1), ValueVar(2))),
-            TypedBinaryExpression(TypedIdentifier("Y",TypeVar(3)),
-              PlusOp, TypedInteger(1), MatrixType(IntegerType, ValueVar(1),
-                ValueVar(2))))))))))
+    val expected = TypedProgram(
+      List(
+        TypedFunction(
+          List(
+            TypedIdentifier(
+              "X",
+              MatrixType(
+                IntegerType,
+                ValueVar(1),
+                ValueVar(2)
+              )
+            )
+          ),
+          TypedIdentifier(
+            "foobar",
+            FunctionType(
+              List(
+                MatrixType(
+                  IntegerType,
+                  UniversalValue(
+                    ValueVar(1)
+                  ),
+                  UniversalValue(
+                    ValueVar(2)
+                  )
+                )
+              ),
+              MatrixType(
+                IntegerType,
+                UniversalValue(
+                  ValueVar(1)
+                ),
+                UniversalValue(
+                  ValueVar(2)
+                )
+              )
+            )
+          ),
+          List(
+            TypedIdentifier(
+              "Y",
+              MatrixType(
+                IntegerType,
+                ValueVar(1),
+                ValueVar(2)
+              )
+            )
+          ),
+          TypedProgram(
+            List(
+              TypedOutputResultStatement(
+                TypedAssignment(
+                  TypedIdentifier(
+                    "X",
+                    MatrixType(
+                      IntegerType,
+                      ValueVar(1),
+                      ValueVar(2)
+                    )
+                  ),
+                  TypedBinaryExpression(
+                    TypedIdentifier(
+                      "Y",
+                      TypeVar(3)
+                    ),
+                    PlusOp,
+                    TypedInteger(1),
+                    MatrixType(
+                      IntegerType,
+                      ValueVar(1),
+                      ValueVar(2)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
 
     val fileName = "typerFunction.gb"
     val inputReader = StreamReader(new InputStreamReader(getClass().getClassLoader().getResourceAsStream(fileName)))
@@ -84,16 +149,109 @@ class TyperTest extends Comparisons {
       PlusOp,TypedFloatingPoint(2.0),IntegerType), TypedFunctionApplication(TypedIdentifier("zeros",
       FunctionType(List(IntegerType, IntegerType),MatrixType(DoubleType,ReferenceValue(0),ReferenceValue(1)))),
       List(TypedInteger(10), TypedInteger(10)),MatrixType(DoubleType,IntValue(10),IntValue(10)))),
-      CellArrayType(List(BooleanType, IntegerType, MatrixType(DoubleType,IntValue(10),IntValue(10)))))))
+      ConcreteCellArrayType(List(BooleanType, IntegerType, MatrixType(DoubleType,IntValue(10),IntValue(10)))))))
     TestUtils.testTypingRessource(filename, expected)
   }
 
   @Test def testCellArrayIndexingTyping{
     val filename = "testCellArrayIndexingTyping.gb"
-    val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x",CellArrayType(List(BooleanType,
-      DoubleType))),TypedCellArray(List(TypedBoolean(true), TypedFloatingPoint(2.0)),CellArrayType(List(BooleanType,
-      DoubleType)))), TypedCellArrayIndexing(TypedIdentifier("x",CellArrayType(List(BooleanType, DoubleType))),
-      List(TypedInteger(1)),BooleanType)))
+    val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x",ConcreteCellArrayType(List(BooleanType,
+      DoubleType))),TypedCellArray(List(TypedBoolean(true), TypedFloatingPoint(2.0)),
+      ConcreteCellArrayType(List(BooleanType,
+      DoubleType)))), TypedCellArrayIndexing(TypedIdentifier("x",ConcreteCellArrayType(List(BooleanType, DoubleType))),
+      TypedInteger(0),BooleanType)))
+
+    TestUtils.testTypingRessource(filename, expected)
+  }
+
+  @Test def testAnonymousCellArrayFunctionTyping{
+    val filename = "anonymousCellArrayFunctionTyping.gb"
+    val expected = TypedProgram(
+      List(
+        TypedAnonymousFunction(
+          List(
+            TypedIdentifier(
+              "x",
+              InterimCellArrayType(
+                List(
+                   MatrixType(
+                     NumericTypeVar(43),
+                     ValueVar(65),
+                     ValueVar(66)
+                   ),
+                  MatrixType(
+                    NumericTypeVar(43),
+                    ValueVar(65),
+                    ValueVar(66)
+                  )
+                )
+              )
+            )
+          ),
+          TypedBinaryExpression(
+            TypedCellArrayIndexing(
+              TypedIdentifier(
+                "x",
+                TypeVar(0)
+              ),
+              TypedInteger(0),
+              TypeVar(21)
+            ),
+            PlusOp,
+            TypedCellArrayIndexing(
+              TypedIdentifier(
+                "x",
+                InterimCellArrayType(
+                  List(
+                    MatrixType(
+                      NumericTypeVar(43),
+                      ValueVar(65),
+                      ValueVar(66)
+                    ),
+                    MatrixType(
+                      NumericTypeVar(43),
+                      ValueVar(65),
+                      ValueVar(66)
+                    )
+                  )
+                )
+              ),
+              TypedInteger(1),
+              TypeVar(22)
+            ),
+            MatrixType(
+              NumericTypeVar(43),
+              ValueVar(65),
+              ValueVar(66)
+            )
+          ),
+          List(),
+          FunctionType(
+            List(
+              InterimCellArrayType(
+                List(
+                  MatrixType(
+                    NumericTypeVar(43),
+                    ValueVar(65),
+                    ValueVar(66)
+                  ),
+                  MatrixType(
+                    NumericTypeVar(43),
+                    ValueVar(65),
+                    ValueVar(66)
+                  )
+                )
+              )
+            ),
+            MatrixType(
+              NumericTypeVar(43),
+              ValueVar(65),
+              ValueVar(66)
+            )
+          )
+        )
+      )
+    )
 
     TestUtils.testTypingRessource(filename, expected)
   }

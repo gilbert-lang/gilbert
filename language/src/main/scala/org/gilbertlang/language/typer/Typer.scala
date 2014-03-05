@@ -49,7 +49,7 @@ trait Typer {
   private val valueEnvironment = scala.collection.mutable.Map[String, TypedExpression]()
   private val typeVarMapping = scala.collection.mutable.Map[Type, Type]()
   private val valueVarMapping = scala.collection.mutable.Map[Value, Value]()
-  
+
   def resolveTypeVars(expression: TypedExpression): TypedExpression = {
     expression match {
       case x:TypedIdentifier => resolveTypeVars(x)
@@ -68,8 +68,8 @@ trait Typer {
       case TypedFunctionApplication(fun, params, datatype) => TypedFunctionApplication(resolveTypeVars(fun), 
           params map { resolveTypeVars(_) }, resolveType(datatype))
       case TypedCellArray(elements, datatype) => TypedCellArray(elements map {resolveTypeVars}, resolveType(datatype))
-      case TypedCellArrayIndexing(cellArray, indices, datatype) => TypedCellArrayIndexing(resolveTypeVars(cellArray),
-        indices map {resolveTypeVars}, resolveType(datatype))
+      case TypedCellArrayIndexing(cellArray, index, datatype) => TypedCellArrayIndexing(resolveTypeVars(cellArray),
+        index, resolveType(datatype))
     }
   }
   
@@ -96,7 +96,11 @@ trait Typer {
       }
       case FunctionType(args, result) => FunctionType(args map { resolveType }, resolveType(result))
       case PolymorphicType(types) => PolymorphicType(types map { resolveType })
-      case CellArrayType(types) => CellArrayType( types map { resolveType })
+      case ConcreteCellArrayType(types) => ConcreteCellArrayType( types map { resolveType })
+      case x:InterimCellArrayType =>
+        val resolvedTypes = x.types map { resolveType }
+        x.types = resolvedTypes
+        x
       case x => x
     }
   }
@@ -192,16 +196,28 @@ trait Typer {
   def specializeType(datatype: Type): Type = {
     val replacement = scala.collection.mutable.Map[AbstractTypeVar, AbstractTypeVar]()
     val replacementValues = scala.collection.mutable.Map[ValueVar, ValueVar]()
+    var specialized: Boolean = false;
     def helper(a: Type): Type = {
       a match {
-        case UniversalType(x: NumericTypeVar) => replacement.getOrElseUpdate(x, newNumericTV())
-        case UniversalType(x: TypeVar) => replacement.getOrElseUpdate(x, newTV())
+        case UniversalType(x: NumericTypeVar) =>
+          specialized = true
+          replacement.getOrElseUpdate(x, newNumericTV())
+        case UniversalType(x: TypeVar) =>
+          specialized = true
+          replacement.getOrElseUpdate(x, newTV())
         case MatrixType(elementType, rowValue, colValue) => {
           MatrixType(helper(elementType), helperValue(rowValue), helperValue(colValue))
         }
         case PolymorphicType(types) => PolymorphicType(types map { specializeType })
         case FunctionType(args, result) => FunctionType(args map { helper }, helper(result))
-        case CellArrayType(types) => CellArrayType(types map { specializeType })
+        case ConcreteCellArrayType(types) => ConcreteCellArrayType(types map { helper })
+        case x:InterimCellArrayType =>
+          val specializedTypes = x.types map { helper }
+          if(specialized){
+            ConcreteCellArrayType(specializedTypes)
+          }else{
+            x
+          }
         case x => x
       }
     }
@@ -239,8 +255,8 @@ trait Typer {
       case ASTMatrix(rows) => (rows flatMap { freeVariables(_) }).toSet
       case ASTMatrixRow(exps) => (exps flatMap { freeVariables(_) }).toSet
       case ASTCellArray(cells) => (cells flatMap { freeVariables}).toSet
-      case ASTCellArrayIndexing(cellArray, positions) =>
-        freeVariables(cellArray) ++ (positions flatMap { freeVariables }).toSet
+      case ASTCellArrayIndexing(cellArray, index) =>
+        freeVariables(cellArray) ++ freeVariables(index)
     }
   }
 
@@ -265,7 +281,8 @@ trait Typer {
         case MatrixType(elementType, rowValue, colValue) => helper(elementType)
         case PolymorphicType(types) => (types flatMap (helper)).toSet
         case FunctionType(args, result) => (args flatMap (helper)).toSet ++ helper(result)
-        case CellArrayType(types) => (types flatMap(helper)).toSet
+        case ConcreteCellArrayType(types) => (types flatMap(helper)).toSet
+        case InterimCellArrayType(types) => (types flatMap (helper)).toSet
         case _ => Set()
       }
     }
@@ -284,7 +301,8 @@ trait Typer {
         }
         case PolymorphicType(types) => PolymorphicType(types map { helper })
         case FunctionType(args, result) => FunctionType(args map { helper }, helper(result))
-        case CellArrayType(types) => CellArrayType(types map { helper })
+        case ConcreteCellArrayType(types) => ConcreteCellArrayType(types map { helper })
+        case InterimCellArrayType(types) => ConcreteCellArrayType(types map { helper })
         case x => x
       }
     }
@@ -378,16 +396,69 @@ trait Typer {
             case _ => None
           }
         }
-        case (CellArrayType(typesA), CellArrayType(typesB)) => {
+        case (ConcreteCellArrayType(typesA), ConcreteCellArrayType(typesB)) => {
           if(typesA.length == typesB.length){
             val unifiedTypes = typesA zip typesB flatMap { case (a,b) => unify(a,b)}
             if(unifiedTypes.length == typesA.length){
-              Some(CellArrayType(unifiedTypes))
+              Some(ConcreteCellArrayType(unifiedTypes))
             }else
               None
           }else
             None
         }
+        case (ConcreteCellArrayType(typesA), b@InterimCellArrayType(typesB)) =>
+          var tB = typesB
+
+          if(typesB.length < typesA.length){
+            tB ++= List.fill[Type](typesA.length - typesB.length)(newTV())
+          }
+
+          if(typesA.length < typesB.length){
+            None
+          }else{
+            val unifiedTypes = typesA zip tB flatMap { case(a,b) => unify(a,b)}
+
+            if(unifiedTypes.length == typesA.length){
+              b.types = unifiedTypes
+              Some(ConcreteCellArrayType(unifiedTypes))
+            }else{
+              None
+            }
+          }
+        case (a@InterimCellArrayType(typesA), ConcreteCellArrayType(typesB)) =>
+          var tA = typesA
+
+          if(typesA.length < typesB.length){
+            tA ++= List.fill[Type](typesB.length - typesA.length)(newTV())
+          }
+
+          if(typesB.length < typesA.length){
+            None
+          }else{
+            val unifiedTypes = tA zip typesB flatMap { case(a,b) => unify(a,b)}
+            a.types = unifiedTypes
+            Some(ConcreteCellArrayType(unifiedTypes))
+          }
+        case (a@InterimCellArrayType(typesA),b@ InterimCellArrayType(typesB)) =>
+          var tA = typesA
+          var tB = typesB
+          if(typesA.length < typesB.length){
+           tA ++= List.fill[Type](typesB.length-typesA.length)(newTV())
+          }
+
+          if(typesA.length > typesB.length){
+            tB ++= List.fill[Type](typesA.length - typesB.length)(newTV())
+          }
+
+          val unifiedTypes = tA zip tB flatMap { case(a,b) => unify(a,b)}
+          a.types = unifiedTypes
+          b.types = unifiedTypes
+
+          if(unifiedTypes.length == tA.length){
+            Some(InterimCellArrayType(unifiedTypes))
+          }else{
+            None
+          }
         case (PolymorphicType(typesA), PolymorphicType(typesB)) => None
         case (CharacterType, _) | (_, CharacterType) => None
         case (_, _) => None
@@ -414,12 +485,15 @@ trait Typer {
         case ASTMatrix(rows) => rows flatMap { helper } toSet
         case ASTMatrixRow(exps) => exps flatMap { helper } toSet
         case ASTCellArray(elements) => elements flatMap {helper} toSet
-        case ASTCellArrayIndexing(cellArray, positions) => helper(cellArray) ++ (positions flatMap {helper}).toSet
+        case ASTCellArrayIndexing(cellArray, index) => helper(cellArray) ++ helper(index)
       }
     }
     helper(expression)
   }
 
+  def removeFromEnvironment(identifier: String) = {
+    typeEnvironment.remove(identifier)
+  }
   def updateEnvironment(identifier: String, datatype: Type) = typeEnvironment.update(identifier, datatype)
   def updateEnvironment(identifier: ASTIdentifier, datatype: Type) = typeEnvironment.update(identifier.value, datatype)
 
@@ -466,6 +540,12 @@ trait Typer {
     case ASTAssignment(lhs, rhs) => {
       val typedRHS = typeExpression(rhs)
       updateValueEnvironment(lhs, typedRHS)
+      typedRHS match {
+        case x: TypedFunctionExpression =>
+          val generalizedRHS = generalizeType(extractType(typedRHS))
+          updateEnvironment(lhs, generalizedRHS)
+        case _ => updateEnvironment(lhs, extractType(typedRHS))
+      }
       updateEnvironment(lhs, extractType(typedRHS))
       TypedAssignment(typeIdentifier(lhs), typedRHS)
     }
@@ -474,7 +554,7 @@ trait Typer {
 
   def typeExpression(exp: ASTExpression): TypedExpression = exp match {
     case id: ASTIdentifier => typeIdentifier(id)
-    case ASTInteger(value) => TypedInteger(value)
+    case int: ASTInteger => typeInteger(int)
     case ASTFloatingPoint(value) => TypedFloatingPoint(value)
     case ASTString(value) => TypedString(value)
     case ASTBoolean(value) => TypedBoolean(value)
@@ -531,12 +611,12 @@ trait Typer {
         })
       }
 
-      val functionType = FunctionType(typedParameters map { extractType(_) }, extractType(typedBody))
-
       oldMappings foreach {
         case (id, Some(datatype)) => updateEnvironment(id, datatype)
-        case (_, None) => ;
+        case (id, None) => removeFromEnvironment(id);
       }
+
+      val functionType = FunctionType(typedParameters map { extractType(_) }, extractType(typedBody))
 
       TypedAnonymousFunction(typedParameters, typedBody, closure, functionType)
     }
@@ -551,38 +631,52 @@ trait Typer {
 
     case ASTCellArray(elements) => {
       val typedElements = elements map {typeExpression}
-      TypedCellArray(typedElements, CellArrayType(typedElements map { extractType }))
+      TypedCellArray(typedElements, ConcreteCellArrayType(typedElements map { extractType }))
     }
 
-    case ASTCellArrayIndexing(exp, positions) => {
-      val typedExp = typeExpression(exp)
+    case ASTCellArrayIndexing(cellArray, index) => {
+      val typedExp = typeExpression(cellArray)
 
       extractType(typedExp) match {
-        case CellArrayType(types) =>
-          val typedPositions = positions map { typeExpression }
-          val evaluatedPositions = typedPositions map { evaluateExpression }
+        case ConcreteCellArrayType(types) =>
+          val typedIndex = typeInteger(index)
+          val idx = typedIndex.value
 
-          if(evaluatedPositions.size != 1){
-            throw new TypingError(s"Cell array indexing only supports single indexing.")
+          if(idx <0 || idx >= types.length )
+            throw new TypingError(s"Cell array index is out of bounds.")
+
+          TypedCellArrayIndexing(typedExp, typedIndex, types(idx))
+        case typeVar: TypeVar =>
+          val typedIndex = typeInteger(index)
+          val idx = typedIndex.value
+          val elementTypes = List.fill[Type](idx+1)(newTV())
+          updateTypeVarMapping(typeVar,InterimCellArrayType(elementTypes))
+          TypedCellArrayIndexing(typedExp, typedIndex, elementTypes(idx))
+        case x:InterimCellArrayType =>
+          val typedIndex = typeInteger(index)
+          val idx = typedIndex.value
+          val types = x.types
+
+          if(idx < 0)
+            throw new TypingError(s"Cell array index cannot be negative.")
+          else{
+            if(idx >= types.length){
+              val newTypes = types ++ List.fill[Type](idx - types.length+1)(newTV())
+              x.types = newTypes
+              TypedCellArrayIndexing(typedExp, typedIndex, newTypes(idx))
+            }else{
+              TypedCellArrayIndexing(typedExp, typedIndex, types(idx))
+            }
           }
-
-          evaluatedPositions(0) match {
-            case IntValue(value) =>
-              // accomodate for 1 based indexing of matlab
-              val idx = value-1
-              if(idx <0 || idx >= types.length )
-                throw new TypingError(s"Cell array index is out of bounds.")
-
-              TypedCellArrayIndexing(typedExp, typedPositions, types(idx))
-            case _ => throw new TypingError(s"Could not evaluate expression $evaluatedPositions(0) for cell array " +
-              s"typing")
-          }
-
         case _ => throw new TypingError(s"Object $typedExp has to be a cell array in order to be indexed.")
       }
     }
 
     case _ => throw new NotImplementedError("")
+  }
+
+  def typeInteger(integer: ASTInteger):TypedInteger ={
+    TypedInteger(integer.value)
   }
 
   def typeOperator(operator: Operator): Type = {
@@ -616,6 +710,7 @@ trait Typer {
       generalizeType(FunctionType(typedParameters map { extractType }, resultType)))
 
     updateEnvironment(func.identifier, typedFunctionName.datatype)
+
 
     TypedFunction(typedValues, typedFunctionName, typedParameters, typedBody)
   }

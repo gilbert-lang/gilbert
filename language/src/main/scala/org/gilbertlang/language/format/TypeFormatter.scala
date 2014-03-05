@@ -30,6 +30,13 @@ class TypeFormatter extends Formatter[Type] {
       case CharacterType => "Char"
       case StringType => "String"
       case VoidType => "Void"
+      case BooleanType => "Boolean"
+      case ConcreteCellArrayType(types) => {
+        "ConcreteCellArrayType(" + (types map {prettyString} mkString(", ")) + ")"
+      }
+      case InterimCellArrayType(types) => {
+        "InterimCellArrayType(" + (types map {prettyString} mkString(", ")) + ")"
+      }
       case UndefinedType => "Undefined"
       case PolymorphicType(types) => {
         val concatenatedTypes = types map { prettyString } mkString (", ")

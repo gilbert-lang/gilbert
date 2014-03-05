@@ -141,12 +141,12 @@
       <dependency>
         <groupId>eu.stratosphere</groupId>
         <artifactId>stratosphere-scala</artifactId>
-        <version>0.5-SNAPSHOT</version>
+        <version>0.5-SNAPSHOT-patched</version>
       </dependency>
       <dependency>
         <groupId>eu.stratosphere</groupId>
         <artifactId>stratosphere-clients</artifactId>
-        <version>0.5-SNAPSHOT</version>
+        <version>0.5-SNAPSHOT-patched</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

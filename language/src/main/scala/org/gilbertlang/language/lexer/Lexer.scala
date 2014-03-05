@@ -65,14 +65,16 @@ trait Lexer extends Scanners with LanguageTokens {
 
         FloatingPointLiteral((a+b+l+c+d).toDouble)
     }
-      | digit ~ rep(digit) ~ '.' ~ rep(digit) ^^ { case h~t~p~r => FloatingPointLiteral((h + t.mkString("") + p + r.mkString("")).toDouble) }
+      | digit ~ rep(digit) ~ '.' ~ rep(digit) ^^ { case h~t~p~r => FloatingPointLiteral((h + t.mkString("") + p  + r
+      .mkString("")).toDouble) }
       | '.' ~ digit ~ rep(digit) ^^ { case p ~ h ~ r => FloatingPointLiteral(("0" + p + h + r.mkString("")).toDouble) }
       | digit ~ rep(digit) ^^ { 
         case h ~ t => 
           IntegerLiteral((h::t).mkString("").toInt) 
         }
       | whitespace ~ rep(whitespace) ^^ { case h ~ t => Whitespace(h + t.mkString(""))}
-      | guard(Parser { in => if (isTransposable(previousToken)) Failure("failure",in) else Success("success",in) }) ~> '\'' ~> rep(chrExcept(List('\'', '\n', EofCh))) <~ '\'' ^^ { case l => StringLiteral(l.mkString("")) }
+      | guard(Parser { in => if (isTransposable(previousToken)) Failure("failure",in) else Success("success",
+      in) })  ~> '\'' ~> rep(chrExcept(List('\'', '\n', EofCh))) <~ '\'' ^^ { case l => StringLiteral(l.mkString("")) }
       | '\"' ~> rep(chrExcept(List('\"', '\n', EofCh))) <~ '\"' ^^ { case l => StringLiteral(l.mkString("")) }
       | '%' ~> '>' ~> rep(chrExcept(List('\n',EofCh))) ^^ { case l => TypeAnnotation(l.mkString("")) }
       | '%'~> rep(chrExcept(List('\n', EofCh))) ^^ { case l => Comment(l.mkString("")) }
@@ -82,7 +84,7 @@ trait Lexer extends Scanners with LanguageTokens {
 
   private def isTransposable(token: Token):Boolean = {
     token match {
-      case Identifier(_) | Keyword(")") | Keyword("]") => true
+      case Identifier(_) | Keyword(")") | Keyword("]") | Keyword("}") => true
       case _ => false
     }
   }

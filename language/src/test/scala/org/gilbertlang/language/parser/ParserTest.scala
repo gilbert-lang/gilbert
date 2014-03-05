@@ -128,8 +128,8 @@ class ParserTest extends Parser with Assertions {
   @Test def testCellArrayIndexingParsing {
     val expected = ASTProgram(List(
       ASTCellArrayIndexing(
-        ASTCellArrayIndexing(ASTIdentifier("a"), List(ASTInteger(1), ASTInteger(2))),
-        List(ASTInteger(2))
+        ASTCellArrayIndexing(ASTIdentifier("a"),ASTInteger(0)),
+        ASTInteger(1)
       )
     ))
     val filename = "testCellArrayIndexingParsing.gb"

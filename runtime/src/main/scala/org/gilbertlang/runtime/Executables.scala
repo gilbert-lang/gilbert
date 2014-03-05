@@ -82,6 +82,21 @@ object Executables {
     def getType = Void
   }
 
+  case class WriteCellArray(cellArray: CellArrayBase) extends Executable {
+    def instantiate(args: Executable*): WriteCellArray = {
+      val instantiatedCellArray = cellArray.instantiate(args: _*)
+
+      if(Executable.instantiated){
+        WriteCellArray(instantiatedCellArray)
+      }else{
+        this
+      }
+    }
+
+    def getType = Void
+
+  }
+
   case class WriteFunction(function: FunctionRef) extends Executable {
     def instantiate(args: Executable*): WriteFunction = {
       val instantiatedFunction = function.instantiate(args: _*)
@@ -97,7 +112,9 @@ object Executables {
     def getType = Void
   }
 
-  sealed trait ExpressionExecutable extends Executable
+  sealed trait ExpressionExecutable extends Executable {
+    def instantiate(args: Executable*): ExpressionExecutable
+  }
 
   case object VoidExecutable extends ExpressionExecutable {
     def instantiate(args: Executable*) = {
@@ -109,8 +126,8 @@ object Executables {
   }
 
   sealed trait Matrix extends ExpressionExecutable {
-    val rows: Option[Int]
-    val cols: Option[Int]
+    def rows: Option[Int]
+    def cols: Option[Int]
 
     def transpose() = {
       Transpose(this)
@@ -595,6 +612,49 @@ object Executables {
     }
 
     def getType = initialState.getType
+
+  }
+
+  case class FixpointIterationCellArray(initialState: CellArrayBase, updateFunction: FunctionRef,
+                               maxIterations: ScalarRef, convergence: FunctionRef) extends CellArrayBase {
+    val updatePlan = updateFunction.apply(IterationStatePlaceholderCellArray(initialState.getType))
+
+    def instantiate(args: Executable*): FixpointIterationCellArray = {
+      var anyInstantiated = false
+      val instantiatedState = initialState.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedUpdateFunction = updateFunction.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedMaxIterations = maxIterations.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedConvergence = convergence.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+
+      if (anyInstantiated) {
+        Executable.instantiated = true
+        FixpointIterationCellArray(instantiatedState, instantiatedUpdateFunction,
+          instantiatedMaxIterations, instantiatedConvergence)
+      } else
+        this
+    }
+
+    override def getType = initialState.getType
+
+    def elements = initialState.elements
+
+  }
+
+  case class IterationStatePlaceholderCellArray(cellArrayType: RuntimeTypes.CellArrayType) extends CellArrayBase{
+    def elements: List[CellArrayReference[ExpressionExecutable]] = {
+      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
+    }
+
+    def instantiate(args: Executable*): CellArrayBase = {
+      Executable.instantiated = false
+      this
+    }
+
+    override def getType = cellArrayType
   }
 
   case object IterationStatePlaceholder extends Matrix {
@@ -610,19 +670,21 @@ object Executables {
   }
 
   sealed trait StringRef extends ExpressionExecutable {
-    val length: Int
-    val value: String
+    def length: Int
+    def value: String
 
-    def instantiate(args: Executable*): StringRef = {
-      Executable.instantiated = false
-      this
-    }
+    def instantiate(args: Executable*): StringRef
 
     def getType = StringType
   }
 
   case class string(value: String) extends StringRef {
     val length = value.length
+
+    override def instantiate(args: Executable*): string = {
+      Executable.instantiated = false
+      this
+    }
   }
 
   sealed trait ScalarRef extends ExpressionExecutable {
@@ -782,6 +844,34 @@ object Executables {
     def getType = MatrixType(Unknown)
   }
 
+  case class CellArrayReferenceMatrix(parent: CellArrayBase, reference: Int) extends CellArrayReference[Matrix] with
+  Matrix{
+    def rows = {
+      if(extract == this){
+        None
+      }else{
+        extract.rows
+      }
+    }
+    def cols = {
+      if(extract == this){
+        None
+      }else{
+        extract.cols
+      }
+    }
+
+    override def instantiate(args: Executable*): CellArrayReferenceMatrix = {
+      val instantiatedParent = parent.instantiate(args:_*)
+
+      if(Executable.instantiated){
+        CellArrayReferenceMatrix(instantiatedParent, reference)
+      }else{
+        this
+      }
+    }
+  }
+
   case class StringParameter(position: Int) extends Parameter with StringRef {
     val length = -1
     val value = ""
@@ -791,6 +881,37 @@ object Executables {
       args(position) match {
         case x: StringRef => x
         case _ => throw new InstantiationRuntimeError("Argument at position " + position + " is not of type stringRef")
+      }
+    }
+  }
+
+  case class CellArrayReferenceString(parent: CellArrayBase, reference: Int) extends CellArrayReference[StringRef]
+  with StringRef {
+    override def getType = StringType
+
+    override def instantiate(args: Executable*): CellArrayReferenceString = {
+      val instantiatedParent = parent.instantiate(args:_*)
+
+      if(Executable.instantiated){
+        CellArrayReferenceString(instantiatedParent, reference)
+      }else{
+        this
+      }
+    }
+
+    def length = {
+      if(extract == this){
+        -1
+      }else{
+        extract.length
+      }
+    }
+
+    def value = {
+      if(extract == this){
+        ""
+      }else{
+        extract.value
       }
     }
   }
@@ -805,6 +926,20 @@ object Executables {
     }
 
     def getType = Unknown
+  }
+
+  case class CellArrayReferenceScalar(parent: CellArrayBase, reference: Int) extends
+  CellArrayReference[ScalarRef] with ScalarRef {
+
+    override def instantiate(args: Executable*): CellArrayReferenceScalar = {
+      val instantiatedParent = parent.instantiate(args:_*)
+
+      if(Executable.instantiated){
+        CellArrayReferenceScalar(instantiatedParent, reference)
+      }else{
+        this
+      }
+    }
   }
 
   case class FunctionParameter(position: Int) extends Parameter with FunctionRef {
@@ -823,6 +958,30 @@ object Executables {
     def getType = Unknown
   }
 
+  case class CellArrayReferenceFunction(parent: CellArrayBase, reference: Int) extends
+  CellArrayReference[FunctionRef] with FunctionRef {
+
+    override def apply(args: ExpressionExecutable*): Executable = {
+      if(extract == this){
+        VoidExecutable
+      }else{
+        extract.apply(args:_*)
+      }
+    }
+
+    override def instantiate(args: Executable*): CellArrayReferenceFunction = {
+      val instantiatedParent = parent.instantiate(args: _*)
+
+      if(Executable.instantiated){
+        CellArrayReferenceFunction(instantiatedParent, reference)
+      }else{
+        this
+      }
+    }
+  }
+
+
+
   case class RegisteredValue(index: Int) extends Matrix {
     def instantiate(args: Executable*): RegisteredValue = {
       Executable.instantiated = false
@@ -833,6 +992,98 @@ object Executables {
     val cols = None
 
     def getType = MatrixType(Unknown)
+  }
+
+  sealed trait CellArrayBase extends ExpressionExecutable {
+    def elements: List[ExpressionExecutable]
+    def instantiate(args: Executable*): CellArrayBase
+
+    def getType = CellArrayType(elements map { x => x.getType })
+
+    def rows = Some(1)
+    def cols = Some(elements.length)
+
+    protected def createCellArrayReference(tpe: RuntimeType, index: Int,
+                                         parent: CellArrayBase): CellArrayReference[ExpressionExecutable] = {
+      tpe match {
+        case ScalarType => CellArrayReferenceScalar(parent, index)
+        case StringType => CellArrayReferenceString(parent, index)
+        case _:MatrixType => CellArrayReferenceMatrix(parent, index)
+        case FunctionType => CellArrayReferenceFunction(parent, index)
+        case x:CellArrayType => CellArrayReferenceCellArray(parent, index, x )
+      }
+    }
+  }
+
+  case class CellArrayExecutable(elements: List[ExpressionExecutable]) extends CellArrayBase{
+    def instantiate(args: Executable*): CellArrayExecutable = {
+      var anyInstantiated = false
+      val instantiatedElements = elements map { element =>
+        val result = element.instantiate(args: _*)
+        anyInstantiated |= Executable.instantiated
+        result
+      }
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        CellArrayExecutable(instantiatedElements)
+      }else
+        this
+    }
+  }
+
+  case class CellArrayParameter(position: Int, cellArrayType: CellArrayType) extends CellArrayBase with
+  Parameter{
+    override def instantiate(args: Executable*):CellArrayBase = {
+      Executable.instantiated = true
+      args(position) match {
+        case x: CellArrayBase => x
+        case _ => throw new InstantiationRuntimeError(s"Argument at position $position is not of type " +
+          s"CellArrayExecutable")
+      }
+
+    }
+
+    def elements: List[CellArrayReference[ExpressionExecutable]] = {
+      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
+    }
+
+    override def getType = cellArrayType
+  }
+
+  sealed trait CellArrayReference[+T <: ExpressionExecutable] extends ExpressionExecutable{
+    def parent: CellArrayBase
+    def reference: Int
+
+    def extract: T = {
+      parent.elements(reference).asInstanceOf[T]
+    }
+
+    def getType = {
+      parent.getType.elementTypes(reference)
+    }
+  }
+
+  
+  case class CellArrayReferenceCellArray(parent: CellArrayBase,
+                                         reference: Int, cellArrayType: CellArrayType) extends
+  CellArrayReference[CellArrayBase] with
+  CellArrayBase {
+    def instantiate(args: Executable*):CellArrayReferenceCellArray = {
+      val instantiatedParent = parent.instantiate(args: _*)
+      
+      if(Executable.instantiated){
+        CellArrayReferenceCellArray(instantiatedParent, reference, cellArrayType)
+      }else{
+        this
+      }
+    }
+
+    override def getType = cellArrayType
+
+    def elements: List[CellArrayReference[ExpressionExecutable]] = {
+      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
+    }
   }
 
 }

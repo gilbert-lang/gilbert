@@ -14,10 +14,12 @@ import scala.util.Random
 import scala.reflect.ClassTag
 import breeze.storage.DefaultArrayValue
 import breeze.math.Semiring
+import eu.stratosphere.types.Value
+import java.io.{DataInput, DataOutput}
 
 case class SubmatrixBoolean(var matrix: GilbertMatrixBoolean, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
   var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[Boolean] with 
-  BreezeMatrixLike[Boolean, SubmatrixBoolean] {
+  BreezeMatrixLike[Boolean, SubmatrixBoolean] with Value{
 
   override def rows = matrix.rows
   override def cols = matrix.cols
@@ -53,6 +55,27 @@ case class SubmatrixBoolean(var matrix: GilbertMatrixBoolean, var rowIndex: Int,
   }
   
   def getPartition = Partition(-1, rowIndex, columnIndex, rows, cols, rowOffset, columnOffset, totalRows, totalColumns)
+
+  override def write(out: DataOutput){
+    matrix.write(out)
+    out.writeInt(rowIndex)
+    out.writeInt(columnIndex)
+    out.writeInt(rowOffset)
+    out.writeInt(columnOffset)
+    out.writeInt(totalRows)
+    out.writeInt(totalColumns)
+  }
+
+  override def read(in: DataInput){
+    matrix = new GilbertMatrixBoolean()
+    matrix.read(in)
+    rowIndex = in.readInt()
+    columnIndex = in.readInt()
+    rowOffset = in.readInt()
+    columnOffset = in.readInt()
+    totalRows = in.readInt()
+    totalColumns = in.readInt()
+  }
 }
 
 object SubmatrixBoolean extends SubmatrixBooleanOps {

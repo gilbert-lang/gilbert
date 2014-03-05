@@ -57,6 +57,10 @@ trait Executor extends Serializable {
     execute(in).asInstanceOf[T]
   }
 
+  def evaluate[T](in: List[Executable]): List[T] = {
+    in map { x => execute(x).asInstanceOf[T]}
+  }
+
   def handle[T <: Executable, I](executable: T, retrieveInput: (T) => I, handle: (T, I) => Any): Any = {
 
     val id = executable.id

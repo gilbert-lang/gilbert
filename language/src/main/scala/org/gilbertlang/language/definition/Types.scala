@@ -79,7 +79,11 @@ object Types {
   
   case class PolymorphicType(types:List[Type]) extends Type
 
-  case class CellArrayType(types: List[Type]) extends Type
+  sealed trait CellArrayType extends Type{
+    def types: List[Type]
+  }
+  case class ConcreteCellArrayType(types: List[Type]) extends CellArrayType
+  case class InterimCellArrayType(var types: List[Type]) extends CellArrayType
 
   case object VoidType extends Type
   case object UndefinedType extends Type

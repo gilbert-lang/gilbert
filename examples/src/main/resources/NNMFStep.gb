@@ -2,5 +2,4 @@ V = eye(10,10)+ 0.1 * ones(10,10);
 W = 0.5*ones(10,2);
 H = 0.1*ones(2,10) + eye(2,10);
 step = @(x) { x{1}.*((x{2}'*V)./(x{2}'*x{2}*x{1})), x{2}.*((V*x{1}')./(x{2}*x{1}*x{1}')) };
-fixpoint({H,W}, step, 10, @(prev, cur) false)
-
+r = step({H,W})
