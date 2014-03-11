@@ -50,7 +50,8 @@ object TestUtils extends Parser with Assertions with Comparisons
           assert(next.atEnd, "Input has not been read completely.")
           val typer = new Typer{}
 
-          val typedAST = typer.typeProgram(actual)
+          val typedAST = typer.typeWithResolution(actual)
+          println(typedAST)
           checkTypeEquality(expected,typedAST)
         case _ => fail(s"Could not type ressource $filename")
       }

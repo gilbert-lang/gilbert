@@ -38,7 +38,7 @@ object Gilbert {
   def compile(inputReader: Reader): Executable = {
     val reader = StreamReader(inputReader)
     val parser = new Parser{}
-    val typer = new Typer {}
+    val typer = new Typer()
     val compiler = new Compiler{}
     
     val ast = parser.parse(reader) match {
@@ -46,7 +46,7 @@ object Gilbert {
       case Some(ast) => ast
     }
     
-    val typedAST = typer.typeProgram(ast)
+    val typedAST = typer.typeWithResolution(ast)
     
     compiler.compile(typedAST)
   }

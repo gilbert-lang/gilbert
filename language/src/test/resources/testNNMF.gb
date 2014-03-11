@@ -6,5 +6,4 @@ function [y] = step(x)
   W = x{2}.*(V*H')./(x{2}*H*H');
   y = {H, W};
 end
-fixpoint({H,W}, @step, 10, @(prev, cur) false)
-
+step({H,W})

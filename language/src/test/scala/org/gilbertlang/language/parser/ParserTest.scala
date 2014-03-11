@@ -136,4 +136,49 @@ class ParserTest extends Parser with Assertions {
 
     TestUtils.testParsingRessource(filename, expected)
   }
+
+
+  @Test def testFunctionDefinitionCodeParsing {
+    val expected = ASTProgram(
+      List(
+        ASTAssignment(
+          ASTIdentifier("x"),
+          ASTInteger(1)
+        ),
+        ASTFunction(
+          List(
+            ASTIdentifier("y")
+          ),
+          ASTIdentifier("foo"),
+          List(
+            ASTIdentifier("z")
+          ),
+          ASTProgram(
+            List(
+              ASTAssignment(
+                ASTIdentifier("y"),
+                ASTBinaryExpression(
+                  ASTIdentifier("z"),
+                  PlusOp,
+                  ASTInteger(1)
+                )
+              )
+            )
+          )
+        ),
+        ASTOutputResultStatement(
+          ASTFunctionApplication(
+            ASTIdentifier("foo"),
+            List(
+              ASTIdentifier("x")
+            )
+          )
+        )
+      )
+    )
+
+    val filename = "testFunctionDefinitionCodeParsing.gb"
+
+    TestUtils.testParsingRessource(filename, expected)
+  }
 }

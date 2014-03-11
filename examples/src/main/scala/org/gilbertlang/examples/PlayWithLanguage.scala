@@ -35,7 +35,7 @@ object PlayWithLanguage {
       isReader = new InputStreamReader(ClassLoader.getSystemResourceAsStream("play.gb"))
       val reader = StreamReader(isReader)
 
-      val typer = new Typer {}
+      val typer = new Typer()
       val compiler = new Compiler {}
       val parser = new Parser {}
 
@@ -44,7 +44,7 @@ object PlayWithLanguage {
       ast match {
         case Some(parsedProgram) => {
 
-          val typedAST = typer.typeProgram(parsedProgram)
+          val typedAST = typer.typeWithResolution(parsedProgram)
           val compiledProgram = compiler.compile(typedAST)
 
           println(compiledProgram)

@@ -32,7 +32,7 @@ import scala.language.postfixOps
 trait Compiler {
   
   val assignments = scala.collection.mutable.Map[String, ExpressionExecutable]()
-  val functions = scala.collection.mutable.Map[String, Executable]()
+  val functions = scala.collection.mutable.Map[String, TypedFunction]()
 
   private def addParameter(id: String, datatype: Type, position: Int) {
 
@@ -61,8 +61,12 @@ trait Compiler {
     }
   }
 
-  private def registerFunction(functionName: String, executable: Executable) {
-    functions.update(functionName, executable)
+  private def registerFunction(functionName: String, function: TypedFunction) {
+    functions.update(functionName, function)
+  }
+
+  private def retrieveFunction(functionName: String) = {
+    functions.get(functionName)
   }
 
   private def assign(identifier: String, executable: ExpressionExecutable) {
@@ -78,7 +82,7 @@ trait Compiler {
       case TypedProgram(statementsOrFunctions) => {
         val functions = statementsOrFunctions collect { case x: TypedFunction => x }
         val statements = statementsOrFunctions collect { case x: TypedStatement => x }
-        functions.map { compileFunction }.foreach({ (registerFunction _).tupled })
+        functions foreach { function => registerFunction(function.identifier.value, function) }
         CompoundExecutable(statements flatMap { compileStatementWithResult })
       }
     }
@@ -380,27 +384,44 @@ trait Compiler {
 
   def compileFunctionApplication(functionApplication: TypedFunctionApplication) = {
     val fun = compileIdentifier(functionApplication.id)
-    val arguments = functionApplication.args map { compileExpression }
 
     val result = fun match {
-      case function(numParameters, body) if numParameters <= arguments.length => body.instantiate(arguments:_*) match {
+      case function(numParameters, body) if numParameters <= functionApplication.args.length =>
+        val arguments = functionApplication.args map { compileExpression }
+        body.instantiate(arguments:_*) match {
         case x:ExpressionExecutable => x
         case _ => throw new TypeCompileError("Return value of a function has to be an expression")
       }
+      case VoidExecutable =>
+        compileFunctionDefinition(functionApplication)
       case _ => throw new TypeCompileError("Id has to be of a function type")
     }
     
     result
   }
 
-  // TODO: Handle return values of functions
-  def compileFunction(typedFunction: TypedFunction): (String, FunctionRef) = {
+  def compileFunctionDefinition(functionApplication: TypedFunctionApplication): ExpressionExecutable = {
     val compiler = new Compiler {}
-    (typedFunction.parameters zipWithIndex) foreach ({ case (TypedIdentifier(id,datatype), position) =>
-      compiler.addParameter(id, datatype,position) })
-    val compiledFunction = compiler.compile(typedFunction.body)
+    val typedFunction = retrieveFunction(functionApplication.id.value) match {
+      case Some(func) => func
+      case None => throw new CompileError("Function " + functionApplication.id.value + " is not registered.")
+    }
 
-    (typedFunction.identifier.value, function(typedFunction.parameters.length, compiledFunction))
+    val typedArguments = functionApplication.args map { compileExpression }
+
+    assignments foreach { case (id, value) => compiler.assign(id, value) }
+
+    if(typedArguments.length >= typedFunction.parameters.length){
+      typedFunction.parameters zip typedArguments map { case (parameter, argument) => compiler.assign(parameter
+        .value, argument)}
+
+      compiler.compile(typedFunction.body)
+
+      val results = typedFunction.values map { result => compiler.retrieveExecutable(result.value) }
+      results(0)
+    }else{
+      throw new CompileError("Function application requires more parameters than there are arguments provided.")
+    }
   }
 
   def compileStatementWithResult(typedStatement: TypedStatement): Option[Executable] = {

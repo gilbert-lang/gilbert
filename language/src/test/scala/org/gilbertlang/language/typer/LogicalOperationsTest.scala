@@ -18,8 +18,8 @@ class LogicalOperationsTest extends Assertions {
         TypedBinaryExpression(TypedFloatingPoint(2.5), GTOp,
             TypedFloatingPoint(3.1), BooleanType)
         ))
-    val typer = new Typer {}
-    val result = typer.typeProgram(ast)
+    val typer = new Typer()
+    val result = typer.typeWithResolution(ast)
     
     expectResult(expected)(result)
   }
@@ -47,7 +47,7 @@ class LogicalOperationsTest extends Assertions {
             BooleanType)))
     
     val typer = new Typer{}
-    val result = typer.typeProgram(ast)
+    val result = typer.typeWithResolution(ast)
     
     expectResult(expected)(result)
   }
