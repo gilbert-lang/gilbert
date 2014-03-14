@@ -43,30 +43,71 @@ import scala.language.postfixOps
 import Types.Helper._
 import Values.Helper._
 
-trait Typer {
+class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Type],
+            private val valueEnvironment: scala.collection.mutable.Map[String, TypedExpression],
+             private val typeVarMapping: scala.collection.mutable.Map[Type, Type],
+             private val valueVarMapping: scala.collection.mutable.Map[Value, Value]) {
 
-  private val typeEnvironment = scala.collection.mutable.Map[String, Type]()
-  private val valueEnvironment = scala.collection.mutable.Map[String, TypedExpression]()
-  private val typeVarMapping = scala.collection.mutable.Map[Type, Type]()
-  private val valueVarMapping = scala.collection.mutable.Map[Value, Value]()
+  def this() = this(scala.collection.mutable.Map[String, Type](),
+    scala.collection.mutable.Map[String, TypedExpression](),
+    scala.collection.mutable.Map[Type, Type](),
+    scala.collection.mutable.Map[Value, Value]())
+
+  def resolveTypeVars(program: TypedProgram): TypedProgram = {
+    TypedProgram(program.statementsOrFunctions map { resolveTypeVars })
+  }
+
+  def resolveTypeVars( stmtOrFunc: TypedStatementOrFunction): TypedStatementOrFunction = {
+    stmtOrFunc match {
+      case stmt: TypedStatement => resolveTypeVars(stmt)
+      case func: TypedFunction => resolveTypeVars(func)
+    }
+  }
+
+  def resolveTypeVars(func: TypedFunction): TypedFunction = {
+    TypedFunction(func.values map { resolveTypeVars }, resolveTypeVars(func.identifier),
+      func.parameters map { resolveTypeVars }, resolveTypeVars(func.body))
+  }
+
+  def resolveTypeVars(stmt: TypedStatement): TypedStatement = {
+    stmt match {
+      case TypedNOP => TypedNOP
+      case TypedOutputResultStatement(stmtWithResult) => TypedOutputResultStatement(resolveTypeVars(stmtWithResult))
+      case stmtWithResult: TypedStatementWithResult => resolveTypeVars(stmtWithResult)
+    }
+  }
+
+  def resolveTypeVars(stmtWithResult: TypedStatementWithResult): TypedStatementWithResult = {
+    stmtWithResult match {
+      case TypedAssignment(id, exp) => TypedAssignment(resolveTypeVars(id), resolveTypeVars(exp))
+      case expression: TypedExpression => resolveTypeVars(expression)
+    }
+  }
+
+  def resolveTypeVars(functionExpression: TypedFunctionExpression): TypedFunctionExpression = {
+    functionExpression match {
+      case x: TypedIdentifier => resolveTypeVars(x)
+      case TypedFunctionReference(func, datatype) =>
+        TypedFunctionReference(resolveTypeVars(func), resolveType(datatype))
+      case TypedAnonymousFunction(args, body, closure, datatype) =>
+        TypedAnonymousFunction(args map {resolveTypeVars(_)}, resolveTypeVars(body),
+          closure, resolveType(datatype))
+    }
+  }
 
   def resolveTypeVars(expression: TypedExpression): TypedExpression = {
     expression match {
       case x:TypedIdentifier => resolveTypeVars(x)
+      case x: TypedFunctionExpression => resolveTypeVars(x)
       case _ : TypedInteger | _: TypedFloatingPoint | _ : TypedString | _ :TypedBoolean => expression
       case TypedMatrix(rows, datatype) => 
         val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {resolveTypeVars(_) })}
         TypedMatrix(resolvedRows, resolveType(datatype).asInstanceOf[MatrixType])
-      case TypedAnonymousFunction(args, body, closure, datatype) => 
-        TypedAnonymousFunction(args map {resolveTypeVars(_)}, resolveTypeVars(body), 
-            closure, resolveType(datatype))
       case TypedBinaryExpression(a, op, b, datatype) => TypedBinaryExpression(resolveTypeVars(a), op,
           resolveTypeVars(b), resolveType(datatype))
       case TypedUnaryExpression(a, op, datatype) => TypedUnaryExpression(resolveTypeVars(a), op, resolveType(datatype))
-      case TypedFunctionReference(func, datatype) => 
-        TypedFunctionReference(resolveTypeVars(func), resolveType(datatype))
-      case TypedFunctionApplication(fun, params, datatype) => TypedFunctionApplication(resolveTypeVars(fun), 
-          params map { resolveTypeVars(_) }, resolveType(datatype))
+      case TypedFunctionApplication(fun, params, datatype) =>
+        TypedFunctionApplication(resolveTypeVars(fun), params map { resolveTypeVars(_) }, resolveType(datatype))
       case TypedCellArray(elements, datatype) => TypedCellArray(elements map {resolveTypeVars}, resolveType(datatype))
       case TypedCellArrayIndexing(cellArray, index, datatype) => TypedCellArrayIndexing(resolveTypeVars(cellArray),
         index, resolveType(datatype))
@@ -521,6 +562,16 @@ trait Typer {
 
   def extractType(expression: TypedExpression) = expression.datatype
 
+  def typeWithResolution(program: ASTProgram): TypedProgram = {
+    val typedProgram = typeProgram(program);
+    resolveTypeVars(typedProgram)
+  }
+
+  def typeWithResolution(id: ASTIdentifier): TypedIdentifier = {
+    val typedId = typeIdentifier(id);
+    resolveTypeVars(typedId)
+  }
+
   def typeProgram(program: ASTProgram): TypedProgram = program match {
     case ASTProgram(stmtFuncList) => TypedProgram(stmtFuncList map {
       case stmt: ASTStatement => typeStmt(stmt)
@@ -546,7 +597,6 @@ trait Typer {
           updateEnvironment(lhs, generalizedRHS)
         case _ => updateEnvironment(lhs, extractType(typedRHS))
       }
-      updateEnvironment(lhs, extractType(typedRHS))
       TypedAssignment(typeIdentifier(lhs), typedRHS)
     }
     case exp: ASTExpression => typeExpression(exp)
@@ -592,8 +642,8 @@ trait Typer {
 
       unificationResult match {
         case Some((appliedFunType @ FunctionType(_, resultType), _)) =>
-          TypedFunctionApplication(TypedIdentifier(typedFunc.value,appliedFunType), typedArguments map 
-              { resolveTypeVars(_) }, resolveValueReferences(resultType, typedArguments))
+          TypedFunctionApplication(TypedIdentifier(typedFunc.value,appliedFunType), typedArguments,
+            resolveValueReferences(resultType, typedArguments))
         case _ => throw new TypeNotFoundError("Function application could not be typed: " + exp)
       }
     }
@@ -697,20 +747,20 @@ trait Typer {
   }
 
   def typeFunction(func: ASTFunction) = {
-    val typer = new Typer {}
+    val typer = new Typer(typeEnvironment.clone, valueEnvironment.clone(), typeVarMapping.clone(),
+    valueVarMapping.clone())
 
     func.values foreach { typer.updateEnvironment(_, newTV()) }
     func.parameters foreach { typer.updateEnvironment(_, newTV()) }
 
-    val typedBody = typer.typeProgram(func.body)
-    val typedValues = func.values map { typer.typeIdentifier }
-    val typedParameters = func.parameters map { typer.typeIdentifier }
+    val typedBody = typer.typeWithResolution(func.body)
+    val typedValues = func.values map { typer.typeWithResolution }
+    val typedParameters = func.parameters map { typer.typeWithResolution }
     val resultType = if (typedValues.length == 0) VoidType else extractType(typedValues(0))
     val typedFunctionName = TypedIdentifier(func.identifier.value,
       generalizeType(FunctionType(typedParameters map { extractType }, resultType)))
 
     updateEnvironment(func.identifier, typedFunctionName.datatype)
-
 
     TypedFunction(typedValues, typedFunctionName, typedParameters, typedBody)
   }

@@ -1,6 +1,10 @@
 V = eye(10,10)+ 0.1 * ones(10,10);
 W = 0.5*ones(10,2);
 H = 0.1*ones(2,10) + eye(2,10);
-step = @(x) { x{1}.*((x{2}'*V)./(x{2}'*x{2}*x{1})), x{2}.*((V*x{1}')./(x{2}*x{1}*x{1}')) };
-fixpoint({H,W}, step, 10, @(prev, cur) false)
+function [y] = step(x)
+  H = x{1}.*((x{2}'*V)./(x{2}'*x{2}*x{1}));
+  W = x{2}.*(V*H')./(x{2}*H*H');
+  y = {H, W};
+end
+fixpoint({H,W}, @step, 10, @(prev, cur) norm(prev{2}*prev{1} - cur{2}*cur{1},1) < 0.1)
 

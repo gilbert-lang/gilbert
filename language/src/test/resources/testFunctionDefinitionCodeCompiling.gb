@@ -1,0 +1,5 @@
+function [x] = foo(z)
+  x = z;
+end
+foo(1)
+foo(ones(2,2))

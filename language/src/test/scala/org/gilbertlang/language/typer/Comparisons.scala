@@ -105,7 +105,7 @@ trait Comparisons extends Assertions {
       }
       case (TypedFunctionApplication(expFunc, expParams, expType),
         TypedFunctionApplication(actFunc, actParams, actType)) => {
-        checkIdentifier(expFunc, actFunc)
+        checkExpression(expFunc, actFunc)
         expectResult(expParams.length)(actParams.length)
         expParams zip actParams foreach { case (e, a) => checkExpression(e, a) }
         checkType(expType, actType)

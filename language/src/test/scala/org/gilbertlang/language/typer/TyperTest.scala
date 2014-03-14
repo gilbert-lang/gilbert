@@ -16,14 +16,14 @@ class TyperTest extends Comparisons {
   @Test def testProgram {
     val ast = ASTProgram(List(ASTAssignment(ASTIdentifier("x"), ASTInteger(12))))
     val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x", IntegerType), TypedInteger(12))))
-    val typer = new Typer {}
-    val result = typer.typeProgram(ast)
+    val typer = new Typer()
+    val result = typer.typeWithResolution(ast)
 
     expectResult(expected)(result)
   }
 
   @Test def testCharacterIntegerUnification {
-    val typer = new Typer {}
+    val typer = new Typer()
 
     expectResult(Some(IntegerType))(typer.unify(CharacterType, IntegerType))
   }
@@ -32,15 +32,13 @@ class TyperTest extends Comparisons {
     import definition.Values.Helper._
     import definition.Types.Helper._
     
-    val typer = new Typer {}
+    val typer = new Typer()
 
     expectResult(Some(MatrixType(IntegerType, IntValue(10), IntValue(42))))(typer.unify(MatrixType(newTV(), newVV(), IntValue(42)),
       MatrixType(IntegerType, IntValue(10), newVV())))
   }
 
   @Test def testFunctionTyping {
-    val typer = new Typer {}
-    val parser = new Parser {}
     val expected = TypedProgram(
       List(
         TypedFunction(
@@ -104,7 +102,11 @@ class TyperTest extends Comparisons {
                   TypedBinaryExpression(
                     TypedIdentifier(
                       "Y",
-                      TypeVar(3)
+                      MatrixType(
+                        IntegerType,
+                        ValueVar(1),
+                        ValueVar(2)
+                      )
                     ),
                     PlusOp,
                     TypedInteger(1),
@@ -122,21 +124,14 @@ class TyperTest extends Comparisons {
       )
     )
 
-    val fileName = "typerFunction.gb"
-    val inputReader = StreamReader(new InputStreamReader(getClass().getClassLoader().getResourceAsStream(fileName)))
-    parser.parse(inputReader) match {
-      case Some(ast) =>
-        val typedAST = typer.typeProgram(ast)
-        checkTypeEquality(expected, typedAST)
-      case _ => fail("Could not parse file " + fileName)
-    }
-
+    val filename = "typerFunction.gb"
+    TestUtils.testTypingRessource(filename, expected)
   }
 
   @Test def testTypeWidening {
     val input = ASTBinaryExpression(ASTInteger(1), DivOp, ASTFloatingPoint(0.1))
     val expected = TypedBinaryExpression(TypedInteger(1), DivOp, TypedFloatingPoint(0.1),DoubleType)
-    val typer = new Typer {}
+    val typer = new Typer()
 
     val result = typer.typeExpression(input)
 
@@ -192,10 +187,27 @@ class TyperTest extends Comparisons {
             TypedCellArrayIndexing(
               TypedIdentifier(
                 "x",
-                TypeVar(0)
+                InterimCellArrayType(
+                  List(
+                    MatrixType(
+                      NumericTypeVar(43),
+                      ValueVar(65),
+                      ValueVar(66)
+                    ),
+                    MatrixType(
+                      NumericTypeVar(43),
+                      ValueVar(65),
+                      ValueVar(66)
+                    )
+                  )
+                )
               ),
               TypedInteger(0),
-              TypeVar(21)
+              MatrixType(
+                NumericTypeVar(43),
+                ValueVar(65),
+                ValueVar(66)
+              )
             ),
             PlusOp,
             TypedCellArrayIndexing(
@@ -217,7 +229,11 @@ class TyperTest extends Comparisons {
                 )
               ),
               TypedInteger(1),
-              TypeVar(22)
+              MatrixType(
+                NumericTypeVar(43),
+                ValueVar(65),
+                ValueVar(66)
+              )
             ),
             MatrixType(
               NumericTypeVar(43),
@@ -247,6 +263,327 @@ class TyperTest extends Comparisons {
               NumericTypeVar(43),
               ValueVar(65),
               ValueVar(66)
+            )
+          )
+        )
+      )
+    )
+
+    TestUtils.testTypingRessource(filename, expected)
+  }
+
+  @Test def testGeneralization {
+    val filename = "testGeneralization.gb"
+    val expected = TypedProgram(
+      List(
+        TypedAssignment(
+          TypedIdentifier(
+            "f",
+            FunctionType(
+              List(
+                TypeVar(21)
+              ),
+              TypeVar(21)
+            )
+          ),
+          TypedAnonymousFunction(
+            List(
+              TypedIdentifier(
+                "x",
+                TypeVar(0)
+              )
+            ),
+            TypedIdentifier(
+              "x",
+              TypeVar(0)
+            ),
+            List(),
+            FunctionType(
+              List(
+                TypeVar(0)
+              ),
+              TypeVar(0)
+            )
+          )
+        ),
+        TypedAssignment(
+          TypedIdentifier(
+            "a",
+            MatrixType(
+              DoubleType,
+              IntValue(10),
+              IntValue(10)
+            )
+          ),
+          TypedFunctionApplication(
+            TypedIdentifier(
+              "f",
+              FunctionType(
+                List(
+                  MatrixType(
+                    DoubleType,
+                    IntValue(10),
+                    IntValue(10)
+                  )
+                ),
+                MatrixType(
+                  DoubleType,
+                  IntValue(10),
+                  IntValue(10)
+                )
+              )
+            ),
+            List(
+              TypedFunctionApplication(
+                TypedIdentifier(
+                  "zeros",
+                  FunctionType(
+                    List(
+                      IntegerType,
+                      IntegerType
+                    ),
+                    MatrixType(
+                      DoubleType,
+                      ReferenceValue(0),
+                      ReferenceValue(1)
+                    )
+                  )
+                ),
+                List(
+                  TypedInteger(10),
+                  TypedInteger(10)
+                ),
+                MatrixType(
+                  DoubleType,
+                  IntValue(10),
+                  IntValue(10)
+                )
+              )
+            ),
+            MatrixType(
+              DoubleType,
+              IntValue(10),
+              IntValue(10)
+            )
+          )
+        ),
+        TypedAssignment(
+          TypedIdentifier(
+            "b",
+            MatrixType(
+              IntegerType,
+              IntValue(1),
+              IntValue(1)
+            )
+          ),
+          TypedFunctionApplication(
+            TypedIdentifier(
+              "f",
+              FunctionType(
+                List(
+                  MatrixType(
+                    IntegerType,
+                    IntValue(1),
+                    IntValue(1)
+                  )
+                ),
+                MatrixType(
+                  IntegerType,
+                  IntValue(1),
+                  IntValue(1)
+                )
+              )
+            ),
+            List(
+              TypedFunctionApplication(
+                TypedIdentifier(
+                  "ones",
+                  FunctionType(
+                    List(
+                      IntegerType,
+                      IntegerType
+                    ),
+                    MatrixType(
+                      IntegerType,
+                      ReferenceValue(0),
+                      ReferenceValue(1)
+                    )
+                  )
+                ),
+                List(
+                  TypedInteger(1),
+                  TypedInteger(1)
+                ),
+                MatrixType(
+                  IntegerType,
+                  IntValue(1),
+                  IntValue(1)
+                )
+              )
+            ),
+            MatrixType(
+              IntegerType,
+              IntValue(1),
+              IntValue(1)
+            )
+          )
+        )
+      )
+    )
+
+    TestUtils.testTypingRessource(filename, expected)
+  }
+
+  @Test def testFunctionDefinitionCodeTyping{
+    val filename = "testFunctionDefinitionCodeTyping.gb"
+    val expected = TypedProgram(
+      List(
+        TypedAssignment(
+          TypedIdentifier(
+            "x",
+            MatrixType(
+              IntegerType,
+              IntValue(1),
+              IntValue(1)
+            )
+          ),
+          TypedFunctionApplication(
+            TypedIdentifier(
+              "ones",
+              FunctionType(
+                List(
+                  IntegerType,
+                  IntegerType
+                ),
+                MatrixType(
+                  IntegerType,
+                  ReferenceValue(0),
+                  ReferenceValue(1)
+                )
+              )
+            ),
+            List(
+              TypedInteger(1),
+              TypedInteger(1)
+            ),
+            MatrixType(
+              IntegerType,
+              IntValue(1),
+              IntValue(1)
+            )
+          )
+        ),
+        TypedFunction(
+          List(
+            TypedIdentifier(
+              "y",
+              MatrixType(
+                IntegerType,
+                ValueVar(67),
+                ValueVar(68)
+              )
+            )
+          ),
+          TypedIdentifier(
+            "foo",
+            FunctionType(
+              List(
+                MatrixType(
+                  IntegerType,
+                  UniversalValue(
+                    ValueVar(67)
+                  ),
+                  UniversalValue(
+                    ValueVar(68)
+                  )
+                )
+              ),
+              MatrixType(
+                IntegerType,
+                UniversalValue(
+                  ValueVar(67)
+                ),
+                UniversalValue(
+                  ValueVar(68)
+                )
+              )
+            )
+          ),
+          List(
+            TypedIdentifier(
+              "z",
+              MatrixType(
+                IntegerType,
+                ValueVar(67),
+                ValueVar(68)
+              )
+            )
+          ),
+          TypedProgram(
+            List(
+              TypedAssignment(
+                TypedIdentifier(
+                  "y",
+                  MatrixType(
+                    IntegerType,
+                    ValueVar(67),
+                    ValueVar(68)
+                  )
+                ),
+                TypedBinaryExpression(
+                  TypedIdentifier(
+                    "z",
+                    MatrixType(
+                      IntegerType,
+                      ValueVar(67),
+                      ValueVar(68)
+                    )
+                  ),
+                  PlusOp,
+                  TypedInteger(1),
+                  MatrixType(
+                    IntegerType,
+                    ValueVar(67),
+                    ValueVar(68)
+                  )
+                )
+              )
+            )
+          )
+        ),
+        TypedOutputResultStatement(
+          TypedFunctionApplication(
+            TypedIdentifier(
+              "foo",
+              FunctionType(
+                List(
+                  MatrixType(
+                    IntegerType,
+                    IntValue(1),
+                    IntValue(1)
+                  )
+                ),
+                MatrixType(
+                  IntegerType,
+                  IntValue(1),
+                  IntValue(1)
+                )
+              )
+            ),
+            List(
+              TypedIdentifier(
+                "x",
+                MatrixType(
+                  IntegerType,
+                  IntValue(1),
+                  IntValue(1)
+                )
+              )
+            ),
+            MatrixType(
+              IntegerType,
+              IntValue(1),
+              IntValue(1)
             )
           )
         )

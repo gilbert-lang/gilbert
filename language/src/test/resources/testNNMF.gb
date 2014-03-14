@@ -1,0 +1,9 @@
+V = eye(10,10);
+W = ones(10,2);
+H = eye(2,10);
+function [y] = step(x)
+  H = x{1}.*((x{2}'*V)./(x{2}'*x{2}*x{1}));
+  W = x{2}.*(V*H')./(x{2}*H*H');
+  y = {H, W};
+end
+step({H,W})

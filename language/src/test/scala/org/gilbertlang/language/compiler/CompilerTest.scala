@@ -12,13 +12,39 @@ import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.language.format.VerboseTypedASTFormatter
 import org.gilbertlang.runtime.shell.PlanPrinter
 import org.gilbertlang.language.Gilbert
-import org.gilbertlang.runtime.Operations.{Addition, LessEqualThan, Subtraction}
+import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.RuntimeTypes.{ScalarType, MatrixType, CellArrayType}
+import org.gilbertlang.runtime.Executables.MatrixMult
+import org.gilbertlang.runtime.Executables.WriteCellArray
+import org.gilbertlang.runtime.Executables.boolean
+import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
+import org.gilbertlang.runtime.Executables.scalar
+import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
+import org.gilbertlang.runtime.Executables.ScalarMatrixTransformation
+import org.gilbertlang.runtime.Executables.CellArrayExecutable
+import org.gilbertlang.runtime.Executables.WriteMatrix
+import org.gilbertlang.runtime.Executables.Transpose
+import org.gilbertlang.runtime.Executables.MatrixParameter
+import org.gilbertlang.runtime.Executables.CellArrayParameter
+import scala.Some
+import org.gilbertlang.runtime.RuntimeTypes.MatrixType
+import org.gilbertlang.runtime.Executables.WriteScalar
+import org.gilbertlang.runtime.Executables.function
+import org.gilbertlang.runtime.Executables.zeros
+import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
+import org.gilbertlang.runtime.Executables.eye
+import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
+import org.gilbertlang.runtime.Executables.ones
+import org.gilbertlang.runtime.Executables.randn
+import org.gilbertlang.runtime.Executables.WriteFunction
+import org.gilbertlang.runtime.Executables.norm
+import org.gilbertlang.runtime.Executables.CompoundExecutable
 
 class CompilerTest extends Assertions {
   
   @Test def testFixpointCompilation(){
-    var isReader:InputStreamReader = null;
+    val filename = "compilerFixpoint.gb"
     val expected = CompoundExecutable(
       List(
         WriteMatrix(
@@ -61,33 +87,9 @@ class CompilerTest extends Assertions {
         )
       )
     )
-    try {
-      isReader = new InputStreamReader(ClassLoader.getSystemResourceAsStream("compilerFixpoint.gb"))
-      val reader = StreamReader(isReader)
 
-      val typer = new Typer {}
-      val parser = new Parser {}
-      val compiler = new Compiler {}
-
-      val ast = parser.parse(reader)
-
-      ast match {
-        case Some(parsedProgram) => {
-
-          val typedAST = typer.typeProgram(parsedProgram)
-          val compiledProgram = compiler.compile(typedAST)
-          expectResult(expected)(compiledProgram)
-        }
-        case _ => println("Could not parse program")
-      }
-    } catch{
-      case exception: IOException => {
-        sys.error(exception.getMessage())
-        exception.printStackTrace()
-      }
-    } finally{
-      IOUtils.closeQuietly(isReader)
-    }
+    val result = Gilbert.compileRessource(filename)
+    expectResult(expected)(result)
   }
 
   @Test def testBooleanOperationCompilation() {
@@ -126,10 +128,7 @@ class CompilerTest extends Assertions {
 
   @Test def testCellArrayAnonymousFunctionCompilation(){
 
-    val expected = CompoundExecutable(List(WriteFunction(function(1,CellwiseMatrixMatrixTransformation(
-      CellArrayReferenceMatrix(CellArrayParameter(0,CellArrayType(List(MatrixType(ScalarType),
-        MatrixType(ScalarType)))),0),CellArrayReferenceMatrix(CellArrayParameter(0,
-        CellArrayType(List( MatrixType(ScalarType), MatrixType(ScalarType)))),1),Addition))),
+    val expected = CompoundExecutable(List(WriteFunction(VoidExecutable),
       WriteMatrix(CellwiseMatrixMatrixTransformation(CellArrayReferenceMatrix(CellArrayExecutable(List( zeros(scalar
         (1.0),scalar(1.0)), ones(scalar(1.0),scalar(1.0)))),0), CellArrayReferenceMatrix(CellArrayExecutable(List
         (zeros(scalar(1.0),scalar(1.0)), ones(scalar(1.0),scalar(1.0)))),1),Addition))))
@@ -141,4 +140,343 @@ class CompilerTest extends Assertions {
     expectResult(expected)(result)
 
   }
+
+  @Test def testFunctionDefinitionCodeCompiling(){
+    val filename = "testFunctionDefinitionCodeCompiling.gb"
+    val expected = CompoundExecutable(
+      List(
+        WriteScalar(
+          scalar(1.0)
+        ),
+        WriteMatrix(
+          ones(
+            scalar(2.0),
+            scalar(2.0)
+          )
+        )
+      )
+    )
+
+    val result = Gilbert.compileRessource(filename)
+
+    expectResult(expected)(result)
+  }
+
+  @Test def testNNMFCompilation() {
+    val filename = "testNNMF.gb"
+    val expected =
+      CompoundExecutable(
+        List(
+          WriteCellArray(
+            CellArrayExecutable(
+              List(
+                CellwiseMatrixMatrixTransformation(
+                  CellArrayReferenceMatrix(
+                    CellArrayExecutable(
+                      List(
+                        eye(
+                          scalar(2.0),
+                          scalar(10.0)
+                        ),
+                        ones(
+                          scalar(10.0),
+                          scalar(2.0)
+                        )
+                      )
+                    ),
+                    0
+                  ),
+                  CellwiseMatrixMatrixTransformation(
+                    MatrixMult(
+                      Transpose(
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
+                          ),
+                          1
+                        )
+                      ),
+                      eye(scalar(10.0),scalar(10.0))
+                    ),
+                    MatrixMult(
+                      MatrixMult(
+                        Transpose(
+                          CellArrayReferenceMatrix(
+                            CellArrayExecutable(
+                              List(
+                                eye(scalar(2.0),scalar(10.0)),
+                                ones(scalar(10.0),scalar(2.0))
+                              )
+                            ),
+                            1
+                          )
+                        ),
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
+                          ),
+                          1
+                        )
+                      ),
+                      CellArrayReferenceMatrix(
+                        CellArrayExecutable(
+                          List(
+                            eye(scalar(2.0),scalar(10.0)),
+                            ones(scalar(10.0),scalar(2.0))
+                          )
+                        ),
+                        0
+                      )
+                    ),
+                    Division
+                  ),
+                  Multiplication
+                ),
+                CellwiseMatrixMatrixTransformation(
+                  CellwiseMatrixMatrixTransformation(
+                    CellArrayReferenceMatrix(
+                      CellArrayExecutable(
+                        List(
+                          eye(scalar(2.0),scalar(10.0)),
+                          ones(scalar(10.0),scalar(2.0))
+                        )
+                      ),
+                      1
+                    ),
+                    MatrixMult(
+                      eye(scalar(10.0),scalar(10.0)),
+                      Transpose(
+                        CellwiseMatrixMatrixTransformation(
+                          CellArrayReferenceMatrix(
+                            CellArrayExecutable(
+                              List(
+                                eye(scalar(2.0),scalar(10.0)),
+                                ones(scalar(10.0),scalar(2.0))
+                              )
+                            ),
+                            0
+                          ),
+                          CellwiseMatrixMatrixTransformation(
+                            MatrixMult(
+                              Transpose(
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
+                                  ),
+                                  1
+                                )
+                              ),
+                              eye(scalar(10.0),scalar(10.0))
+                            ),
+                            MatrixMult(
+                              MatrixMult(
+                                Transpose(
+                                  CellArrayReferenceMatrix(
+                                    CellArrayExecutable(
+                                      List(
+                                        eye(scalar(2.0),scalar(10.0)),
+                                        ones(scalar(10.0),scalar(2.0))
+                                      )
+                                    ),
+                                    1
+                                  )
+                                ),
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
+                                  ),
+                                  1
+                                )
+                              ),
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
+                                ),
+                                0
+                              )
+                            ),
+                            Division
+                          ),
+                          Multiplication
+                        )
+                      )
+                    ),
+                    Multiplication
+                  ),
+                  MatrixMult(
+                    MatrixMult(
+                      CellArrayReferenceMatrix(
+                        CellArrayExecutable(
+                          List(
+                            eye(scalar(2.0),scalar(10.0)),
+                            ones(scalar(10.0),scalar(2.0))
+                          )
+                        ),
+                        1
+                      ),
+                      CellwiseMatrixMatrixTransformation(
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
+                          ),
+                          0
+                        ),
+                        CellwiseMatrixMatrixTransformation(
+                          MatrixMult(
+                            Transpose(
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
+                                ),
+                                1
+                              )
+                            ),
+                            eye(scalar(10.0),scalar(10.0))
+                          ),
+                          MatrixMult(
+                            MatrixMult(
+                              Transpose(
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
+                                  ),
+                                  1
+                                )
+                              ),
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
+                                ),
+                                1
+                              )
+                            ),
+                            CellArrayReferenceMatrix(
+                              CellArrayExecutable(
+                                List(
+                                  eye(scalar(2.0),scalar(10.0)),
+                                  ones(scalar(10.0),scalar(2.0))
+                                )
+                              ),
+                              0
+                            )
+                          ),
+                          Division
+                        ),
+                        Multiplication
+                      )
+                    ),
+                    Transpose(
+                      CellwiseMatrixMatrixTransformation(
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
+                          ),
+                          0
+                        ),
+                        CellwiseMatrixMatrixTransformation(
+                          MatrixMult(
+                            Transpose(
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
+                                ),
+                                1
+                              )
+                            ),
+                            eye(scalar(10.0),scalar(10.0))
+                          ),
+                          MatrixMult(
+                            MatrixMult(
+                              Transpose(
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
+                                  ),
+                                  1
+                                )
+                              ),
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
+                                ),
+                                1
+                              )
+                            ),
+                            CellArrayReferenceMatrix(
+                              CellArrayExecutable(
+                                List(
+                                  eye(scalar(2.0),scalar(10.0)),
+                                  ones(scalar(10.0),scalar(2.0))
+                                )
+                              ),
+                              0
+                            )
+                          ),
+                          Division
+                        ),
+                        Multiplication
+                      )
+                    )
+                  ),
+                  Division
+                )
+              )
+            )
+          )
+        )
+      )
+
+    val result = Gilbert.compileRessource(filename)
+
+    expectResult(expected)(result)
+  }
+
+  @Test def testGeneralization{
+    val filename = "testGeneralization.gb"
+    val expected = CompoundExecutable(List())
+
+    val result = Gilbert.compileRessource(filename)
+
+    expectResult(expected)(result)
+  }
 }
+

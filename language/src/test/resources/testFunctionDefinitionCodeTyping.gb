@@ -1,0 +1,5 @@
+x = ones(1,1);
+function [y] = foo(z)
+  y = z+1;
+end
+foo(x)

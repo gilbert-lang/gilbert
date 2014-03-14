@@ -116,11 +116,13 @@ object Executables {
     def instantiate(args: Executable*): ExpressionExecutable
   }
 
-  case object VoidExecutable extends ExpressionExecutable {
+  case object VoidExecutable extends FunctionRef {
     def instantiate(args: Executable*) = {
       Executable.instantiated = false
       VoidExecutable
     }
+
+    def apply(args: ExpressionExecutable*) = VoidExecutable
 
     def getType = Void
   }
@@ -762,8 +764,8 @@ object Executables {
 
     def getType = {
       operation match {
-        case _: LogicOperation | _: ComparisonOperation => MatrixType(BooleanType)
-        case _ => MatrixType(DoubleType)
+        case _: LogicOperation | _: ComparisonOperation => BooleanType
+        case _ => DoubleType
       }
     }
   }
@@ -980,10 +982,20 @@ object Executables {
     }
   }
 
+  case object ConvergencePreviousStatePlaceholder extends Matrix {
+    override def instantiate(args: Executable*) = {
+      Executable.instantiated = false
+      this
+    }
 
+    val rows = None
+    val cols = None
 
-  case class RegisteredValue(index: Int) extends Matrix {
-    def instantiate(args: Executable*): RegisteredValue = {
+    def getType = MatrixType(Unknown)
+  }
+
+  case object ConvergenceCurrentStatePlaceholder extends Matrix {
+    override def instantiate(args: Executable*) = {
       Executable.instantiated = false
       this
     }
@@ -1084,6 +1096,34 @@ object Executables {
     def elements: List[CellArrayReference[ExpressionExecutable]] = {
       (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
     }
+  }
+
+  case class ConvergenceCurrentStateCellArrayPlaceholder(cellArrayType: RuntimeTypes.CellArrayType) extends
+  CellArrayBase{
+    def elements: List[CellArrayReference[ExpressionExecutable]] = {
+      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
+    }
+
+    def instantiate(args: Executable*): CellArrayBase = {
+      Executable.instantiated = false
+      this
+    }
+
+    override def getType = cellArrayType
+  }
+
+  case class ConvergencePreviousStateCellArrayPlaceholder(cellArrayType: RuntimeTypes.CellArrayType) extends
+  CellArrayBase{
+    def elements: List[CellArrayReference[ExpressionExecutable]] = {
+      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
+    }
+
+    def instantiate(args: Executable*): CellArrayBase = {
+      Executable.instantiated = false
+      this
+    }
+
+    override def getType = cellArrayType
   }
 
 }
