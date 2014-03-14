@@ -61,6 +61,25 @@ trait Compiler {
     }
   }
 
+  private def createTypeSuffix(parameters: List[Type]): String = {
+    "$" + (parameters map { createTypeSuffix } mkString(""))
+  }
+
+  private def createTypeSuffix(tpe: Type): String = {
+    tpe match {
+      case StringType => "S"
+      case BooleanType => "B"
+      case CharacterType => "C"
+      case IntegerType => "I"
+      case DoubleType => "D"
+      case VoidType => "V"
+      case MatrixType(elementTpe, _, _) => "M"
+      case cell: CellArrayType => "C"
+      case FunctionType(parameters, result) => "F"
+      case _: AbstractTypeVar => throw new CompileError("Create type suffix requires concrete types.")
+    }
+  }
+
   private def registerFunction(functionName: String, function: TypedFunction) {
     functions.update(functionName, function)
   }
@@ -80,12 +99,17 @@ trait Compiler {
   def compile(typedProgram: TypedProgram): Executable = {
     typedProgram match {
       case TypedProgram(statementsOrFunctions) => {
-        val functions = statementsOrFunctions collect { case x: TypedFunction => x }
-        val statements = statementsOrFunctions collect { case x: TypedStatement => x }
-        functions foreach { function => registerFunction(function.identifier.value, function) }
-        CompoundExecutable(statements flatMap { compileStatementWithResult })
+        compile(statementsOrFunctions)
       }
     }
+  }
+
+  def compile(statementsOrFunctions: List[TypedStatementOrFunction]): Executable = {
+    val functions = statementsOrFunctions collect { case x: TypedFunction => x }
+    val statements = statementsOrFunctions collect { case x: TypedStatement => x }
+    functions foreach { function => registerFunction(function.identifier.value, function) }
+    val executables = statements flatMap {compileStatementWithResult}
+    CompoundExecutable(executables)
   }
 
   def compileExpression(typedExpression: TypedExpression): ExpressionExecutable = {
@@ -155,10 +179,33 @@ trait Compiler {
   def compileIdentifier(identifier: TypedIdentifier): ExpressionExecutable = {
     identifier match {
       case x@ TypedIdentifier(id, datatype) =>
-        if (BuiltinSymbols.isSymbol(id)) {
-          compileBuiltInSymbol(id, datatype)
-        } else {
-          retrieveExecutable(id)
+        datatype match {
+          case FunctionType(parameters, value) =>
+            val typeSuffix = createTypeSuffix(parameters)
+
+            if(BuiltinSymbols.isSymbol(id)){
+              compileBuiltInSymbol(id+typeSuffix, datatype)
+            }else{
+              val result = retrieveExecutable(id+typeSuffix)
+
+              result match {
+                case VoidExecutable =>
+                  val instantiatedFunction = instantiateFunctionDefinition(id, parameters)
+                  instantiatedFunction match {
+                    case VoidExecutable => VoidExecutable
+                    case x =>
+                      assign(id+typeSuffix, instantiatedFunction)
+                      instantiatedFunction
+                  }
+                case x => x
+              }
+            }
+          case _ =>
+            if (BuiltinSymbols.isSymbol(id)) {
+              compileBuiltInSymbol(id, datatype)
+            } else {
+              retrieveExecutable(id)
+            }
         }
     }
   }
@@ -166,77 +213,55 @@ trait Compiler {
   // TODO: Support of scalar values as well
   def compileBuiltInSymbol(symbol: String, datatype: Type): ExpressionExecutable = {
     symbol match {
-      case "load" => function(3, LoadMatrix(StringParameter(0), ScalarParameter(1), ScalarParameter(2)))
-      case "ones" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
-      case "rand" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2), ScalarParameter(3)))
-      case "zeros" => function(2, zeros(ScalarParameter(0), ScalarParameter(1)))
-      case "eye" => function(2, eye(ScalarParameter(0), ScalarParameter(1)))
-      case "binarize" => {
-        datatype match {
-          case FunctionType(List(_: MatrixType), _) => {
-            function(1, CellwiseMatrixTransformation(MatrixParameter(0), Binarize))
-          }
-          case FunctionType(List(_: NumericType), _) => {
-            function(1, UnaryScalarTransformation(ScalarParameter(0), Binarize))
-          }
-        }
-      }
+      case "load$SII" => function(3, LoadMatrix(StringParameter(0), ScalarParameter(1), ScalarParameter(2)))
+      case "ones$II" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
+      case "rand$IIDD" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
+        ScalarParameter(3)))
+      case "zeros$II" => function(2, zeros(ScalarParameter(0), ScalarParameter(1)))
+      case "eye$II" => function(2, eye(ScalarParameter(0), ScalarParameter(1)))
+      case "binarize$M" => function(1, CellwiseMatrixTransformation(MatrixParameter(0), Binarize))
+      case "binarize$D" => function(1, UnaryScalarTransformation(ScalarParameter(0), Binarize))
+      case "maxValue$M" => function(1, AggregateMatrixTransformation(MatrixParameter(0), Maximum))
+      case "maxValue$D" => function(2, ScalarScalarTransformation(ScalarParameter(0), ScalarParameter(1), Maximum))
 
-      case "maxValue" => {
-        datatype match {
-          case FunctionType(List(_: MatrixType), _) => {
-            function(1, AggregateMatrixTransformation(MatrixParameter(0), Maximum))
-          }
-          case FunctionType(List(_: NumericType, _: NumericType), _) => {
-            function(2, ScalarScalarTransformation(ScalarParameter(0), ScalarParameter(1), Maximum))
-          }
-        }
-      }
+      case "fixpoint$MFIF" => function(4, FixpointIteration(MatrixParameter(0),
+        FunctionParameter(1), ScalarParameter(2), FunctionParameter(3)))
 
-      case "fixpoint" => {
+      case "fixpoint$CFIF" =>
         datatype match {
-          case FunctionType(List(_:MatrixType,_,_,_), _) => function(4, FixpointIteration(MatrixParameter(0),
-            FunctionParameter(1),
-            ScalarParameter(2), FunctionParameter(3)))
-          case FunctionType(List(x:CellArrayType,_,_,_), _) =>
-            function(4, FixpointIterationCellArray(CellArrayParameter(0,
-            createCellArrayRuntimeType(x)), FunctionParameter(1),
-          ScalarParameter(2), FunctionParameter(3)))
+          case FunctionType(List(x:CellArrayType,_,_,_), _) => function(4, FixpointIterationCellArray(
+            CellArrayParameter(0, createCellArrayRuntimeType(x)), FunctionParameter(1),ScalarParameter(2),
+            FunctionParameter(3)))
         }
 
-      }
 
-      case "spones" => {
+      case "spones$M" => {
         function(1, spones(MatrixParameter(0)))
       }
 
-      case "sum" => {
+      case "sum$MI" => {
         function(2, sum(MatrixParameter(0), ScalarParameter(1)))
       }
 
-      case "sumRow" => {
+      case "sumRow$M" => {
         //function(2, sumRow(MatrixParameter(0), ScalarParameter(1)))
         function(2, sumRow(MatrixParameter(0)))
       }
 
-      case "sumCol" => {
+      case "sumCol$M" => {
         //function(2, sumCol(MatrixParameter(0), ScalarParameter(1)))
         function(2, sumCol(MatrixParameter(0)))
       }
 
-      case "diag" => {
+      case "diag$M" => {
         function(1, diag(MatrixParameter(0)))
       }
 
-      case "write" => {
-        datatype match {
-          case FunctionType(List(_: MatrixType, StringType), _) => function(1, WriteMatrix(MatrixParameter(0)))
-          case FunctionType(List(_: NumericType, StringType), _) => function(1, WriteScalar(ScalarParameter(0)))
-          case FunctionType(List(StringType, StringType), _) => function(1, WriteString(StringParameter(0)))
-        }
-      }
+      case "write$MS" => function(1, WriteMatrix(MatrixParameter(0)))
+      case "write$DS" => function(1, WriteScalar(ScalarParameter(0)))
+      case "write$SS" => function(1, WriteString(StringParameter(0)))
 
-      case "norm" => {
+      case "norm$MD" => {
         function(2, norm(MatrixParameter(0), ScalarParameter(1)))
       }
     }
@@ -383,7 +408,7 @@ trait Compiler {
   }
 
   def compileFunctionApplication(functionApplication: TypedFunctionApplication) = {
-    val fun = compileIdentifier(functionApplication.id)
+    val fun = compileExpression(functionApplication.function)
 
     val result = fun match {
       case function(numParameters, body) if numParameters <= functionApplication.args.length =>
@@ -392,33 +417,31 @@ trait Compiler {
         case x:ExpressionExecutable => x
         case _ => throw new TypeCompileError("Return value of a function has to be an expression")
       }
-      case VoidExecutable =>
-        compileFunctionDefinition(functionApplication)
       case _ => throw new TypeCompileError("Id has to be of a function type")
     }
     
     result
   }
 
-  def compileFunctionDefinition(functionApplication: TypedFunctionApplication): ExpressionExecutable = {
+  def instantiateFunctionDefinition(id: String, parameterTypes: List[Type] ): ExpressionExecutable = {
     val compiler = new Compiler {}
-    val typedFunction = retrieveFunction(functionApplication.id.value) match {
+    val typedFunction = retrieveFunction(id) match {
       case Some(func) => func
-      case None => throw new CompileError("Function " + functionApplication.id.value + " is not registered.")
+      case None => throw new CompileError("Function " + id + " is not registered.")
     }
-
-    val typedArguments = functionApplication.args map { compileExpression }
 
     assignments foreach { case (id, value) => compiler.assign(id, value) }
 
-    if(typedArguments.length >= typedFunction.parameters.length){
-      typedFunction.parameters zip typedArguments map { case (parameter, argument) => compiler.assign(parameter
-        .value, argument)}
+    if( parameterTypes.length >= typedFunction.parameters.length){
+      val parameterNames = typedFunction.parameters map { parameter => parameter.value }
+      ((parameterNames zip parameterTypes) zipWithIndex) map { case ((id, tpe), idx) => compiler.addParameter(id,tpe,
+      idx)}
 
       compiler.compile(typedFunction.body)
 
+
       val results = typedFunction.values map { result => compiler.retrieveExecutable(result.value) }
-      results(0)
+      function(typedFunction.parameters.length, results(0))
     }else{
       throw new CompileError("Function application requires more parameters than there are arguments provided.")
     }
@@ -427,8 +450,21 @@ trait Compiler {
   def compileStatementWithResult(typedStatement: TypedStatement): Option[Executable] = {
     typedStatement match {
       case TypedAssignment(lhs, rhs) => {
-        val result = compileExpression(rhs)
-        assign(lhs.value, result)
+        rhs match {
+          case TypedAnonymousFunction(parameters, expression, _, datatype) =>
+            val functionResult = TypedIdentifier("functionResult", expression.datatype)
+            val assignment = TypedAssignment(functionResult, expression)
+            val typedFunction = TypedFunction(List(functionResult),lhs, parameters, TypedProgram(List(assignment)))
+            registerFunction(lhs.value, typedFunction)
+          case TypedFunctionReference(reference,_) =>
+            retrieveFunction(reference.value) match {
+              case Some(func) => registerFunction(lhs.value, func)
+              case None => throw new CompileError("There is no function registered for " + reference.value)
+            }
+          case _ =>
+            val result = compileExpression(rhs)
+            assign(lhs.value, result)
+        }
         None
       }
       case x: TypedExpression => {
@@ -488,9 +524,25 @@ trait Compiler {
   def compileStatement(typedStatement: TypedStatement): Executable = {
     typedStatement match {
       case TypedAssignment(lhs, rhs) => {
-        val result = compileExpression(rhs)
-        assign(lhs.value, result)
-        result
+        rhs match {
+          case TypedAnonymousFunction(parameters, expression, _, datatype) =>
+            val functionResult = TypedIdentifier("functionResult", expression.datatype)
+            val assignment = TypedAssignment(functionResult, expression)
+            val typedFunction = TypedFunction(List(functionResult),lhs, parameters, TypedProgram(List(assignment)))
+            registerFunction(lhs.value, typedFunction)
+            VoidExecutable
+          case TypedFunctionReference(reference, _) =>
+            retrieveFunction(reference.value) match {
+              case Some(func) =>
+                registerFunction(lhs.value, func)
+                VoidExecutable
+              case None => throw new CompileError("There is no function registered for " + reference.value)
+            }
+          case _ =>
+            val result = compileExpression(rhs)
+            assign(lhs.value, result)
+            result
+        }
       }
       case x: TypedExpression => compileExpression(x)
       case TypedNOP => VoidExecutable

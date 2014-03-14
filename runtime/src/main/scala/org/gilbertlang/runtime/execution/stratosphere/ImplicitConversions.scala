@@ -3,8 +3,8 @@ package org.gilbertlang.runtime.execution.stratosphere
 import eu.stratosphere.api.scala.DataSet
 import eu.stratosphere.api.common.operators.Operator
 import scala.reflect.ClassTag
-import eu.stratosphere.api.common.operators.{CollectionDataSource => JavaCollectionDataSource }
-import eu.stratosphere.api.common.io.{CollectionInputFormat => JavaCollectionInputFormat}
+import eu.stratosphere.api.java.record.operators.{CollectionDataSource => JavaCollectionDataSource }
+import eu.stratosphere.api.java.record.io.{CollectionInputFormat => JavaCollectionInputFormat}
 import eu.stratosphere.core.io.GenericInputSplit
 import eu.stratosphere.types.{Value, Record}
 import scala.language.implicitConversions
@@ -20,13 +20,13 @@ object ImplicitConversions {
   class ValueExtractor[T](dataset: DataSet[T]){
     def getValue[U <: Value : ClassTag](index: Int, fieldNum: Int): U = {
       if(dataset.contract.isInstanceOf[JavaCollectionDataSource]){
-        val collectionDataSource = dataset.asInstanceOf[JavaCollectionDataSource]
+        val collectionDataSource = dataset.contract.asInstanceOf[JavaCollectionDataSource]
         val inputFormat = collectionDataSource.getFormatWrapper.getUserCodeObject
           .asInstanceOf[JavaCollectionInputFormat]
         val record = new Record()
         inputFormat.open(new GenericInputSplit())
 
-        for(counter <- 1 until index){
+        for(counter <- 0 to index){
           inputFormat.nextRecord(record)
         }
         val classTag = implicitly[ClassTag[U]]

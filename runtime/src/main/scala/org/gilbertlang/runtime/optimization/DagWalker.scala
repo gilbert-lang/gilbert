@@ -33,11 +33,6 @@ abstract class DagWalker {
 
     transformation match {
 
-      case transformation: RegisteredValue => {
-        onArrival(transformation)
-        onLeave(transformation)
-      }
-
       case x: Parameter => {
         onArrival(x)
         onLeave(x)
@@ -74,13 +69,33 @@ abstract class DagWalker {
       }
 
       case IterationStatePlaceholder => {
-        onArrival(transformation)
-        onLeave(transformation)
+        onArrival(IterationStatePlaceholder)
+        onLeave(IterationStatePlaceholder)
       }
 
       case transformation: IterationStatePlaceholderCellArray => {
         onArrival(transformation)
         onLeave(transformation)
+      }
+
+      case ConvergenceCurrentStatePlaceholder => {
+        onArrival(ConvergenceCurrentStatePlaceholder)
+        onLeave(ConvergenceCurrentStatePlaceholder)
+      }
+
+      case ConvergencePreviousStatePlaceholder => {
+        onArrival(ConvergencePreviousStatePlaceholder)
+        onLeave(ConvergencePreviousStatePlaceholder)
+      }
+
+      case placeholder: ConvergenceCurrentStateCellArrayPlaceholder => {
+        onArrival(placeholder)
+        onLeave(placeholder)
+      }
+
+      case placeholder: ConvergencePreviousStateCellArrayPlaceholder => {
+        onArrival(placeholder)
+        onLeave(placeholder)
       }
 
       case (transformation: CellwiseMatrixTransformation) => {

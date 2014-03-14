@@ -51,7 +51,6 @@ object TestUtils extends Parser with Assertions with Comparisons
           val typer = new Typer{}
 
           val typedAST = typer.typeWithResolution(actual)
-          println(typedAST)
           checkTypeEquality(expected,typedAST)
         case _ => fail(s"Could not type ressource $filename")
       }

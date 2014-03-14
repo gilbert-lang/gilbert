@@ -52,7 +52,6 @@ import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
 import org.gilbertlang.runtime.Executables.CellArrayExecutable
 import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
 import org.gilbertlang.runtime.Executables.sum
-import org.gilbertlang.runtime.Executables.RegisteredValue
 import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
 import org.gilbertlang.runtime.Executables.spones
 import org.gilbertlang.runtime.Executables.ones
@@ -70,7 +69,7 @@ import org.gilbertlang.runtime.Executables.function
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 import eu.stratosphere.api.scala.CollectionDataSource
-import eu.stratosphere.types.{IntValue, StringValue}
+import eu.stratosphere.types.{DoubleValue, IntValue, StringValue}
 
 
 class StratosphereExecutor extends Executor with WrapAsScala {
@@ -83,8 +82,10 @@ class StratosphereExecutor extends Executor with WrapAsScala {
   private var tempFileCounter = 0
   private var iterationStatePlaceholderValue: Option[Matrix] = None
   private var iterationStatePlaceholderValueCellArray: Option[CellArray] = None
-  private val matrixRegistry = mutable.HashMap[Int, Matrix]()
-
+  private var convergencePreviousStateValue: Option[Matrix] = None
+  private var convergenceCurrentStateValue: Option[Matrix] = None
+  private var convergenceCurrentStateCellArrayValue: Option[CellArray] = None
+  private var convergencePreviousStateCellArrayValue: Option[CellArray] = None
   
   def getCWD: String = System.getProperty("user.dir")
 
@@ -93,14 +94,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
     "file://" + getCWD + "/gilbert" + tempFileCounter + ".output"
   }
 
-  def registerValue(index: Int, value: Matrix){
-    matrixRegistry.put(index, value)
-  }
 
-  def getRegisteredValue(index: Int):Option[Matrix] = {
-    matrixRegistry.get(index)
-  }
-  
   def execute(executable: Executable): Any = {
     executable match {
 
@@ -606,7 +600,9 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   case Addition => {
                     val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
-                      { (left, right) => left + right }
+                      { (left, right) =>
+                        left + right
+                      }
                     result.setName("MM: Addition")
                     result
                   }
@@ -1082,7 +1078,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           executable,
           { exec => (evaluate[Matrix](exec.initialState), evaluate[Scalar[Double]](exec.maxIterations)) },
           { case (exec, (initialState, maxIterations)) =>
-            val numberIterations = maxIterations.getValue[IntValue](0,0).getValue
+            val numberIterations = maxIterations.getValue[DoubleValue](0,0).getValue.toInt
             def stepFunction(partialSolution: Matrix) = {
               val oldStatePlaceholderValue = iterationStatePlaceholderValue
               iterationStatePlaceholderValue = Some(partialSolution)
@@ -1096,26 +1092,24 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               result
             }
 
-            val convergenceFlow = (prev: Matrix, cur: Matrix) => {
-              val oldRegisteredValue0 = getRegisteredValue(0)
-              val oldRegisteredValue1 = getRegisteredValue(1)
-              registerValue(0, prev)
-              registerValue(1, cur)
-              val appliedConvergence = exec.convergence.apply(RegisteredValue(0), RegisteredValue(1))
+            val terminationFunction = (prev: Matrix, cur: Matrix) => {
+              val oldPreviousState = convergencePreviousStateValue
+              val oldCurrentState = convergenceCurrentStateValue
+              convergencePreviousStateValue = Some(prev)
+              convergenceCurrentStateValue = Some(cur)
+              val appliedConvergence = exec.convergence.apply(ConvergencePreviousStatePlaceholder,
+  ConvergenceCurrentStatePlaceholder)
               val result = evaluate[Scalar[Boolean]](appliedConvergence)
-              oldRegisteredValue0 match {
-                case Some(t) => registerValue(0,t)
-                case None =>
-              }
-              oldRegisteredValue1 match{
-                case Some(t) => registerValue(1, t)
-                case None =>
-              }
 
-              result
+              convergencePreviousStateValue = oldPreviousState
+              convergenceCurrentStateValue = oldCurrentState
+              result filter {
+                boolean =>
+                  boolean == false
+              }
             }
 
-            val iteration = initialState.iterate(numberIterations, stepFunction)
+            val iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
             iteration.setName("Fixpoint iteration")
             iteration
           })
@@ -1133,7 +1127,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         executable,
         { exec => (evaluate[CellArray](exec.initialState), evaluate[Scalar[Double]](exec.maxIterations)) },
         { case (exec, (initialState, maxIterations)) =>
-          val numberIterations = maxIterations.getValue[IntValue](0,0).getValue
+          val numberIterations = maxIterations.getValue[DoubleValue](0,0).getValue.toInt
           def stepFunction(partialSolution: CellArray) = {
             val oldStatePlaceholderValue = iterationStatePlaceholderValueCellArray
             iterationStatePlaceholderValueCellArray = Some(partialSolution)
@@ -1147,26 +1141,23 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             result
           }
 
-          val convergenceFlow = (prev: Matrix, cur: Matrix) => {
-            val oldRegisteredValue0 = getRegisteredValue(0)
-            val oldRegisteredValue1 = getRegisteredValue(1)
-            registerValue(0, prev)
-            registerValue(1, cur)
-            val appliedConvergence = exec.convergence.apply(RegisteredValue(0), RegisteredValue(1))
-            val result = evaluate[Scalar[Boolean]](appliedConvergence)
-            oldRegisteredValue0 match {
-              case Some(t) => registerValue(0,t)
-              case None =>
-            }
-            oldRegisteredValue1 match{
-              case Some(t) => registerValue(1, t)
-              case None =>
-            }
+          val terminationFunction = (prev: CellArray, cur: CellArray) => {
+            val oldPreviousState = convergencePreviousStateCellArrayValue
+            val oldCurrentState = convergenceCurrentStateCellArrayValue
+            convergencePreviousStateCellArrayValue = Some(prev)
+            convergenceCurrentStateCellArrayValue = Some(cur)
 
-            result
+            val appliedConvergence = exec.convergence.apply(ConvergencePreviousStateCellArrayPlaceholder(exec.getType),
+            ConvergenceCurrentStateCellArrayPlaceholder(exec.getType))
+            val result = evaluate[Scalar[Boolean]](appliedConvergence)
+
+            convergencePreviousStateCellArrayValue = oldPreviousState
+            convergenceCurrentStateCellArrayValue = oldCurrentState
+
+            result filter { boolean => boolean == false }
           }
 
-          val iteration = initialState.iterate(numberIterations, stepFunction)
+          val iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
           iteration.setName("Fixpoint iteration")
           iteration
         })
@@ -1203,11 +1194,24 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         executable,
         { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.p))},
         { case (_, (matrix, p)) =>
-          val exponentiation = matrix cross p map { (matrix, p) => matrix :^ p }
+          val exponentiation = matrix cross p map {
+            (matrix, p) =>
+              matrix :^ p
+          }
           exponentiation.setName("Norm: Exponentiation")
-          val sums = exponentiation map { (matrix) => matrix.activeValuesIterator.fold(0.0)( _ + _ )}
+          val sums = exponentiation map {
+            (matrix) =>
+              matrix.activeValuesIterator.fold(0.0)( math.abs(_) + math.abs(_)
+          )}
           sums.setName("Norm: Partial sums of submatrices")
-          val result = sums.combinableReduceAll( it => it.fold(0.0)(_ + _))
+          val totalSum = sums.combinableReduceAll{
+            it =>
+              it.fold(0.0)(_ + _)
+          }
+          val result = totalSum cross p map {
+            (sum,p) =>
+              math.pow(sum,1/p)
+          }
           result.setName("Norm: Sum of partial sums")
           result
         }
@@ -1341,12 +1345,36 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         throw new StratosphereExecutionError("Parameter found. Cannot execute parameters.")
       }
 
-      case registeredValue: RegisteredValue => {
-        getRegisteredValue(registeredValue.index) match {
-          case Some(t) => t
-          case _ => throw new StratosphereExecutionError("Could not retrieve registered value.")
+      case ConvergencePreviousStatePlaceholder => {
+        convergencePreviousStateValue match {
+          case Some(matrix) => matrix
+          case None => throw new StratosphereExecutionError("Convergence previous state value has not been set.")
         }
       }
+
+      case ConvergenceCurrentStatePlaceholder => {
+        convergenceCurrentStateValue match {
+          case Some(matrix) => matrix
+          case None => throw new StratosphereExecutionError("Convergence current state value has not been set.")
+        }
+      }
+
+      case placeholder: ConvergenceCurrentStateCellArrayPlaceholder => {
+        convergenceCurrentStateCellArrayValue match {
+          case Some(cellArray) => cellArray
+          case None => throw new StratosphereExecutionError("Convergence current state cell array value has not been " +
+            "set.")
+        }
+      }
+
+      case placeholder: ConvergencePreviousStateCellArrayPlaceholder => {
+        convergencePreviousStateCellArrayValue match {
+          case Some(cellArray) => cellArray
+          case None => throw new StratosphereExecutionError("Convergence previous state cell array value has not been" +
+            " set.")
+        }
+      }
+
 
     }
   }

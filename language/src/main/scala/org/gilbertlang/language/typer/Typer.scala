@@ -84,23 +84,30 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     }
   }
 
+  def resolveTypeVars(functionExpression: TypedFunctionExpression): TypedFunctionExpression = {
+    functionExpression match {
+      case x: TypedIdentifier => resolveTypeVars(x)
+      case TypedFunctionReference(func, datatype) =>
+        TypedFunctionReference(resolveTypeVars(func), resolveType(datatype))
+      case TypedAnonymousFunction(args, body, closure, datatype) =>
+        TypedAnonymousFunction(args map {resolveTypeVars(_)}, resolveTypeVars(body),
+          closure, resolveType(datatype))
+    }
+  }
+
   def resolveTypeVars(expression: TypedExpression): TypedExpression = {
     expression match {
       case x:TypedIdentifier => resolveTypeVars(x)
+      case x: TypedFunctionExpression => resolveTypeVars(x)
       case _ : TypedInteger | _: TypedFloatingPoint | _ : TypedString | _ :TypedBoolean => expression
       case TypedMatrix(rows, datatype) => 
         val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {resolveTypeVars(_) })}
         TypedMatrix(resolvedRows, resolveType(datatype).asInstanceOf[MatrixType])
-      case TypedAnonymousFunction(args, body, closure, datatype) => 
-        TypedAnonymousFunction(args map {resolveTypeVars(_)}, resolveTypeVars(body), 
-            closure, resolveType(datatype))
       case TypedBinaryExpression(a, op, b, datatype) => TypedBinaryExpression(resolveTypeVars(a), op,
           resolveTypeVars(b), resolveType(datatype))
       case TypedUnaryExpression(a, op, datatype) => TypedUnaryExpression(resolveTypeVars(a), op, resolveType(datatype))
-      case TypedFunctionReference(func, datatype) => 
-        TypedFunctionReference(resolveTypeVars(func), resolveType(datatype))
-      case TypedFunctionApplication(fun, params, datatype) => TypedFunctionApplication(resolveTypeVars(fun), 
-          params map { resolveTypeVars(_) }, resolveType(datatype))
+      case TypedFunctionApplication(fun, params, datatype) =>
+        TypedFunctionApplication(resolveTypeVars(fun), params map { resolveTypeVars(_) }, resolveType(datatype))
       case TypedCellArray(elements, datatype) => TypedCellArray(elements map {resolveTypeVars}, resolveType(datatype))
       case TypedCellArrayIndexing(cellArray, index, datatype) => TypedCellArrayIndexing(resolveTypeVars(cellArray),
         index, resolveType(datatype))

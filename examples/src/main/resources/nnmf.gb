@@ -6,5 +6,5 @@ function [y] = step(x)
   W = x{2}.*(V*H')./(x{2}*H*H');
   y = {H, W};
 end
-fixpoint({H,W}, @step, 10, @(prev, cur) false)
+fixpoint({H,W}, @step, 10, @(prev, cur) norm(prev{2}*prev{1} - cur{2}*cur{1},1) < 0.1)
 

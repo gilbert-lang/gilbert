@@ -57,6 +57,22 @@ object PlanPrinter {
         printIndented(depth, op, "IterationStateCellArray")
       }
 
+      case ConvergenceCurrentStatePlaceholder => {
+        printIndented(depth, ConvergenceCurrentStatePlaceholder, "ConvergenceCurrentState")
+      }
+
+      case ConvergencePreviousStatePlaceholder => {
+        printIndented(depth, ConvergencePreviousStatePlaceholder, "ConvergencePreviousState")
+      }
+
+      case placeholder: ConvergenceCurrentStateCellArrayPlaceholder => {
+        printIndented(depth, placeholder, "ConvergenceCurrentStateCellArray")
+      }
+
+      case placeholder: ConvergencePreviousStateCellArrayPlaceholder => {
+        printIndented(depth, placeholder, "ConvergencePreviousStateCellArray")
+      }
+
       case op: CellwiseMatrixTransformation => {
         printIndented(depth, op, "CellwiseMatrixOp [" + op.operation + "]")
         print(op.matrix, depth + 1)
@@ -204,9 +220,6 @@ object PlanPrinter {
         printIndented(depth, op, "Parameter(" + op.position + ")")
       }
 
-      case op:RegisteredValue => {
-        printIndented(depth, op, "RegisteredValue(" + op.index + ")")
-      }
       
       case VoidExecutable => {
         printIndented(depth, VoidExecutable, "VoidExecutable")

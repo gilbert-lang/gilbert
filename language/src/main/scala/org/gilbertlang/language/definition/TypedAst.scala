@@ -44,7 +44,8 @@ object TypedAst {
   sealed abstract class TypedStatementOrFunction
 
   case class TypedFunction(values: List[TypedIdentifier], identifier: TypedIdentifier,
-                           parameters: List[TypedIdentifier], body: TypedProgram) extends TypedStatementOrFunction
+                           parameters: List[TypedIdentifier], body: TypedProgram) extends
+  TypedStatementOrFunction
   
   sealed abstract class TypedStatement extends TypedStatementOrFunction
 
@@ -62,7 +63,7 @@ object TypedAst {
     val datatype = StringType
   }
   
-  case class TypedIdentifier(value: String, datatype: Type) extends TypedExpression
+  case class TypedIdentifier(value: String, datatype: Type) extends TypedFunctionExpression
   
   case class TypedMatrix(value: List[TypedMatrixRow], datatype: MatrixType) extends TypedExpression
   
@@ -75,7 +76,7 @@ object TypedAst {
       rightExpression: TypedExpression, datatype: Type)
     extends TypedExpression
   
-  case class TypedFunctionApplication(id: TypedIdentifier, args: List[TypedExpression], datatype: Type)
+  case class TypedFunctionApplication(function: TypedFunctionExpression, args: List[TypedExpression], datatype: Type)
     extends TypedExpression
 
   sealed trait TypedFunctionExpression extends TypedExpression

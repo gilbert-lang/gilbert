@@ -128,10 +128,7 @@ class CompilerTest extends Assertions {
 
   @Test def testCellArrayAnonymousFunctionCompilation(){
 
-    val expected = CompoundExecutable(List(WriteFunction(function(1,CellwiseMatrixMatrixTransformation(
-      CellArrayReferenceMatrix(CellArrayParameter(0,CellArrayType(List(MatrixType(ScalarType),
-        MatrixType(ScalarType)))),0),CellArrayReferenceMatrix(CellArrayParameter(0,
-        CellArrayType(List( MatrixType(ScalarType), MatrixType(ScalarType)))),1),Addition))),
+    val expected = CompoundExecutable(List(WriteFunction(VoidExecutable),
       WriteMatrix(CellwiseMatrixMatrixTransformation(CellArrayReferenceMatrix(CellArrayExecutable(List( zeros(scalar
         (1.0),scalar(1.0)), ones(scalar(1.0),scalar(1.0)))),0), CellArrayReferenceMatrix(CellArrayExecutable(List
         (zeros(scalar(1.0),scalar(1.0)), ones(scalar(1.0),scalar(1.0)))),1),Addition))))
@@ -167,202 +164,291 @@ class CompilerTest extends Assertions {
 
   @Test def testNNMFCompilation() {
     val filename = "testNNMF.gb"
-    val expected = CompoundExecutable(
-      List(
-        WriteCellArray(
-          CellArrayExecutable(
-            List(
-              CellwiseMatrixMatrixTransformation(
+    val expected =
+      CompoundExecutable(
+        List(
+          WriteCellArray(
+            CellArrayExecutable(
+              List(
                 CellwiseMatrixMatrixTransformation(
-                  ScalarMatrixTransformation(
-                    scalar(0.1),
-                    ones(
-                      scalar(2.0),
-                      scalar(10.0)
-                    ),
-                    Multiplication
-                  ),
-                  eye(
-                    scalar(2.0),
-                    scalar(10.0)
-                  ),
-                  Addition
-                ),
-                CellwiseMatrixMatrixTransformation(
-                  MatrixMult(
-                    Transpose(
-                      ScalarMatrixTransformation(
-                        scalar(0.5),
-                        ones(
-                          scalar(10.0),
-                          scalar(2.0)
-                        ),
-                        Multiplication
-                      )
-                    ),
-                    CellwiseMatrixMatrixTransformation(
-                      eye(
-                        scalar(10.0),
-                        scalar(10.0)
-                      ),
-                      ScalarMatrixTransformation(
-                        scalar(0.1),
-                        ones(
-                          scalar(10.0),
-                          scalar(10.0)
-                        ),
-                        Multiplication
-                      ),
-                      Addition
-                    )
-                  ),
-                  MatrixMult(
-                    MatrixMult(
-                      Transpose(
-                        ScalarMatrixTransformation(
-                          scalar(0.5),
-                          ones(
-                            scalar(10.0),
-                            scalar(2.0)
-                          ),
-                          Multiplication
-                        )
-                      ),
-                      ScalarMatrixTransformation(
-                        scalar(0.5),
-                        ones(
-                          scalar(10.0),
-                          scalar(2.0)
-                        ),
-                        Multiplication
-                      )
-                    ),
-                    CellwiseMatrixMatrixTransformation(
-                      ScalarMatrixTransformation(
-                        scalar(0.1),
-                        ones(
+                  CellArrayReferenceMatrix(
+                    CellArrayExecutable(
+                      List(
+                        eye(
                           scalar(2.0),
                           scalar(10.0)
                         ),
-                        Multiplication
-                      ),
-                      eye(
-                        scalar(2.0),
-                        scalar(10.0)
-                      ),
-                      Addition
-                    )
+                        ones(
+                          scalar(10.0),
+                          scalar(2.0)
+                        )
+                      )
+                    ),
+                    0
                   ),
-                  Division
+                  CellwiseMatrixMatrixTransformation(
+                    MatrixMult(
+                      Transpose(
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
+                          ),
+                          1
+                        )
+                      ),
+                      eye(scalar(10.0),scalar(10.0))
+                    ),
+                    MatrixMult(
+                      MatrixMult(
+                        Transpose(
+                          CellArrayReferenceMatrix(
+                            CellArrayExecutable(
+                              List(
+                                eye(scalar(2.0),scalar(10.0)),
+                                ones(scalar(10.0),scalar(2.0))
+                              )
+                            ),
+                            1
+                          )
+                        ),
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
+                          ),
+                          1
+                        )
+                      ),
+                      CellArrayReferenceMatrix(
+                        CellArrayExecutable(
+                          List(
+                            eye(scalar(2.0),scalar(10.0)),
+                            ones(scalar(10.0),scalar(2.0))
+                          )
+                        ),
+                        0
+                      )
+                    ),
+                    Division
+                  ),
+                  Multiplication
                 ),
-                Multiplication
-              ),
-              CellwiseMatrixMatrixTransformation(
                 CellwiseMatrixMatrixTransformation(
-                  ScalarMatrixTransformation(
-                    scalar(0.5),
-                    ones(
-                      scalar(10.0),
-                      scalar(2.0)
+                  CellwiseMatrixMatrixTransformation(
+                    CellArrayReferenceMatrix(
+                      CellArrayExecutable(
+                        List(
+                          eye(scalar(2.0),scalar(10.0)),
+                          ones(scalar(10.0),scalar(2.0))
+                        )
+                      ),
+                      1
+                    ),
+                    MatrixMult(
+                      eye(scalar(10.0),scalar(10.0)),
+                      Transpose(
+                        CellwiseMatrixMatrixTransformation(
+                          CellArrayReferenceMatrix(
+                            CellArrayExecutable(
+                              List(
+                                eye(scalar(2.0),scalar(10.0)),
+                                ones(scalar(10.0),scalar(2.0))
+                              )
+                            ),
+                            0
+                          ),
+                          CellwiseMatrixMatrixTransformation(
+                            MatrixMult(
+                              Transpose(
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
+                                  ),
+                                  1
+                                )
+                              ),
+                              eye(scalar(10.0),scalar(10.0))
+                            ),
+                            MatrixMult(
+                              MatrixMult(
+                                Transpose(
+                                  CellArrayReferenceMatrix(
+                                    CellArrayExecutable(
+                                      List(
+                                        eye(scalar(2.0),scalar(10.0)),
+                                        ones(scalar(10.0),scalar(2.0))
+                                      )
+                                    ),
+                                    1
+                                  )
+                                ),
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
+                                  ),
+                                  1
+                                )
+                              ),
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
+                                ),
+                                0
+                              )
+                            ),
+                            Division
+                          ),
+                          Multiplication
+                        )
+                      )
                     ),
                     Multiplication
                   ),
                   MatrixMult(
-                    CellwiseMatrixMatrixTransformation(
-                      eye(
-                        scalar(10.0),
-                        scalar(10.0)
-                      ),
-                      ScalarMatrixTransformation(
-                        scalar(0.1),
-                        ones(
-                          scalar(10.0),
-                          scalar(10.0)
+                    MatrixMult(
+                      CellArrayReferenceMatrix(
+                        CellArrayExecutable(
+                          List(
+                            eye(scalar(2.0),scalar(10.0)),
+                            ones(scalar(10.0),scalar(2.0))
+                          )
                         ),
-                        Multiplication
+                        1
                       ),
-                      Addition
-                    ),
-                    Transpose(
                       CellwiseMatrixMatrixTransformation(
-                        CellwiseMatrixMatrixTransformation(
-                          ScalarMatrixTransformation(
-                            scalar(0.1),
-                            ones(
-                              scalar(2.0),
-                              scalar(10.0)
-                            ),
-                            Multiplication
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
                           ),
-                          eye(
-                            scalar(2.0),
-                            scalar(10.0)
-                          ),
-                          Addition
+                          0
                         ),
                         CellwiseMatrixMatrixTransformation(
                           MatrixMult(
                             Transpose(
-                              ScalarMatrixTransformation(
-                                scalar(0.5),
-                                ones(
-                                  scalar(10.0),
-                                  scalar(2.0)
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
                                 ),
-                                Multiplication
+                                1
                               )
                             ),
-                            CellwiseMatrixMatrixTransformation(
-                              eye(
-                                scalar(10.0),
-                                scalar(10.0)
-                              ),
-                              ScalarMatrixTransformation(
-                                scalar(0.1),
-                                ones(
-                                  scalar(10.0),
-                                  scalar(10.0)
-                                ),
-                                Multiplication
-                              ),
-                              Addition
-                            )
+                            eye(scalar(10.0),scalar(10.0))
                           ),
                           MatrixMult(
                             MatrixMult(
                               Transpose(
-                                ScalarMatrixTransformation(
-                                  scalar(0.5),
-                                  ones(
-                                    scalar(10.0),
-                                    scalar(2.0)
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
                                   ),
-                                  Multiplication
+                                  1
                                 )
                               ),
-                              ScalarMatrixTransformation(
-                                scalar(0.5),
-                                ones(
-                                  scalar(10.0),
-                                  scalar(2.0)
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
                                 ),
-                                Multiplication
+                                1
                               )
                             ),
-                            CellwiseMatrixMatrixTransformation(
-                              ScalarMatrixTransformation(
-                                scalar(0.1),
-                                ones(
-                                  scalar(2.0),
-                                  scalar(10.0)
+                            CellArrayReferenceMatrix(
+                              CellArrayExecutable(
+                                List(
+                                  eye(scalar(2.0),scalar(10.0)),
+                                  ones(scalar(10.0),scalar(2.0))
+                                )
+                              ),
+                              0
+                            )
+                          ),
+                          Division
+                        ),
+                        Multiplication
+                      )
+                    ),
+                    Transpose(
+                      CellwiseMatrixMatrixTransformation(
+                        CellArrayReferenceMatrix(
+                          CellArrayExecutable(
+                            List(
+                              eye(scalar(2.0),scalar(10.0)),
+                              ones(scalar(10.0),scalar(2.0))
+                            )
+                          ),
+                          0
+                        ),
+                        CellwiseMatrixMatrixTransformation(
+                          MatrixMult(
+                            Transpose(
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
                                 ),
-                                Multiplication
+                                1
+                              )
+                            ),
+                            eye(scalar(10.0),scalar(10.0))
+                          ),
+                          MatrixMult(
+                            MatrixMult(
+                              Transpose(
+                                CellArrayReferenceMatrix(
+                                  CellArrayExecutable(
+                                    List(
+                                      eye(scalar(2.0),scalar(10.0)),
+                                      ones(scalar(10.0),scalar(2.0))
+                                    )
+                                  ),
+                                  1
+                                )
                               ),
-                              eye(
-                                scalar(2.0),
-                                scalar(10.0)
+                              CellArrayReferenceMatrix(
+                                CellArrayExecutable(
+                                  List(
+                                    eye(scalar(2.0),scalar(10.0)),
+                                    ones(scalar(10.0),scalar(2.0))
+                                  )
+                                ),
+                                1
+                              )
+                            ),
+                            CellArrayReferenceMatrix(
+                              CellArrayExecutable(
+                                List(
+                                  eye(scalar(2.0),scalar(10.0)),
+                                  ones(scalar(10.0),scalar(2.0))
+                                )
                               ),
-                              Addition
+                              0
                             )
                           ),
                           Division
@@ -371,213 +457,26 @@ class CompilerTest extends Assertions {
                       )
                     )
                   ),
-                  Multiplication
-                ),
-                MatrixMult(
-                  MatrixMult(
-                    ScalarMatrixTransformation(
-                      scalar(0.5),
-                      ones(
-                        scalar(10.0),
-                        scalar(2.0)
-                      ),
-                      Multiplication
-                    ),
-                    CellwiseMatrixMatrixTransformation(
-                      CellwiseMatrixMatrixTransformation(
-                        ScalarMatrixTransformation(
-                          scalar(0.1),
-                          ones(
-                            scalar(2.0),
-                            scalar(10.0)
-                          ),
-                          Multiplication
-                        ),
-                        eye(
-                          scalar(2.0),
-                          scalar(10.0)
-                        ),
-                        Addition
-                      ),
-                      CellwiseMatrixMatrixTransformation(
-                        MatrixMult(
-                          Transpose(
-                            ScalarMatrixTransformation(
-                              scalar(0.5),
-                              ones(
-                                scalar(10.0),
-                                scalar(2.0)
-                              ),
-                              Multiplication
-                            )
-                          ),
-                          CellwiseMatrixMatrixTransformation(
-                            eye(
-                              scalar(10.0),
-                              scalar(10.0)
-                            ),
-                            ScalarMatrixTransformation(
-                              scalar(0.1),
-                              ones(
-                                scalar(10.0),
-                                scalar(10.0)
-                              ),
-                              Multiplication
-                            ),
-                            Addition
-                          )
-                        ),
-                        MatrixMult(
-                          MatrixMult(
-                            Transpose(
-                              ScalarMatrixTransformation(
-                                scalar(0.5),
-                                ones(
-                                  scalar(10.0),
-                                  scalar(2.0)
-                                ),
-                                Multiplication
-                              )
-                            ),
-                            ScalarMatrixTransformation(
-                              scalar(0.5),
-                              ones(
-                                scalar(10.0),
-                                scalar(2.0)
-                              ),
-                              Multiplication
-                            )
-                          ),
-                          CellwiseMatrixMatrixTransformation(
-                            ScalarMatrixTransformation(
-                              scalar(0.1),
-                              ones(
-                                scalar(2.0),
-                                scalar(10.0)
-                              ),
-                              Multiplication
-                            ),
-                            eye(
-                              scalar(2.0),
-                              scalar(10.0)
-                            ),
-                            Addition
-                          )
-                        ),
-                        Division
-                      ),
-                      Multiplication
-                    )
-
-                  ),
-                  Transpose(
-                    CellwiseMatrixMatrixTransformation(
-                      CellwiseMatrixMatrixTransformation(
-                        ScalarMatrixTransformation(
-                          scalar(0.1),
-                          ones(
-                            scalar(2.0),
-                            scalar(10.0)
-                          ),
-                          Multiplication
-                        ),
-                        eye(
-                          scalar(2.0),
-                          scalar(10.0)
-                        ),
-                        Addition
-                      ),
-                      CellwiseMatrixMatrixTransformation(
-                        MatrixMult(
-                          Transpose(
-                            ScalarMatrixTransformation(
-                              scalar(0.5),
-                              ones(
-                                scalar(10.0),
-                                scalar(2.0)
-                              ),
-                              Multiplication
-                            )
-                          ),
-                          CellwiseMatrixMatrixTransformation(
-                            eye(
-                              scalar(10.0),
-                              scalar(10.0)
-                            ),
-                            ScalarMatrixTransformation(
-                              scalar(0.1),
-                              ones(
-                                scalar(10.0),
-                                scalar(10.0)
-                              ),
-                              Multiplication
-                            ),
-                            Addition
-                          )
-                        ),
-                        MatrixMult(
-                          MatrixMult(
-                            Transpose(
-                              ScalarMatrixTransformation(
-                                scalar(0.5),
-                                ones(
-                                  scalar(10.0),
-                                  scalar(2.0)
-                                ),
-                                Multiplication
-                              )
-                            ),
-                            ScalarMatrixTransformation(
-                              scalar(0.5),
-                              ones(
-                                scalar(10.0),
-                                scalar(2.0)
-                              ),
-                              Multiplication
-                            )
-                          ),
-                          CellwiseMatrixMatrixTransformation(
-                            ScalarMatrixTransformation(
-                              scalar(0.1),
-                              ones(
-                                scalar(2.0),
-                                scalar(10.0)
-                              ),
-                              Multiplication
-                            ),
-                            eye(
-                              scalar(2.0),
-                              scalar(10.0)
-                            ),
-                            Addition
-                          )
-                        ),
-                        Division
-                      ),
-                      Multiplication
-                    )
-                  )
-                ),
-                Division
+                  Division
+                )
               )
             )
           )
         )
       )
-    )
 
     val result = Gilbert.compileRessource(filename)
 
     expectResult(expected)(result)
   }
-//
-//  @Test def testGeneralization{
-//    val filename = "testGeneralization.gb"
-//    val expected = CompoundExecutable(List())
-//
-//    val result = Gilbert.compileRessource(filename)
-//
-//    expectResult(expected)(result)
-//  }
+
+  @Test def testGeneralization{
+    val filename = "testGeneralization.gb"
+    val expected = CompoundExecutable(List())
+
+    val result = Gilbert.compileRessource(filename)
+
+    expectResult(expected)(result)
+  }
 }
 
