@@ -139,8 +139,9 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   
   def fixpointType = {
     val t = utv
-    FunctionType((t, FunctionType(t, t), IntegerType,
-      FunctionType((t,t), BooleanType)), t)
+    PolymorphicType(List(
+    FunctionType((t, FunctionType(t, t), IntegerType,FunctionType((t,t), BooleanType)), t),
+    FunctionType((t, FunctionType(t,t), IntegerType), t)))
   }
   
   def writeType = {

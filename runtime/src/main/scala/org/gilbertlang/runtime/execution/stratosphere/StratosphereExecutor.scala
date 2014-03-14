@@ -1092,24 +1092,31 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               result
             }
 
-            val terminationFunction = (prev: Matrix, cur: Matrix) => {
-              val oldPreviousState = convergencePreviousStateValue
-              val oldCurrentState = convergenceCurrentStateValue
-              convergencePreviousStateValue = Some(prev)
-              convergenceCurrentStateValue = Some(cur)
-              val appliedConvergence = exec.convergence.apply(ConvergencePreviousStatePlaceholder,
-  ConvergenceCurrentStatePlaceholder)
-              val result = evaluate[Scalar[Boolean]](appliedConvergence)
+            var iteration: Matrix = null
 
-              convergencePreviousStateValue = oldPreviousState
-              convergenceCurrentStateValue = oldCurrentState
-              result filter {
-                boolean =>
-                  boolean == false
+            if(exec.convergence != null){
+              val terminationFunction = (prev: Matrix, cur: Matrix) => {
+                val oldPreviousState = convergencePreviousStateValue
+                val oldCurrentState = convergenceCurrentStateValue
+                convergencePreviousStateValue = Some(prev)
+                convergenceCurrentStateValue = Some(cur)
+                val appliedConvergence = exec.convergence.apply(ConvergencePreviousStatePlaceholder,
+                  ConvergenceCurrentStatePlaceholder)
+                val result = evaluate[Scalar[Boolean]](appliedConvergence)
+
+                convergencePreviousStateValue = oldPreviousState
+                convergenceCurrentStateValue = oldCurrentState
+                result filter {
+                  boolean =>
+                    boolean == false
+                }
               }
+
+              iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
+            }else{
+              iteration = initialState.iterate(numberIterations, stepFunction)
             }
 
-            val iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
             iteration.setName("Fixpoint iteration")
             iteration
           })
@@ -1141,23 +1148,30 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             result
           }
 
-          val terminationFunction = (prev: CellArray, cur: CellArray) => {
-            val oldPreviousState = convergencePreviousStateCellArrayValue
-            val oldCurrentState = convergenceCurrentStateCellArrayValue
-            convergencePreviousStateCellArrayValue = Some(prev)
-            convergenceCurrentStateCellArrayValue = Some(cur)
+          var iteration: CellArray = null
 
-            val appliedConvergence = exec.convergence.apply(ConvergencePreviousStateCellArrayPlaceholder(exec.getType),
-            ConvergenceCurrentStateCellArrayPlaceholder(exec.getType))
-            val result = evaluate[Scalar[Boolean]](appliedConvergence)
+          if(exec.convergence != null){
+            val terminationFunction = (prev: CellArray, cur: CellArray) => {
+              val oldPreviousState = convergencePreviousStateCellArrayValue
+              val oldCurrentState = convergenceCurrentStateCellArrayValue
+              convergencePreviousStateCellArrayValue = Some(prev)
+              convergenceCurrentStateCellArrayValue = Some(cur)
 
-            convergencePreviousStateCellArrayValue = oldPreviousState
-            convergenceCurrentStateCellArrayValue = oldCurrentState
+              val appliedConvergence = exec.convergence.apply(ConvergencePreviousStateCellArrayPlaceholder(exec.getType),
+                ConvergenceCurrentStateCellArrayPlaceholder(exec.getType))
+              val result = evaluate[Scalar[Boolean]](appliedConvergence)
 
-            result filter { boolean => boolean == false }
+              convergencePreviousStateCellArrayValue = oldPreviousState
+              convergenceCurrentStateCellArrayValue = oldCurrentState
+
+              result filter { boolean => boolean == false }
+            }
+
+            iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
+          }else{
+            iteration = initialState.iterate(numberIterations, stepFunction)
           }
 
-          val iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
           iteration.setName("Fixpoint iteration")
           iteration
         })

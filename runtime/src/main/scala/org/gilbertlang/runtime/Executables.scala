@@ -602,8 +602,13 @@ object Executables {
       anyInstantiated |= Executable.instantiated
       val instantiatedMaxIterations = maxIterations.instantiate(args: _*)
       anyInstantiated |= Executable.instantiated
-      val instantiatedConvergence = convergence.instantiate(args: _*)
-      anyInstantiated |= Executable.instantiated
+
+      var instantiatedConvergence:FunctionRef = null
+      if(convergence != null){
+        instantiatedConvergence = convergence.instantiate(args: _*)
+        anyInstantiated |= Executable.instantiated
+      }
+
 
       if (anyInstantiated) {
         Executable.instantiated = true
@@ -629,8 +634,12 @@ object Executables {
       anyInstantiated |= Executable.instantiated
       val instantiatedMaxIterations = maxIterations.instantiate(args: _*)
       anyInstantiated |= Executable.instantiated
-      val instantiatedConvergence = convergence.instantiate(args: _*)
-      anyInstantiated |= Executable.instantiated
+
+      var instantiatedConvergence: FunctionRef = null
+      if(convergence != null){
+        instantiatedConvergence = convergence.instantiate(args: _*)
+        anyInstantiated |= Executable.instantiated
+      }
 
       if (anyInstantiated) {
         Executable.instantiated = true

@@ -227,11 +227,21 @@ trait Compiler {
       case "fixpoint$MFIF" => function(4, FixpointIteration(MatrixParameter(0),
         FunctionParameter(1), ScalarParameter(2), FunctionParameter(3)))
 
+      case "fixpoint$MFI" => function(3, FixpointIteration(MatrixParameter(0), FunctionParameter(1),
+        ScalarParameter(2), null))
+
       case "fixpoint$CFIF" =>
         datatype match {
           case FunctionType(List(x:CellArrayType,_,_,_), _) => function(4, FixpointIterationCellArray(
             CellArrayParameter(0, createCellArrayRuntimeType(x)), FunctionParameter(1),ScalarParameter(2),
             FunctionParameter(3)))
+        }
+
+      case "fixpoint$CFI" =>
+        datatype match {
+          case FunctionType(List(x:CellArrayType, _, _), _) => function(3,
+            FixpointIterationCellArray( CellArrayParameter(0, createCellArrayRuntimeType(x)), FunctionParameter(1),
+              ScalarParameter(2), null))
         }
 
 
