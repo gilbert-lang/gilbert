@@ -46,7 +46,7 @@ object Gilbert {
       case Some(ast) => ast
     }
     
-    val typedAST = typer.typeWithResolution(ast)
+    val typedAST = typer.typeProgram(ast)
     
     compiler.compile(typedAST)
   }

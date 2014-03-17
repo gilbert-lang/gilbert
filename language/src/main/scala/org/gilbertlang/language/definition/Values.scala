@@ -32,6 +32,15 @@ object Values {
       result
     }
   }
+
+  def equalValues(a: Value, b:Value): Boolean = {
+    (a,b) match {
+      case (IntValue(x), IntValue(y)) => x == y
+      case _ => true
+    }
+
+  }
+
   abstract class Value
   case class ValueVar(id: Int = -1) extends Value
   case class IntValue(value: Int) extends Value
@@ -54,4 +63,11 @@ object Values {
 //    }
   }
   case object UndefinedValue extends Value
+
+  def value2Int(value: Value): Option[Int] = {
+    value match {
+      case IntValue(x) => Some(x)
+      case _ => None
+    }
+  }
 }

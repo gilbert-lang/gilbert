@@ -7,9 +7,9 @@ import org.gilbertlang.language.parser.Parser
 import scala.util.parsing.input.StreamReader
 import org.scalatest.Assertions
 import scala.collection.mutable.ListBuffer
-import org.gilbertlang.language.definition.TypedAst.TypedProgram
 import org.gilbertlang.language.typer.Typer
 import org.gilbertlang.language.typer.Comparisons
+import org.gilbertlang.language.definition.TypedAbstractSyntaxTree.TypedProgram
 
 /**
  * Created by till on 28/02/14.
@@ -50,7 +50,10 @@ object TestUtils extends Parser with Assertions with Comparisons
           assert(next.atEnd, "Input has not been read completely.")
           val typer = new Typer{}
 
-          val typedAST = typer.typeWithResolution(actual)
+          val typedAST = typer.typeProgram(actual)
+          println(typedAST)
+          println()
+          println(expected)
           checkTypeEquality(expected,typedAST)
         case _ => fail(s"Could not type ressource $filename")
       }

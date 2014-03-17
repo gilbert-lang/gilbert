@@ -42,6 +42,31 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   val zeros = Symbol("zeros", zerosType)
   val eye = Symbol("eye", eyeType)
   val norm = Symbol("norm",normType)
+  val repmat = Symbol("repmat", repmatType)
+  val linspace = Symbol("linspace", linspaceType)
+  val minWithIndex = Symbol("minWithIndex", minWithIndexType)
+  val pdist2 = Symbol("pdist2", pdist2Type)
+
+  def repmatType = {
+    val (t,a,b) = newUTVV()
+    FunctionType((MatrixType(t,a,b), IntegerType, IntegerType), MatrixType(t,UndefinedValue, UndefinedValue))
+  }
+
+  def linspaceType = {
+    FunctionType((DoubleType, DoubleType, IntegerType), MatrixType(DoubleType, IntValue(1), ReferenceValue(2)))
+  }
+
+  def minWithIndexType = {
+    val (t,a,b) = newUNTVV()
+    FunctionType((MatrixType(t,a,b), IntegerType), ConcreteCellArrayType(List(MatrixType(t,UndefinedValue,
+      UndefinedValue), MatrixType(IntegerType,UndefinedValue, UndefinedValue))))
+  }
+
+  def pdist2Type = {
+    val (t,a,b) = newUNTVV()
+    val c = uvv()
+    FunctionType((MatrixType(t,a,b), MatrixType(t,c,b)), MatrixType(t,a,c))
+  }
 
   def normType = {
     val (t,a,b) = newUNTVV()

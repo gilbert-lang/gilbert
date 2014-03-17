@@ -20,14 +20,13 @@ package org.gilbertlang.language.compiler
 
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
-import org.gilbertlang.runtime.RuntimeTypes
 import scala.Some
-import org.gilbertlang.language.definition.TypedAst._
-import org.gilbertlang.language.definition.BuiltinSymbols
+import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
+import org.gilbertlang.language.definition.{Values, BuiltinSymbols, TypedAbstractSyntaxTree}
 import org.gilbertlang.language.definition.Types._
 import org.gilbertlang.language.definition.Operators._
-import org.gilbertlang.language.definition.TypedAst
 import scala.language.postfixOps
+import org.gilbertlang.runtime.RuntimeTypes
 
 trait Compiler {
   
@@ -37,6 +36,7 @@ trait Compiler {
   private def addParameter(id: String, datatype: Type, position: Int) {
 
     datatype match {
+      case BooleanType => assignments.update(id, ScalarParameter(position))
       case _: NumericType => assignments.update(id, ScalarParameter(position))
       case _: MatrixType => assignments.update(id, MatrixParameter(position))
       case StringType => assignments.update(id, StringParameter(position))
@@ -53,8 +53,10 @@ trait Compiler {
 
   private def createRuntimeType(x: Type): RuntimeTypes.RuntimeType = {
     x match {
-      case m: MatrixType => RuntimeTypes.MatrixType(createRuntimeType(m.elementType))
-      case _: NumericType => RuntimeTypes.ScalarType
+      case m: MatrixType => RuntimeTypes.MatrixType(createRuntimeType(m.elementType), Values.value2Int(m.rows),
+        Values.value2Int(m.columns))
+      case _: NumericType => RuntimeTypes.DoubleType
+      case BooleanType => RuntimeTypes.BooleanType
       case StringType => RuntimeTypes.StringType
       case f: FunctionType => RuntimeTypes.FunctionType
       case cellArray: CellArrayType => RuntimeTypes.CellArrayType(cellArray.types map (createRuntimeType))
@@ -126,6 +128,23 @@ trait Compiler {
       case x: TypedFunctionReference => compileFunctionReference(x)
       case x: TypedMatrix => compileMatrix(x)
       case x: TypedCellExpression => compileCellExpression(x)
+      case x: TypeConversion => compileTypeConversion(x)
+    }
+  }
+
+  def compileTypeConversion(typeConversion: TypeConversion): ExpressionExecutable = {
+    val sourceType = createRuntimeType(typeConversion.expression.datatype)
+    val targetType = createRuntimeType(typeConversion.datatype)
+
+    val compiledExpression = compileExpression(typeConversion.expression)
+    compiledExpression match {
+      case x: ScalarRef =>
+
+        TypeConversionScalar(x, sourceType.asInstanceOf[RuntimeTypes.ScalarType],
+          targetType.asInstanceOf[RuntimeTypes.ScalarType])
+      case x: Matrix =>
+        TypeConversionMatrix(x, sourceType.asInstanceOf[RuntimeTypes.MatrixType],
+          targetType.asInstanceOf[RuntimeTypes.MatrixType])
     }
   }
 
@@ -142,9 +161,9 @@ trait Compiler {
 
   def compileCellArrayIndexing(cellArrayIndexing: TypedCellArrayIndexing): ExpressionExecutable = {
     val compiledCellArray = compileExpression(cellArrayIndexing.cellArray)
-
+    val index = cellArrayIndexing.index
     compiledCellArray match {
-      case x: CellArrayBase => x.elements(cellArrayIndexing.index.value)
+      case x: CellArrayBase => x(index)
       case _ => throw new CompileError("Cell array indexing requires cell array.")
     }
   }
@@ -214,6 +233,10 @@ trait Compiler {
   def compileBuiltInSymbol(symbol: String, datatype: Type): ExpressionExecutable = {
     symbol match {
       case "load$SII" => function(3, LoadMatrix(StringParameter(0), ScalarParameter(1), ScalarParameter(2)))
+      case "repmat$MII" => function(3, repmat(MatrixParameter(0), ScalarParameter(1), ScalarParameter(2)))
+      case "linspace$DDI" => function(3, linspace(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2)))
+      case "pdist2$MM" => function(2, pdist2(MatrixParameter(0), MatrixParameter(1)))
+      case "minWithIndex$MI" => function(2, minWithIndex(MatrixParameter(0), ScalarParameter(1)))
       case "ones$II" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
       case "rand$IIDD" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
         ScalarParameter(3)))
@@ -483,7 +506,7 @@ trait Compiler {
       }
       case TypedNOP => None
       case TypedOutputResultStatement(stmt) => {
-        TypedAst.getType(stmt) match {
+        TypedAbstractSyntaxTree.getType(stmt) match {
           case _: MatrixType => {
             compileStatement(stmt) match {
               case x: Matrix => Some(WriteMatrix(x))
@@ -557,7 +580,7 @@ trait Compiler {
       case x: TypedExpression => compileExpression(x)
       case TypedNOP => VoidExecutable
       case TypedOutputResultStatement(stmt) => {
-        TypedAst.getType(stmt) match {
+        TypedAbstractSyntaxTree.getType(stmt) match {
           case _: MatrixType =>
             compileStatement(stmt) match {
               case x: Matrix => WriteMatrix(x)

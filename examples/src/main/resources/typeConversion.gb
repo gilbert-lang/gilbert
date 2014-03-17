@@ -1,0 +1,5 @@
+x = true;
+v = 1-x;
+y = ones(2,2);
+c = y > v
+y*c

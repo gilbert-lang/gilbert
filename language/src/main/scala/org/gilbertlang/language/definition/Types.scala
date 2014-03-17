@@ -50,6 +50,48 @@ object Types {
     BooleanType -> List(DoubleType, IntegerType)
   )
 
+  def getElementType(tpe: Type): Type = {
+    tpe match {
+      case MatrixType(elementType, _, _) => getElementType(elementType)
+      case x => x
+    }
+  }
+
+  def structuralCompatible(a: Type, b: Type): Boolean = {
+    (a,b) match {
+      case (a:StructuralType, b:StructuralType) =>
+        (a,b) match {
+          case (MatrixType(elementA, rowsA, colsA), MatrixType(elementB, rowsB, colsB)) =>
+            structuralCompatible(elementA, elementB) && Values.equalValues(rowsA,rowsB) && Values.equalValues(colsA,
+              colsB)
+          case (FunctionType(parametersA, valueA), FunctionType(parametersB, valueB)) =>
+            if(parametersA.length != parametersB.length){
+              false
+            }else{
+              (parametersA zip parametersB forall { case (a,b) => structuralCompatible(a,
+                b) }) && structuralCompatible(valueA, valueB)
+            }
+          case (PolymorphicType(typesA), PolymorphicType(typesB)) =>
+            if(typesA.length != typesB.length){
+              false
+            }else{
+              typesA zip typesB forall { case (a,b) => structuralCompatible(a,b)}
+            }
+          case (a: CellArrayType, b: CellArrayType) =>
+            val typesA = a.types
+            val typesB = b.types
+
+            if(typesA.length != typesB.length){
+              false
+            }else{
+              typesA zip typesB forall { case (a,b) => structuralCompatible(a,b)}
+            }
+          case _ => false
+        }
+      case _ => true
+    }
+  }
+
   sealed trait Type {
     def isWideableTo(other: Type): Boolean = {
       Type.this == other || (wideableTypes.getOrElse(Type.this, List()) contains (other))
@@ -64,22 +106,22 @@ object Types {
   case object IntegerType extends NumericType
   case object DoubleType extends NumericType
 
+  sealed trait StructuralType extends Type
 
-
-  case class FunctionType(parameters: List[Type], value: Type) extends Type {
+  case class FunctionType(parameters: List[Type], value: Type) extends StructuralType {
     def this(parameter: Type, value: Type) = this(List(parameter), value)
   }
 
-  case class MatrixType(elementType: Type, rows: Value, columns: Value) extends Type
+  case class MatrixType(elementType: Type, rows: Value, columns: Value) extends StructuralType
   
   sealed trait AbstractTypeVar extends Type
   case class NumericTypeVar(id: Int = -1) extends AbstractTypeVar with NumericType
   case class TypeVar(id: Int = -1) extends AbstractTypeVar
   case class UniversalType(universalType: AbstractTypeVar) extends Type
   
-  case class PolymorphicType(types:List[Type]) extends Type
+  case class PolymorphicType(types:List[Type]) extends StructuralType
 
-  sealed trait CellArrayType extends Type{
+  sealed trait CellArrayType extends StructuralType{
     def types: List[Type]
   }
   case class ConcreteCellArrayType(types: List[Type]) extends CellArrayType

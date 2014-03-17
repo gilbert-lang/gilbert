@@ -299,7 +299,7 @@ abstract class DagWalker {
         onLeave(transformation)
       }
 
-      case transformation: CellArrayReference[_] => {
+      case transformation: CellArrayReference => {
         onArrival(transformation)
         visit(transformation.parent)
         onLeave(transformation)
@@ -309,6 +309,18 @@ abstract class DagWalker {
         onArrival(transformation)
         transformation.elements foreach { visit(_) }
         onLeave(transformation)
+      }
+
+      case typeConversion: TypeConversionScalar => {
+        onArrival(typeConversion)
+        visit(typeConversion.scalar)
+        onLeave(typeConversion)
+      }
+
+      case typeConversion: TypeConversionMatrix => {
+        onArrival(typeConversion)
+        visit(typeConversion.matrix)
+        onLeave(typeConversion)
       }
     }
   }

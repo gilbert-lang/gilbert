@@ -2,7 +2,7 @@ package org.gilbertlang.language
 package format
 
 import definition.Types._
-import definition.TypedAst._
+import definition.TypedAbstractSyntaxTree._
 import definition.Operators.{TransposeOp, op2Str, CellwiseTransposeOp}
 
 abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {

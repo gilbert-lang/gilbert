@@ -19,7 +19,8 @@
 package org.gilbertlang.language.typer
 
 import org.gilbertlang.language.definition.Types._
-import org.gilbertlang.language.definition.TypedAst._
+import org.gilbertlang.language.definition.IntermediateAbstractSyntaxTree._
+import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
 import org.gilbertlang.language.definition.Values._
 import org.gilbertlang.language.definition.AbstractSyntaxTree._
 import org.gilbertlang.language.definition.{BuiltinOperators, Values, Types, BuiltinSymbols}
@@ -27,94 +28,101 @@ import org.gilbertlang.language.definition.Values.ValueVar
 import scala.Some
 import org.gilbertlang.language.definition.Types.NumericTypeVar
 import org.gilbertlang.language.definition.Values.ReferenceValue
-import org.gilbertlang.language.definition.TypedAst.TypedIdentifier
+import org.gilbertlang.language.definition.IntermediateAbstractSyntaxTree.IntermediateIdentifier
 import org.gilbertlang.language.definition.Types.PolymorphicType
 import org.gilbertlang.language.definition.Types.TypeVar
-import org.gilbertlang.language.definition.TypedAst.TypedInteger
+import org.gilbertlang.language.definition.IntermediateAbstractSyntaxTree.IntermediateInteger
 import org.gilbertlang.language.definition.Values.IntValue
-import org.gilbertlang.language.definition.TypedAst.TypedProgram
+import org.gilbertlang.language.definition.IntermediateAbstractSyntaxTree.IntermediateProgram
 import org.gilbertlang.language.definition.Types.UniversalType
 import org.gilbertlang.language.definition.Values.UniversalValue
 import org.gilbertlang.language.definition.Types.MatrixType
 import org.gilbertlang.language.definition.Operators._
-import org.gilbertlang.language.definition.ConvenienceMethods._
 import scala.language.postfixOps
 
 import Types.Helper._
 import Values.Helper._
 
 class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Type],
-            private val valueEnvironment: scala.collection.mutable.Map[String, TypedExpression],
+            private val valueEnvironment: scala.collection.mutable.Map[String, IntermediateExpression],
              private val typeVarMapping: scala.collection.mutable.Map[Type, Type],
              private val valueVarMapping: scala.collection.mutable.Map[Value, Value]) {
 
   def this() = this(scala.collection.mutable.Map[String, Type](),
-    scala.collection.mutable.Map[String, TypedExpression](),
+    scala.collection.mutable.Map[String, IntermediateExpression](),
     scala.collection.mutable.Map[Type, Type](),
     scala.collection.mutable.Map[Value, Value]())
 
-  def resolveTypeVars(program: TypedProgram): TypedProgram = {
-    TypedProgram(program.statementsOrFunctions map { resolveTypeVars })
+  def finalizeTyping(program: IntermediateProgram): TypedProgram = {
+    TypedProgram(program.statementsOrFunctions map { finalizeTyping })
   }
 
-  def resolveTypeVars( stmtOrFunc: TypedStatementOrFunction): TypedStatementOrFunction = {
+  def finalizeTyping( stmtOrFunc: IntermediateStatementOrFunction): TypedStatementOrFunction = {
     stmtOrFunc match {
-      case stmt: TypedStatement => resolveTypeVars(stmt)
-      case func: TypedFunction => resolveTypeVars(func)
+      case stmt: IntermediateStatement => finalizeTyping(stmt)
+      case func: IntermediateFunction => finalizeTyping(func)
     }
   }
 
-  def resolveTypeVars(func: TypedFunction): TypedFunction = {
-    TypedFunction(func.values map { resolveTypeVars }, resolveTypeVars(func.identifier),
-      func.parameters map { resolveTypeVars }, resolveTypeVars(func.body))
+  def finalizeTyping(func: IntermediateFunction): TypedFunction = {
+    TypedFunction(func.values map { finalizeTyping }, finalizeTyping(func.identifier),
+      func.parameters map { finalizeTyping }, finalizeTyping(func.body))
   }
 
-  def resolveTypeVars(stmt: TypedStatement): TypedStatement = {
+  def finalizeTyping(stmt: IntermediateStatement): TypedStatement = {
     stmt match {
-      case TypedNOP => TypedNOP
-      case TypedOutputResultStatement(stmtWithResult) => TypedOutputResultStatement(resolveTypeVars(stmtWithResult))
-      case stmtWithResult: TypedStatementWithResult => resolveTypeVars(stmtWithResult)
+      case IntermediateNOP => TypedNOP
+      case IntermediateOutputResultStatement(stmtWithResult) => TypedOutputResultStatement(finalizeTyping
+        (stmtWithResult))
+      case stmtWithResult: IntermediateStatementWithResult => finalizeTyping(stmtWithResult)
     }
   }
 
-  def resolveTypeVars(stmtWithResult: TypedStatementWithResult): TypedStatementWithResult = {
+  def finalizeTyping(stmtWithResult: IntermediateStatementWithResult): TypedStatementWithResult = {
     stmtWithResult match {
-      case TypedAssignment(id, exp) => TypedAssignment(resolveTypeVars(id), resolveTypeVars(exp))
-      case expression: TypedExpression => resolveTypeVars(expression)
+      case IntermediateAssignment(id, exp) => TypedAssignment(finalizeTyping(id), finalizeTyping(exp))
+      case expression: IntermediateExpression => finalizeTyping(expression)
     }
   }
 
-  def resolveTypeVars(functionExpression: TypedFunctionExpression): TypedFunctionExpression = {
+  def finalizeTyping(functionExpression: IntermediateFunctionExpression): TypedFunctionExpression = {
     functionExpression match {
-      case x: TypedIdentifier => resolveTypeVars(x)
-      case TypedFunctionReference(func, datatype) =>
-        TypedFunctionReference(resolveTypeVars(func), resolveType(datatype))
-      case TypedAnonymousFunction(args, body, closure, datatype) =>
-        TypedAnonymousFunction(args map {resolveTypeVars(_)}, resolveTypeVars(body),
+      case x: IntermediateIdentifier => finalizeTyping(x)
+      case IntermediateFunctionReference(func, datatype) =>
+        TypedFunctionReference(finalizeTyping(func), resolveType(datatype))
+      case IntermediateAnonymousFunction(args, body, closure, datatype) =>
+        TypedAnonymousFunction(args map {finalizeTyping(_)}, finalizeTyping(body),
           closure, resolveType(datatype))
     }
   }
 
-  def resolveTypeVars(expression: TypedExpression): TypedExpression = {
+  def finalizeTyping(expression: IntermediateExpression): TypedExpression = {
     expression match {
-      case x:TypedIdentifier => resolveTypeVars(x)
-      case x: TypedFunctionExpression => resolveTypeVars(x)
-      case _ : TypedInteger | _: TypedFloatingPoint | _ : TypedString | _ :TypedBoolean => expression
-      case TypedMatrix(rows, datatype) => 
-        val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {resolveTypeVars(_) })}
+      case x:IntermediateIdentifier => finalizeTyping(x)
+      case x: IntermediateFunctionExpression => finalizeTyping(x)
+      case IntermediateInteger(value) => TypedInteger(value)
+      case IntermediateFloatingPoint(value) => TypedFloatingPoint(value)
+      case IntermediateString(value) => TypedString(value)
+      case IntermediateBoolean(value) => TypedBoolean(value)
+      case IntermediateMatrix(rows, datatype) =>
+        val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {finalizeTyping(_) })}
         TypedMatrix(resolvedRows, resolveType(datatype).asInstanceOf[MatrixType])
-      case TypedBinaryExpression(a, op, b, datatype) => TypedBinaryExpression(resolveTypeVars(a), op,
-          resolveTypeVars(b), resolveType(datatype))
-      case TypedUnaryExpression(a, op, datatype) => TypedUnaryExpression(resolveTypeVars(a), op, resolveType(datatype))
-      case TypedFunctionApplication(fun, params, datatype) =>
-        TypedFunctionApplication(resolveTypeVars(fun), params map { resolveTypeVars(_) }, resolveType(datatype))
-      case TypedCellArray(elements, datatype) => TypedCellArray(elements map {resolveTypeVars}, resolveType(datatype))
-      case TypedCellArrayIndexing(cellArray, index, datatype) => TypedCellArrayIndexing(resolveTypeVars(cellArray),
-        index, resolveType(datatype))
+      case IntermediateBinaryExpression(a, aType, op, b, bType, datatype) => TypedBinaryExpression(typeConversion
+        (finalizeTyping(a), aType), op, typeConversion(finalizeTyping(b), bType),resolveType(datatype))
+      case IntermediateUnaryExpression(a, aType, op, datatype) => TypedUnaryExpression(typeConversion(finalizeTyping
+        (a),aType), op, resolveType(datatype))
+      case IntermediateFunctionApplication(fun, args, paramsType, datatype) =>
+        val resolvedArgs = args map { finalizeTyping(_) }
+        val typeConvertedArgs = resolvedArgs zip paramsType map { case (arg, tpe) => typeConversion(arg, tpe)}
+        TypedFunctionApplication(finalizeTyping(fun), typeConvertedArgs, resolveType(datatype))
+      case IntermediateCellArray(elements, datatype) => TypedCellArray(elements map {finalizeTyping},
+        resolveType(datatype))
+      case IntermediateCellArrayIndexing(cellArray, index, datatype) => TypedCellArrayIndexing(finalizeTyping
+        (cellArray), index , resolveType(datatype))
     }
   }
   
-  def resolveTypeVars(id: TypedIdentifier): TypedIdentifier = {
+  def finalizeTyping(id: IntermediateIdentifier): TypedIdentifier = {
     TypedIdentifier(id.value, resolveType(id.datatype))
   }
 
@@ -192,7 +200,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     }
   }
 
-  def resolveValueReferences(datatype: Type, arguments: List[TypedExpression]): Type = {
+  def resolveValueReferences(datatype: Type, arguments: List[IntermediateExpression]): Type = {
     datatype match {
       case FunctionType(args, result) => {
         FunctionType(args map { resolveValueReferences(_, arguments) }, resolveValueReferences(result, arguments))
@@ -206,10 +214,10 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     }
   }
 
-  def evaluateExpression(expression: TypedExpression): Value = {
+  def evaluateExpression(expression: IntermediateExpression): Value = {
     expression match {
-      case TypedInteger(value) => IntValue(value)
-      case TypedIdentifier(id, _) => {
+      case IntermediateInteger(value) => IntValue(value)
+      case IntermediateIdentifier(id, _) => {
         getValue(id) match {
           case Some(t) => evaluateExpression(t)
           case _ => throw new ValueNotFoundError("identifier " + id + " has no value assigned")
@@ -219,7 +227,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     }
   }
 
-  def resolveValueReferences(value: Value, arguments: List[TypedExpression]): Value = {
+  def resolveValueReferences(value: Value, arguments: List[IntermediateExpression]): Value = {
     value match {
       case ReferenceValue(idx) => evaluateExpression(arguments(idx))
       case x => x
@@ -227,11 +235,25 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   }
 
   def widenTypes(a: Type, b: Type): (Type, Type) = {
-    (a.isWideableTo(b), b.isWideableTo(a)) match {
-      case (true, _) => (b, b)
-      case (_, true) => (a, a)
-      case _ => (a, b)
+    (a,b) match {
+      case (_:NumericTypeVar, _) =>
+        if(b.isWideableTo(DoubleType))
+          (a,DoubleType)
+        else
+          (a,b)
+      case (_, _:NumericTypeVar) =>
+        if(a.isWideableTo(DoubleType))
+          (DoubleType, b)
+        else
+          (a,b)
+      case _ =>
+        (a.isWideableTo(b), b.isWideableTo(a)) match {
+          case (true, _) => (b, b)
+          case (_, true) => (a, a)
+          case _ => (a, b)
+        }
     }
+
   }
 
   def specializeType(datatype: Type): Type = {
@@ -355,6 +377,26 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case x: ValueVar => UniversalValue(x)
       case x => x
     }
+  }
+
+  def typeConversion(expression: TypedExpression, tpe: Type): TypedExpression = {
+    if(structuralCompatible(expression.datatype, tpe)){
+      val(typeA, typeB) = (getElementType(expression.datatype), getElementType(tpe))
+
+      if(typeA == typeB)
+        expression
+      else{
+        (typeA, typeB) match {
+          case (_:AbstractTypeVar, _) => expression
+          case (_, _:AbstractTypeVar) => expression
+          case (IntegerType, DoubleType) => expression
+          case _ => TypeConversion(expression, tpe)
+        }
+      }
+    }else{
+      throw new TypingError("Cannot convert type " + expression.datatype + " into type " + tpe)
+    }
+
   }
 
   def unifyValue(a: Value, b: Value): Option[Value] = {
@@ -538,11 +580,11 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   def updateEnvironment(identifier: String, datatype: Type) = typeEnvironment.update(identifier, datatype)
   def updateEnvironment(identifier: ASTIdentifier, datatype: Type) = typeEnvironment.update(identifier.value, datatype)
 
-  def updateValueEnvironment(identifier: ASTIdentifier, expression: TypedExpression): Unit = {
+  def updateValueEnvironment(identifier: ASTIdentifier, expression: IntermediateExpression): Unit = {
     updateValueEnvironment(identifier.value, expression)
   }
 
-  def updateValueEnvironment(identifier: String, expression: TypedExpression): Unit = {
+  def updateValueEnvironment(identifier: String, expression: IntermediateExpression): Unit = {
     valueEnvironment.update(identifier, expression)
   }
 
@@ -556,93 +598,113 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     }
   }
 
-  def getValue(id: String): Option[TypedExpression] = {
+  def getValue(id: String): Option[IntermediateExpression] = {
     valueEnvironment.get(id)
   }
 
-  def extractType(expression: TypedExpression) = expression.datatype
+  def extractType(expression: IntermediateExpression) = expression.datatype
 
-  def typeWithResolution(program: ASTProgram): TypedProgram = {
-    val typedProgram = typeProgram(program);
-    resolveTypeVars(typedProgram)
+  def typeProgram(program: ASTProgram): TypedProgram = {
+    val intermediateProgram = intermediateRepresentationProgram(program)
+    finalizeTyping(intermediateProgram)
   }
 
-  def typeWithResolution(id: ASTIdentifier): TypedIdentifier = {
-    val typedId = typeIdentifier(id);
-    resolveTypeVars(typedId)
+  def typeStatement(stmt: ASTStatement): TypedStatement = {
+    val intermediateStmt = intermediateRepresentationStatement(stmt)
+    finalizeTyping(intermediateStmt)
   }
 
-  def typeProgram(program: ASTProgram): TypedProgram = program match {
-    case ASTProgram(stmtFuncList) => TypedProgram(stmtFuncList map {
-      case stmt: ASTStatement => typeStmt(stmt)
-      case func: ASTFunction => typeFunction(func)
-      case typeAnnotation: ASTTypeAnnotation =>
-        throw new NotYetImplementedError("Type annotations are not yet supported")
-    })
+  def typeExpression(expression: ASTExpression): TypedExpression = {
+    val intermediateExpression = intermediateRepresentationExpression(expression)
+
+    finalizeTyping(intermediateExpression)
   }
 
-  def typeStmt(stmt: ASTStatement): TypedStatement = stmt match {
-    case ASTOutputResultStatement(stmt) => TypedOutputResultStatement(typeStmtWithResult(stmt))
-    case ASTNOP => TypedNOP
-    case x: ASTStatementWithResult => typeStmtWithResult(x)
+  def typeIdentifier(identifier: ASTIdentifier): TypedIdentifier = {
+    val intermediateIdentifier = intermediateRepresentationIdentifier(identifier)
+    finalizeTyping(intermediateIdentifier)
   }
 
-  def typeStmtWithResult(stmt: ASTStatementWithResult): TypedStatementWithResult = stmt match {
+  def intermediateRepresentationProgram(program: ASTProgram): IntermediateProgram = {
+    program match {
+      case ASTProgram(stmtFuncList) => IntermediateProgram(stmtFuncList map {
+        case stmt: ASTStatement => intermediateRepresentationStatement(stmt)
+        case func: ASTFunction => intermediateRepresentationFunction(func)
+        case typeAnnotation: ASTTypeAnnotation =>
+          throw new NotYetImplementedError("Type annotations are not yet supported")
+      })
+    }
+
+  }
+
+
+  def intermediateRepresentationStatement(stmt: ASTStatement): IntermediateStatement = stmt match {
+    case ASTOutputResultStatement(stmt) => IntermediateOutputResultStatement(intermediateRepresentationStmtWithResult
+      (stmt))
+    case ASTNOP => IntermediateNOP
+    case x: ASTStatementWithResult => intermediateRepresentationStmtWithResult(x)
+  }
+
+  def intermediateRepresentationStmtWithResult(stmt: ASTStatementWithResult): IntermediateStatementWithResult = stmt
+  match {
     case ASTAssignment(lhs, rhs) => {
-      val typedRHS = typeExpression(rhs)
+      val typedRHS = intermediateRepresentationExpression(rhs)
       updateValueEnvironment(lhs, typedRHS)
       typedRHS match {
-        case x: TypedFunctionExpression =>
+        case x: IntermediateFunctionExpression =>
           val generalizedRHS = generalizeType(extractType(typedRHS))
           updateEnvironment(lhs, generalizedRHS)
         case _ => updateEnvironment(lhs, extractType(typedRHS))
       }
-      TypedAssignment(typeIdentifier(lhs), typedRHS)
+      IntermediateAssignment(intermediateRepresentationIdentifier(lhs), typedRHS)
     }
-    case exp: ASTExpression => typeExpression(exp)
+    case exp: ASTExpression => intermediateRepresentationExpression(exp)
   }
 
-  def typeExpression(exp: ASTExpression): TypedExpression = exp match {
-    case id: ASTIdentifier => typeIdentifier(id)
-    case int: ASTInteger => typeInteger(int)
-    case ASTFloatingPoint(value) => TypedFloatingPoint(value)
-    case ASTString(value) => TypedString(value)
-    case ASTBoolean(value) => TypedBoolean(value)
+  def intermediateRepresentationExpression(exp: ASTExpression): IntermediateExpression = exp match {
+    case id: ASTIdentifier => intermediateRepresentationIdentifier(id)
+    case ASTInteger(value) => IntermediateInteger(value)
+    case ASTFloatingPoint(value) => IntermediateFloatingPoint(value)
+    case ASTString(value) => IntermediateString(value)
+    case ASTBoolean(value) => IntermediateBoolean(value)
     case ASTUnaryExpression(exp, op) => {
-      val typedExpression = typeExpression(exp)
+      val typedExpression = intermediateRepresentationExpression(exp)
       val operatorType = typeOperator(op)
       val unificationResult = resolvePolymorphicType(operatorType, FunctionType(extractType(typedExpression), newTV()))
 
       unificationResult match {
-        case Some((FunctionType(_, resultType), _)) => TypedUnaryExpression(typedExpression, op, resultType)
+        case Some((FunctionType(List(tpe), resultType), _)) =>
+          IntermediateUnaryExpression(typedExpression,tpe, op, resultType)
         case _ => throw new TypeNotFoundError("Unary expression: " + ASTUnaryExpression(exp, op))
       }
     }
     case ASTBinaryExpression(a, op, b) => {
-      val typedExpressionA = typeExpression(a)
-      val typedExpressionB = typeExpression(b)
+      val typedExpressionA = intermediateRepresentationExpression(a)
+      val typedExpressionB = intermediateRepresentationExpression(b)
       val operatorType = typeOperator(op)
       val unificationResult = resolvePolymorphicType(operatorType, FunctionType(List(extractType(typedExpressionA),
         extractType(typedExpressionB)), newTV()))
 
       unificationResult match {
-        case Some((FunctionType(_, resultType), _)) => {
-          TypedBinaryExpression(typedExpressionA, op, typedExpressionB, resultType)
+        case Some((FunctionType(List(typeA, typeB), resultType), _)) => {
+
+          IntermediateBinaryExpression(typedExpressionA,typeA, op, typedExpressionB, typeB,
+            resultType)
         }
         case _ => throw new TypeNotFoundError("Binary expression: " + ASTBinaryExpression(a, op, b))
       }
     }
     case ASTFunctionApplication(func, arguments) => {
-      val typedFunc = typeIdentifier(func)
+      val typedFunc = intermediateRepresentationIdentifier(func)
       val functionType = extractType(typedFunc)
-      val typedArguments = arguments map { typeExpression(_) }
+      val typedArguments = arguments map { intermediateRepresentationExpression(_) }
 
       val unificationResult = resolvePolymorphicType(functionType, FunctionType(typedArguments map
         { extractType(_) }, newTV()))
 
       unificationResult match {
-        case Some((appliedFunType @ FunctionType(_, resultType), _)) =>
-          TypedFunctionApplication(TypedIdentifier(typedFunc.value,appliedFunType), typedArguments,
+        case Some((appliedFunType @ FunctionType(parameterTypes, resultType), _)) =>
+          IntermediateFunctionApplication(IntermediateIdentifier(typedFunc.value,appliedFunType), typedArguments, parameterTypes,
             resolveValueReferences(resultType, typedArguments))
         case _ => throw new TypeNotFoundError("Function application could not be typed: " + exp)
       }
@@ -652,10 +714,10 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       parameters foreach { case ASTIdentifier(id) => updateEnvironment(id, newTV()) }
 
       val closure = (freeVariables(body) -- (parameters map { case ASTIdentifier(id) => id }).toSet).toList
-      val typedBody = typeExpression(body)
+      val typedBody = intermediateRepresentationExpression(body)
 
       val typedParameters = parameters map {
-        case ASTIdentifier(id) => TypedIdentifier(id, getType(id) match {
+        case ASTIdentifier(id) => IntermediateIdentifier(id, getType(id) match {
           case Some(t) => t
           case _ => throw new TypeNotFoundError("Type for parameter " + id + " could not be found")
         })
@@ -668,43 +730,40 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
       val functionType = FunctionType(typedParameters map { extractType(_) }, extractType(typedBody))
 
-      TypedAnonymousFunction(typedParameters, typedBody, closure, functionType)
+      IntermediateAnonymousFunction(typedParameters, typedBody, closure, functionType)
     }
-    case ASTFunctionReference(function) => {
-      val typedIdentifier = typeIdentifier(function)
+    case ASTFunctionReference(func) => {
+      val typedIdentifier = intermediateRepresentationIdentifier(func)
 
       typedIdentifier.datatype match {
-        case x: FunctionType => TypedFunctionReference(typedIdentifier, typedIdentifier.datatype)
-        case _ => throw new TypingError("Identifier " + function.value + " has to be a function type")
+        case x: FunctionType => IntermediateFunctionReference(typedIdentifier, typedIdentifier.datatype)
+        case _ => throw new TypingError("Identifier " + func.value + " has to be a function type")
       }
     }
 
     case ASTCellArray(elements) => {
-      val typedElements = elements map {typeExpression}
-      TypedCellArray(typedElements, ConcreteCellArrayType(typedElements map { extractType }))
+      val typedElements = elements map {intermediateRepresentationExpression}
+      IntermediateCellArray(typedElements, ConcreteCellArrayType(typedElements map { extractType }))
     }
 
     case ASTCellArrayIndexing(cellArray, index) => {
-      val typedExp = typeExpression(cellArray)
+      val typedExp = intermediateRepresentationExpression(cellArray)
 
       extractType(typedExp) match {
         case ConcreteCellArrayType(types) =>
-          val typedIndex = typeInteger(index)
-          val idx = typedIndex.value
+          val idx = index.value
 
           if(idx <0 || idx >= types.length )
             throw new TypingError(s"Cell array index is out of bounds.")
 
-          TypedCellArrayIndexing(typedExp, typedIndex, types(idx))
+          IntermediateCellArrayIndexing(typedExp, idx, types(idx))
         case typeVar: TypeVar =>
-          val typedIndex = typeInteger(index)
-          val idx = typedIndex.value
+          val idx = index.value
           val elementTypes = List.fill[Type](idx+1)(newTV())
           updateTypeVarMapping(typeVar,InterimCellArrayType(elementTypes))
-          TypedCellArrayIndexing(typedExp, typedIndex, elementTypes(idx))
+          IntermediateCellArrayIndexing(typedExp, idx, elementTypes(idx))
         case x:InterimCellArrayType =>
-          val typedIndex = typeInteger(index)
-          val idx = typedIndex.value
+          val idx = index.value
           val types = x.types
 
           if(idx < 0)
@@ -713,9 +772,9 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
             if(idx >= types.length){
               val newTypes = types ++ List.fill[Type](idx - types.length+1)(newTV())
               x.types = newTypes
-              TypedCellArrayIndexing(typedExp, typedIndex, newTypes(idx))
+              IntermediateCellArrayIndexing(typedExp, idx, newTypes(idx))
             }else{
-              TypedCellArrayIndexing(typedExp, typedIndex, types(idx))
+              IntermediateCellArrayIndexing(typedExp, idx, types(idx))
             }
           }
         case _ => throw new TypingError(s"Object $typedExp has to be a cell array in order to be indexed.")
@@ -725,10 +784,6 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     case _ => throw new NotImplementedError("")
   }
 
-  def typeInteger(integer: ASTInteger):TypedInteger ={
-    TypedInteger(integer.value)
-  }
-
   def typeOperator(operator: Operator): Type = {
     BuiltinOperators.getType(operator) match{
       case Some(t) => specializeType(t)
@@ -736,33 +791,33 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     }
   }
 
-  def typeIdentifier(id: ASTIdentifier) = id match {
+  def intermediateRepresentationIdentifier(id: ASTIdentifier) = id match {
     case ASTIdentifier(id) => {
       val idType = getType(id) match {
         case Some(t) => t
         case _ => throw new TypeNotFoundError("Identifier " + id + " is unbound")
       }
-      TypedIdentifier(id, idType)
+      IntermediateIdentifier(id, idType)
     }
   }
 
-  def typeFunction(func: ASTFunction) = {
+  def intermediateRepresentationFunction(func: ASTFunction): IntermediateFunction = {
     val typer = new Typer(typeEnvironment.clone, valueEnvironment.clone(), typeVarMapping.clone(),
     valueVarMapping.clone())
 
     func.values foreach { typer.updateEnvironment(_, newTV()) }
     func.parameters foreach { typer.updateEnvironment(_, newTV()) }
 
-    val typedBody = typer.typeWithResolution(func.body)
-    val typedValues = func.values map { typer.typeWithResolution }
-    val typedParameters = func.parameters map { typer.typeWithResolution }
-    val resultType = if (typedValues.length == 0) VoidType else extractType(typedValues(0))
-    val typedFunctionName = TypedIdentifier(func.identifier.value,
-      generalizeType(FunctionType(typedParameters map { extractType }, resultType)))
+    val intermediateBody = typer.intermediateRepresentationProgram(func.body)
+    val intermediateValues = func.values map { typer.intermediateRepresentationIdentifier }
+    val intermediateParameters = func.parameters map { typer.intermediateRepresentationIdentifier }
+    val resultType = if (intermediateValues.length == 0) VoidType else extractType(intermediateValues(0))
+    val intermediateFunctionName = IntermediateIdentifier(func.identifier.value,
+      generalizeType(FunctionType(intermediateParameters map { extractType }, resultType)))
 
-    updateEnvironment(func.identifier, typedFunctionName.datatype)
+    updateEnvironment(func.identifier, intermediateFunctionName.datatype)
 
-    TypedFunction(typedValues, typedFunctionName, typedParameters, typedBody)
+    IntermediateFunction(intermediateValues, intermediateFunctionName, intermediateParameters, intermediateBody)
   }
 
 }

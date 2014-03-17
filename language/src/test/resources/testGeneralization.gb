@@ -1,3 +1,3 @@
 f = @(x) x;
-a = f(zeros(10,10));
-b = f(ones(1,1));
+a = f(zeros(10,10))
+b = f(true)

@@ -118,17 +118,14 @@ object BuiltinOperators extends AbstractBuiltinSymbols[Operator] {
   def gtType = {
     val (t,a,b) = newUNTVV()
     PolymorphicType(List(FunctionType((MatrixType(t,a,b), MatrixType(t,a,b)), MatrixType(BooleanType, a,b)),
+    FunctionType((MatrixType(t,a,b), t), MatrixType(BooleanType, a,b)),
+    FunctionType((t, MatrixType(t,a,b)), MatrixType(BooleanType, a,b)),
     FunctionType((t,t), BooleanType)))
   }
 
   def gteType = gtType
   def ltType = gtType
   def lteType = gtType
-
-  def deqType = {
-    val t = utv()
-    FunctionType((t,t), BooleanType)
-  }
-
-  def neqType = deqType
+  def deqType = gtType
+  def neqType = gtType
 }

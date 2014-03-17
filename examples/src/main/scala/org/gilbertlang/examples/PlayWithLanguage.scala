@@ -44,7 +44,7 @@ object PlayWithLanguage {
       ast match {
         case Some(parsedProgram) => {
 
-          val typedAST = typer.typeWithResolution(parsedProgram)
+          val typedAST = typer.typeProgram(parsedProgram)
           val compiledProgram = compiler.compile(typedAST)
 
           println(compiledProgram)

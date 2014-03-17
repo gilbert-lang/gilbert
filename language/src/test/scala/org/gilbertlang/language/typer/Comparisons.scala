@@ -3,7 +3,7 @@ package typer
 
 import definition.Types._
 import definition.Values._
-import definition.TypedAst._
+import definition.TypedAbstractSyntaxTree._
 import org.scalatest.Assertions
 
 trait Comparisons extends Assertions {
@@ -110,7 +110,7 @@ trait Comparisons extends Assertions {
         expParams zip actParams foreach { case (e, a) => checkExpression(e, a) }
         checkType(expType, actType)
       }
-      case (TypedAnonymousFunction(expParams, expBody, expClosure, expType), 
+      case (TypedAnonymousFunction(expParams, expBody, expClosure, expType),
           TypedAnonymousFunction(actParams, actBody, actClosure, actType)) =>{
         expectResult(expParams.length)(actParams.length)
         expParams zip actParams foreach { case(e,a) => checkIdentifier(e,a)}
@@ -130,7 +130,7 @@ trait Comparisons extends Assertions {
       }
       case (TypedCellArrayIndexing(cellArrayA, indexA, typeA), TypedCellArrayIndexing(cellArrayB, indexB, typeB)) => {
         checkExpression(cellArrayA, cellArrayB)
-        checkExpression(indexA, indexB)
+        assert(indexA == indexB)
         checkType(typeA, typeB)
       }
       case _ => expectResult(expected)(actual)

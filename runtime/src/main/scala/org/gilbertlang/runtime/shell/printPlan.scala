@@ -261,12 +261,6 @@ object PlanPrinter {
         print(scalar(op.reference), depth+1)
       }
 
-      case op: CellArrayReferenceFunction => {
-        printIndented(depth, op, "CellArrayReferenceFunction")
-        print(op.parent, depth+1)
-        print(scalar(op.reference), depth+1)
-      }
-
       case op: CellArrayReferenceScalar => {
         printIndented(depth, op, "CellArrayReferenceScalar")
         print(op.parent, depth+1)
@@ -282,6 +276,16 @@ object PlanPrinter {
       case op: CellArrayExecutable => {
         printIndented(depth, op, "CellArrayExecutable")
         op.elements foreach { print(_, depth+1)}
+      }
+
+      case typeConversion: TypeConversionScalar => {
+        printIndented(depth, typeConversion, "TypeConversionScalar")
+        print(typeConversion.scalar, depth+ 1)
+      }
+
+      case typeConversion:TypeConversionMatrix => {
+        printIndented(depth, typeConversion, "TypeConversionMatrix")
+        print(typeConversion.matrix, depth+1)
       }
     }
 

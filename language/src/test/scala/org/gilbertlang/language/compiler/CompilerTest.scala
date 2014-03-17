@@ -13,7 +13,7 @@ import org.gilbertlang.language.format.VerboseTypedASTFormatter
 import org.gilbertlang.runtime.shell.PlanPrinter
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.runtime.Operations._
-import org.gilbertlang.runtime.RuntimeTypes.{ScalarType, MatrixType, CellArrayType}
+import org.gilbertlang.runtime.RuntimeTypes._
 import org.gilbertlang.runtime.Executables.MatrixMult
 import org.gilbertlang.runtime.Executables.WriteCellArray
 import org.gilbertlang.runtime.Executables.boolean
@@ -27,11 +27,9 @@ import org.gilbertlang.runtime.Executables.Transpose
 import org.gilbertlang.runtime.Executables.MatrixParameter
 import org.gilbertlang.runtime.Executables.CellArrayParameter
 import scala.Some
-import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.WriteScalar
 import org.gilbertlang.runtime.Executables.function
 import org.gilbertlang.runtime.Executables.zeros
-import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
 import org.gilbertlang.runtime.Executables.eye
 import org.gilbertlang.runtime.Executables.FixpointIteration
 import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
@@ -40,6 +38,29 @@ import org.gilbertlang.runtime.Executables.randn
 import org.gilbertlang.runtime.Executables.WriteFunction
 import org.gilbertlang.runtime.Executables.norm
 import org.gilbertlang.runtime.Executables.CompoundExecutable
+import org.gilbertlang.runtime.Executables.eye
+import org.gilbertlang.runtime.Executables.MatrixMult
+import org.gilbertlang.runtime.Executables.WriteCellArray
+import org.gilbertlang.runtime.Executables.boolean
+import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
+import org.gilbertlang.runtime.Executables.scalar
+import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
+import org.gilbertlang.runtime.Executables.CellArrayExecutable
+import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.WriteMatrix
+import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
+import org.gilbertlang.runtime.Executables.Transpose
+import org.gilbertlang.runtime.Executables.ones
+import org.gilbertlang.runtime.Executables.MatrixParameter
+import org.gilbertlang.runtime.Executables.randn
+import org.gilbertlang.runtime.Executables.WriteFunction
+import scala.Some
+import org.gilbertlang.runtime.Executables.norm
+import org.gilbertlang.runtime.RuntimeTypes.MatrixType
+import org.gilbertlang.runtime.Executables.CompoundExecutable
+import org.gilbertlang.runtime.Executables.WriteScalar
+import org.gilbertlang.runtime.Executables.function
+import org.gilbertlang.runtime.Executables.zeros
 
 class CompilerTest extends Assertions {
   
@@ -128,10 +149,56 @@ class CompilerTest extends Assertions {
 
   @Test def testCellArrayAnonymousFunctionCompilation(){
 
-    val expected = CompoundExecutable(List(WriteFunction(VoidExecutable),
-      WriteMatrix(CellwiseMatrixMatrixTransformation(CellArrayReferenceMatrix(CellArrayExecutable(List( zeros(scalar
-        (1.0),scalar(1.0)), ones(scalar(1.0),scalar(1.0)))),0), CellArrayReferenceMatrix(CellArrayExecutable(List
-        (zeros(scalar(1.0),scalar(1.0)), ones(scalar(1.0),scalar(1.0)))),1),Addition))))
+    val expected = CompoundExecutable(
+        List(
+          WriteFunction(VoidExecutable),
+          WriteMatrix(
+             CellwiseMatrixMatrixTransformation(
+               CellArrayReferenceMatrix(
+                 CellArrayExecutable(
+                   List(
+                     zeros(
+                       scalar(1.0),
+                       scalar(1.0)
+                     ),
+                     ones(
+                       scalar(1.0),
+                       scalar(1.0)
+                     )
+                   )
+                 ),
+                 0,
+                 MatrixType(
+                  DoubleType,
+                  Some(1),
+                  Some(1)
+                 )
+               ),
+               CellArrayReferenceMatrix(
+                 CellArrayExecutable(
+                   List(
+                     zeros(
+                       scalar(1.0),
+                       scalar(1.0)
+                     ),
+                     ones(
+                       scalar(1.0),
+                       scalar(1.0)
+                     )
+                   )
+                 ),
+                 1,
+                 MatrixType(
+                  DoubleType,
+                  Some(1),
+                  Some(1)
+                 )
+               ),
+               Addition
+             )
+          )
+        )
+    )
 
     val filename ="testCellArrayAnonymousFunctionCompilation.gb"
 
@@ -184,7 +251,12 @@ class CompilerTest extends Assertions {
                         )
                       )
                     ),
-                    0
+                    0,
+                    MatrixType(
+                      DoubleType,
+                      Some(2),
+                      Some(10)
+                    )
                   ),
                   CellwiseMatrixMatrixTransformation(
                     MatrixMult(
@@ -196,7 +268,12 @@ class CompilerTest extends Assertions {
                               ones(scalar(10.0),scalar(2.0))
                             )
                           ),
-                          1
+                          1,
+                          MatrixType(
+                            DoubleType,
+                            Some(10),
+                            Some(2)
+                          )
                         )
                       ),
                       eye(scalar(10.0),scalar(10.0))
@@ -211,7 +288,12 @@ class CompilerTest extends Assertions {
                                 ones(scalar(10.0),scalar(2.0))
                               )
                             ),
-                            1
+                            1,
+                            MatrixType(
+                              DoubleType,
+                              Some(10),
+                              Some(2)
+                            )
                           )
                         ),
                         CellArrayReferenceMatrix(
@@ -221,7 +303,12 @@ class CompilerTest extends Assertions {
                               ones(scalar(10.0),scalar(2.0))
                             )
                           ),
-                          1
+                          1,
+                          MatrixType(
+                            DoubleType,
+                            Some(10),
+                            Some(2)
+                          )
                         )
                       ),
                       CellArrayReferenceMatrix(
@@ -231,7 +318,12 @@ class CompilerTest extends Assertions {
                             ones(scalar(10.0),scalar(2.0))
                           )
                         ),
-                        0
+                        0,
+                        MatrixType(
+                          DoubleType,
+                          Some(2),
+                          Some(10)
+                        )
                       )
                     ),
                     Division
@@ -247,7 +339,12 @@ class CompilerTest extends Assertions {
                           ones(scalar(10.0),scalar(2.0))
                         )
                       ),
-                      1
+                      1,
+                      MatrixType(
+                        DoubleType,
+                        Some(10),
+                        Some(2)
+                      )
                     ),
                     MatrixMult(
                       eye(scalar(10.0),scalar(10.0)),
@@ -260,7 +357,12 @@ class CompilerTest extends Assertions {
                                 ones(scalar(10.0),scalar(2.0))
                               )
                             ),
-                            0
+                            0,
+                            MatrixType(
+                              DoubleType,
+                              Some(2),
+                              Some(10)
+                            )
                           ),
                           CellwiseMatrixMatrixTransformation(
                             MatrixMult(
@@ -272,7 +374,12 @@ class CompilerTest extends Assertions {
                                       ones(scalar(10.0),scalar(2.0))
                                     )
                                   ),
-                                  1
+                                  1,
+                                  MatrixType(
+                                    DoubleType,
+                                    Some(10),
+                                    Some(2)
+                                  )
                                 )
                               ),
                               eye(scalar(10.0),scalar(10.0))
@@ -287,7 +394,12 @@ class CompilerTest extends Assertions {
                                         ones(scalar(10.0),scalar(2.0))
                                       )
                                     ),
-                                    1
+                                    1,
+                                    MatrixType(
+                                      DoubleType,
+                                      Some(10),
+                                      Some(2)
+                                    )
                                   )
                                 ),
                                 CellArrayReferenceMatrix(
@@ -297,7 +409,12 @@ class CompilerTest extends Assertions {
                                       ones(scalar(10.0),scalar(2.0))
                                     )
                                   ),
-                                  1
+                                  1,
+                                  MatrixType(
+                                    DoubleType,
+                                    Some(10),
+                                    Some(2)
+                                  )
                                 )
                               ),
                               CellArrayReferenceMatrix(
@@ -307,7 +424,12 @@ class CompilerTest extends Assertions {
                                     ones(scalar(10.0),scalar(2.0))
                                   )
                                 ),
-                                0
+                                0,
+                                MatrixType(
+                                  DoubleType,
+                                  Some(2),
+                                  Some(10)
+                                )
                               )
                             ),
                             Division
@@ -327,7 +449,12 @@ class CompilerTest extends Assertions {
                             ones(scalar(10.0),scalar(2.0))
                           )
                         ),
-                        1
+                        1,
+                        MatrixType(
+                          DoubleType,
+                          Some(10),
+                          Some(2)
+                        )
                       ),
                       CellwiseMatrixMatrixTransformation(
                         CellArrayReferenceMatrix(
@@ -337,7 +464,12 @@ class CompilerTest extends Assertions {
                               ones(scalar(10.0),scalar(2.0))
                             )
                           ),
-                          0
+                          0,
+                          MatrixType(
+                            DoubleType,
+                            Some(2),
+                            Some(10)
+                          )
                         ),
                         CellwiseMatrixMatrixTransformation(
                           MatrixMult(
@@ -349,7 +481,12 @@ class CompilerTest extends Assertions {
                                     ones(scalar(10.0),scalar(2.0))
                                   )
                                 ),
-                                1
+                                1,
+                                MatrixType(
+                                  DoubleType,
+                                  Some(10),
+                                  Some(2)
+                                )
                               )
                             ),
                             eye(scalar(10.0),scalar(10.0))
@@ -364,7 +501,12 @@ class CompilerTest extends Assertions {
                                       ones(scalar(10.0),scalar(2.0))
                                     )
                                   ),
-                                  1
+                                  1,
+                                  MatrixType(
+                                    DoubleType,
+                                    Some(10),
+                                    Some(2)
+                                  )
                                 )
                               ),
                               CellArrayReferenceMatrix(
@@ -374,7 +516,12 @@ class CompilerTest extends Assertions {
                                     ones(scalar(10.0),scalar(2.0))
                                   )
                                 ),
-                                1
+                                1,
+                                MatrixType(
+                                  DoubleType,
+                                  Some(10),
+                                  Some(2)
+                                )
                               )
                             ),
                             CellArrayReferenceMatrix(
@@ -384,7 +531,12 @@ class CompilerTest extends Assertions {
                                   ones(scalar(10.0),scalar(2.0))
                                 )
                               ),
-                              0
+                              0,
+                              MatrixType(
+                                DoubleType,
+                                Some(2),
+                                Some(10)
+                              )
                             )
                           ),
                           Division
@@ -401,7 +553,12 @@ class CompilerTest extends Assertions {
                               ones(scalar(10.0),scalar(2.0))
                             )
                           ),
-                          0
+                          0,
+                          MatrixType(
+                            DoubleType,
+                            Some(2),
+                            Some(10)
+                          )
                         ),
                         CellwiseMatrixMatrixTransformation(
                           MatrixMult(
@@ -413,7 +570,12 @@ class CompilerTest extends Assertions {
                                     ones(scalar(10.0),scalar(2.0))
                                   )
                                 ),
-                                1
+                                1,
+                                MatrixType(
+                                  DoubleType,
+                                  Some(10),
+                                  Some(2)
+                                )
                               )
                             ),
                             eye(scalar(10.0),scalar(10.0))
@@ -428,7 +590,12 @@ class CompilerTest extends Assertions {
                                       ones(scalar(10.0),scalar(2.0))
                                     )
                                   ),
-                                  1
+                                  1,
+                                  MatrixType(
+                                    DoubleType,
+                                    Some(10),
+                                    Some(2)
+                                  )
                                 )
                               ),
                               CellArrayReferenceMatrix(
@@ -438,7 +605,12 @@ class CompilerTest extends Assertions {
                                     ones(scalar(10.0),scalar(2.0))
                                   )
                                 ),
-                                1
+                                1,
+                                MatrixType(
+                                  DoubleType,
+                                  Some(10),
+                                  Some(2)
+                                )
                               )
                             ),
                             CellArrayReferenceMatrix(
@@ -448,7 +620,12 @@ class CompilerTest extends Assertions {
                                   ones(scalar(10.0),scalar(2.0))
                                 )
                               ),
-                              0
+                              0,
+                              MatrixType(
+                                DoubleType,
+                                Some(2),
+                                Some(10)
+                              )
                             )
                           ),
                           Division
@@ -472,10 +649,18 @@ class CompilerTest extends Assertions {
 
   @Test def testGeneralization{
     val filename = "testGeneralization.gb"
-    val expected = CompoundExecutable(List())
+    val expected = CompoundExecutable(List(WriteMatrix(zeros(scalar(10.0),scalar(10.0))), WriteScalar(boolean(true))))
 
     val result = Gilbert.compileRessource(filename)
 
+    expectResult(expected)(result)
+  }
+
+  @Test def testTypeWidening{
+    val filename = "testTypeWidening.gb"
+    val expected = CompoundExecutable(List())
+
+    val result = Gilbert.compileRessource(filename)
     expectResult(expected)(result)
   }
 }

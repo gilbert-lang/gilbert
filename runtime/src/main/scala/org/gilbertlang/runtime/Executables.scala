@@ -128,8 +128,9 @@ object Executables {
   }
 
   sealed trait Matrix extends ExpressionExecutable {
-    def rows: Option[Int]
-    def cols: Option[Int]
+    def rows = getType.rows
+    def cols = getType.cols
+    def elementType = getType.elementType
 
     def transpose() = {
       Transpose(this)
@@ -187,6 +188,8 @@ object Executables {
 
     def instantiate(args: Executable*): Matrix
 
+    def getType: MatrixType
+
   }
 
   sealed trait BinaryMatrixTransformation extends Matrix
@@ -197,8 +200,6 @@ object Executables {
 
   case class ScalarMatrixTransformation(scalar: ScalarRef, matrix: Matrix, operation: ScalarMatrixOperation)
     extends BinaryMatrixTransformation {
-    val rows = matrix.rows
-    val cols = matrix.cols
 
     def instantiate(args: Executable*): ScalarMatrixTransformation = {
       var anyInstantiated = false
@@ -216,16 +217,14 @@ object Executables {
 
     def getType = {
       operation match {
-        case _: LogicOperation | _: ComparisonOperation => MatrixType(BooleanType)
-        case _ => MatrixType(DoubleType)
+        case _: LogicOperation | _: ComparisonOperation => MatrixType(BooleanType, matrix.rows, matrix.cols)
+        case _ => MatrixType(DoubleType, matrix.rows, matrix. cols)
       }
     }
   }
 
   case class MatrixScalarTransformation(matrix: Matrix, scalar: ScalarRef, operation: ScalarMatrixOperation)
     extends BinaryMatrixTransformation {
-    val rows = matrix.rows
-    val cols = matrix.cols
 
     def instantiate(args: Executable*): MatrixScalarTransformation = {
       var anyInstantiated = false
@@ -243,15 +242,13 @@ object Executables {
 
     def getType = {
       operation match {
-        case _: LogicOperation | _: ComparisonOperation => MatrixType(BooleanType)
-        case _ => MatrixType(DoubleType)
+        case _: LogicOperation | _: ComparisonOperation => MatrixType(BooleanType, matrix.rows, matrix.cols)
+        case _ => MatrixType(DoubleType, matrix.rows, matrix.cols)
       }
     }
   }
 
   case class MatrixMult(left: Matrix, right: Matrix) extends BinaryMatrixTransformation {
-    val rows = left.rows
-    val cols = right.cols
 
     def instantiate(args: Executable*): MatrixMult = {
       var anyInstantiated = false
@@ -267,13 +264,11 @@ object Executables {
         this
     }
 
-    def getType = MatrixType(DoubleType)
+    def getType = MatrixType(DoubleType, left.rows, right.cols)
   }
 
   case class CellwiseMatrixMatrixTransformation(left: Matrix, right: Matrix, operation: CellwiseOperation)
     extends BinaryMatrixTransformation {
-    val rows = left.rows
-    val cols = right.cols
 
     def instantiate(args: Executable*): CellwiseMatrixMatrixTransformation = {
       var anyInstantiated = false
@@ -291,15 +286,13 @@ object Executables {
 
     def getType = {
       operation match {
-        case _: LogicOperation | _: ComparisonOperation => MatrixType(BooleanType)
-        case _ => MatrixType(DoubleType)
+        case _: LogicOperation | _: ComparisonOperation => MatrixType(BooleanType, left.rows, left.cols)
+        case _ => MatrixType(DoubleType, left.rows, left.cols)
       }
     }
   }
 
   case class Transpose(matrix: Matrix) extends UnaryMatrixTransformation {
-    val rows = matrix.cols
-    val cols = matrix.rows
 
     def instantiate(args: Executable*): Transpose = {
       val instantiatedMatrix = matrix.instantiate(args: _*)
@@ -310,13 +303,13 @@ object Executables {
         this
     }
 
-    def getType = matrix.getType
+    def getType = {
+      MatrixType(matrix.elementType, matrix.cols, matrix.rows)
+    }
   }
 
   case class CellwiseMatrixTransformation(matrix: Matrix, operation: UnaryScalarOperation)
     extends UnaryMatrixTransformation {
-    val rows = matrix.rows
-    val cols = matrix.cols
 
     def instantiate(args: Executable*): CellwiseMatrixTransformation = {
       val instantiatedMatrix = matrix.instantiate(args: _*)
@@ -332,7 +325,6 @@ object Executables {
 
   case class VectorwiseMatrixTransformation(matrix: Matrix, operation: VectorwiseOperation)
     extends UnaryMatrixTransformation {
-    val (rows, cols) = getMatrixSize
 
     def getMatrixSize: (Option[Int], Option[Int]) = {
       operation match {
@@ -357,12 +349,13 @@ object Executables {
         this
     }
 
-    def getType = matrix.getType
+    def getType = {
+      val (rows, cols) = getMatrixSize
+      MatrixType(matrix.elementType, rows, cols)
+    }
   }
 
   case class LoadMatrix(path: StringRef, numRows: ScalarRef, numColumns: ScalarRef) extends FunctionMatrixTransformation {
-    val rows = scalarRef2Int(numRows)
-    val cols = scalarRef2Int(numColumns)
 
     def instantiate(args: Executable*): LoadMatrix = {
       var anyInstantiated = false
@@ -381,12 +374,11 @@ object Executables {
       }
     }
 
-    def getType = MatrixType(DoubleType)
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
   }
 
+
   case class ones(numRows: ScalarRef, numColumns: ScalarRef) extends FunctionMatrixTransformation {
-    val rows = scalarRef2Int(numRows)
-    val cols = scalarRef2Int(numColumns)
 
     def instantiate(args: Executable*): ones = {
       var anyInstantiated = false
@@ -402,13 +394,11 @@ object Executables {
         this
     }
 
-    def getType = MatrixType(DoubleType)
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
   }
 
   case class randn(numRows: ScalarRef, numColumns: ScalarRef, mean: ScalarRef = scalar(0), std: ScalarRef = scalar(1))
     extends FunctionMatrixTransformation {
-    val rows = scalarRef2Int(numRows)
-    val cols = scalarRef2Int(numColumns)
 
     def instantiate(args: Executable*): randn = {
       var anyInstantiated = false
@@ -428,12 +418,10 @@ object Executables {
         this
     }
 
-    def getType = MatrixType(DoubleType)
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
   }
 
   case class spones(matrix: Matrix) extends FunctionMatrixTransformation {
-    val rows = matrix.rows
-    val cols = matrix.cols
 
     def instantiate(args: Executable*): spones = {
       val instantiatedMatrix = matrix.instantiate(args: _*)
@@ -444,13 +432,11 @@ object Executables {
         this
     }
 
-    def getType = MatrixType(DoubleType)
+    def getType = matrix.getType
   }
 
   //TODO remove
   case class sum(matrix: Matrix, dimension: ScalarRef) extends FunctionMatrixTransformation {
-    val rows = getRows
-    val cols = getCols
 
     def getRows: Option[Int] = {
       dimension match {
@@ -482,12 +468,12 @@ object Executables {
         this
     }
 
-    def getType = matrix.getType
+    def getType = {
+      MatrixType(matrix.elementType, getRows, getCols)
+    }
   }
 
   case class sumRow(matrix: Matrix) extends FunctionMatrixTransformation {
-    val rows = matrix.rows
-    val cols = Some(1)
 
     def instantiate(args: Executable*): sumRow = {
       val instantiatedMatrix = matrix.instantiate(args: _*)
@@ -498,12 +484,12 @@ object Executables {
         this
     }
 
-    def getType = matrix.getType
+    def getType = {
+      MatrixType(matrix.elementType, matrix.rows, Some(1))
+    }
   }
 
   case class sumCol(matrix: Matrix) extends FunctionMatrixTransformation {
-    val rows = Some(1)
-    val cols = matrix.cols
 
     def instantiate(args: Executable*): sumCol = {
       val instantiatedMatrix = matrix.instantiate(args: _*)
@@ -514,11 +500,10 @@ object Executables {
         this
     }
 
-    def getType = matrix.getType
+    def getType = MatrixType(matrix.elementType, Some(1), matrix.cols)
   }
 
   case class diag(matrix: Matrix) extends FunctionMatrixTransformation {
-    val (rows, cols) = getRowsCols
 
     def instantiate(args: Executable*): diag = {
       val instantiatedMatrix = matrix.instantiate(args: _*)
@@ -542,12 +527,13 @@ object Executables {
       }
     }
 
-    def getType = matrix.getType
+    def getType = {
+      val (rows, cols) = getRowsCols
+      MatrixType(matrix.elementType, rows, cols)
+    }
   }
 
   case class zeros(numRows: ScalarRef, numCols: ScalarRef) extends FunctionMatrixTransformation {
-    val rows = scalarRef2Int(numRows)
-    val cols = scalarRef2Int(numCols)
 
     def instantiate(args: Executable*): zeros = {
       var anyInstantiated = false
@@ -563,12 +549,10 @@ object Executables {
         this
     }
 
-    def getType = MatrixType(DoubleType)
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numCols))
   }
 
   case class eye(numRows: ScalarRef, numCols: ScalarRef) extends FunctionMatrixTransformation {
-    val rows = scalarRef2Int(numRows)
-    val cols = scalarRef2Int(numCols)
 
     def instantiate(args: Executable*): eye = {
       var anyInstantiated = false
@@ -584,15 +568,13 @@ object Executables {
         this
     }
 
-    def getType = MatrixType(DoubleType)
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numCols))
   }
 
   case class FixpointIteration(initialState: Matrix, updateFunction: FunctionRef,
                                maxIterations: ScalarRef, convergence: FunctionRef) extends Matrix {
     val updatePlan = updateFunction.apply(IterationStatePlaceholder)
 
-    val rows = initialState.rows
-    val cols = initialState.cols
 
     def instantiate(args: Executable*): FixpointIteration = {
       var anyInstantiated = false
@@ -650,38 +632,28 @@ object Executables {
     }
 
     override def getType = initialState.getType
-
-    def elements = initialState.elements
-
   }
 
-  case class IterationStatePlaceholderCellArray(cellArrayType: RuntimeTypes.CellArrayType) extends CellArrayBase{
-    def elements: List[CellArrayReference[ExpressionExecutable]] = {
-      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
-    }
+  case class IterationStatePlaceholderCellArray(getType: CellArrayType) extends CellArrayBase{
 
     def instantiate(args: Executable*): CellArrayBase = {
       Executable.instantiated = false
       this
     }
-
-    override def getType = cellArrayType
   }
 
   case object IterationStatePlaceholder extends Matrix {
-    val rows = None
-    val cols = None
 
     def instantiate(args: Executable*): Matrix = {
       Executable.instantiated = false
       IterationStatePlaceholder
     }
 
-    def getType = Undefined
+    def getType = MatrixType(Undefined, None, None)
   }
 
   sealed trait StringRef extends ExpressionExecutable {
-    def length: Int
+    def length: Option[Int]
     def value: String
 
     def instantiate(args: Executable*): StringRef
@@ -690,7 +662,7 @@ object Executables {
   }
 
   case class string(value: String) extends StringRef {
-    val length = value.length
+    val length = Some(value.length)
 
     override def instantiate(args: Executable*): string = {
       Executable.instantiated = false
@@ -721,6 +693,8 @@ object Executables {
     }
 
     def instantiate(args: Executable*): ScalarRef
+
+    def getType: ScalarType
   }
 
   sealed trait FunctionScalarTransformation extends ScalarRef
@@ -816,6 +790,8 @@ object Executables {
     def apply(args: ExpressionExecutable*): Executable
 
     def instantiate(args: Executable*): FunctionRef
+
+    def getType: FunctionType
   }
 
   case class function(numParameters: Int, body: Executable) extends FunctionRef {
@@ -841,8 +817,6 @@ object Executables {
   }
 
   case class MatrixParameter(position: Int) extends Parameter with Matrix {
-    val rows = None
-    val cols = None
 
     def instantiate(args: Executable*): Matrix = {
       Executable.instantiated = true
@@ -852,31 +826,17 @@ object Executables {
       }
     }
 
-    def getType = MatrixType(Unknown)
+    def getType = MatrixType(Unknown, None, None)
   }
 
-  case class CellArrayReferenceMatrix(parent: CellArrayBase, reference: Int) extends CellArrayReference[Matrix] with
+  case class CellArrayReferenceMatrix(parent: CellArrayBase, reference: Int,
+                                      getType: MatrixType) extends CellArrayReference with
   Matrix{
-    def rows = {
-      if(extract == this){
-        None
-      }else{
-        extract.rows
-      }
-    }
-    def cols = {
-      if(extract == this){
-        None
-      }else{
-        extract.cols
-      }
-    }
-
     override def instantiate(args: Executable*): CellArrayReferenceMatrix = {
       val instantiatedParent = parent.instantiate(args:_*)
 
       if(Executable.instantiated){
-        CellArrayReferenceMatrix(instantiatedParent, reference)
+        CellArrayReferenceMatrix(instantiatedParent, reference, getType)
       }else{
         this
       }
@@ -884,7 +844,7 @@ object Executables {
   }
 
   case class StringParameter(position: Int) extends Parameter with StringRef {
-    val length = -1
+    val length = None
     val value = ""
 
     override def instantiate(args: Executable*): StringRef = {
@@ -896,7 +856,7 @@ object Executables {
     }
   }
 
-  case class CellArrayReferenceString(parent: CellArrayBase, reference: Int) extends CellArrayReference[StringRef]
+  case class CellArrayReferenceString(parent: CellArrayBase, reference: Int) extends CellArrayReference
   with StringRef {
     override def getType = StringType
 
@@ -910,21 +870,10 @@ object Executables {
       }
     }
 
-    def length = {
-      if(extract == this){
-        -1
-      }else{
-        extract.length
-      }
-    }
+    def length = None
 
-    def value = {
-      if(extract == this){
-        ""
-      }else{
-        extract.value
-      }
-    }
+    def value = ""
+
   }
 
   case class ScalarParameter(position: Int) extends Parameter with ScalarRef {
@@ -936,17 +885,17 @@ object Executables {
       }
     }
 
-    def getType = Unknown
+    def getType = ScalarType
   }
 
-  case class CellArrayReferenceScalar(parent: CellArrayBase, reference: Int) extends
-  CellArrayReference[ScalarRef] with ScalarRef {
+  case class CellArrayReferenceScalar(parent: CellArrayBase, reference: Int, getType: ScalarType) extends
+  CellArrayReference with ScalarRef {
 
     override def instantiate(args: Executable*): CellArrayReferenceScalar = {
       val instantiatedParent = parent.instantiate(args:_*)
 
       if(Executable.instantiated){
-        CellArrayReferenceScalar(instantiatedParent, reference)
+        CellArrayReferenceScalar(instantiatedParent, reference, getType)
       }else{
         this
       }
@@ -969,38 +918,13 @@ object Executables {
     def getType = Unknown
   }
 
-  case class CellArrayReferenceFunction(parent: CellArrayBase, reference: Int) extends
-  CellArrayReference[FunctionRef] with FunctionRef {
-
-    override def apply(args: ExpressionExecutable*): Executable = {
-      if(extract == this){
-        VoidExecutable
-      }else{
-        extract.apply(args:_*)
-      }
-    }
-
-    override def instantiate(args: Executable*): CellArrayReferenceFunction = {
-      val instantiatedParent = parent.instantiate(args: _*)
-
-      if(Executable.instantiated){
-        CellArrayReferenceFunction(instantiatedParent, reference)
-      }else{
-        this
-      }
-    }
-  }
-
   case object ConvergencePreviousStatePlaceholder extends Matrix {
     override def instantiate(args: Executable*) = {
       Executable.instantiated = false
       this
     }
 
-    val rows = None
-    val cols = None
-
-    def getType = MatrixType(Unknown)
+    def getType = MatrixType(Unknown, None, None)
   }
 
   case object ConvergenceCurrentStatePlaceholder extends Matrix {
@@ -1009,34 +933,46 @@ object Executables {
       this
     }
 
-    val rows = None
-    val cols = None
 
-    def getType = MatrixType(Unknown)
+    def getType = MatrixType(Unknown, None, None)
   }
 
   sealed trait CellArrayBase extends ExpressionExecutable {
-    def elements: List[ExpressionExecutable]
     def instantiate(args: Executable*): CellArrayBase
 
-    def getType = CellArrayType(elements map { x => x.getType })
+    def getType:CellArrayType
 
     def rows = Some(1)
-    def cols = Some(elements.length)
+    def cols = Some(getType.elementTypes.length)
 
-    protected def createCellArrayReference(tpe: RuntimeType, index: Int,
-                                         parent: CellArrayBase): CellArrayReference[ExpressionExecutable] = {
-      tpe match {
-        case ScalarType => CellArrayReferenceScalar(parent, index)
-        case StringType => CellArrayReferenceString(parent, index)
-        case _:MatrixType => CellArrayReferenceMatrix(parent, index)
-        case FunctionType => CellArrayReferenceFunction(parent, index)
-        case x:CellArrayType => CellArrayReferenceCellArray(parent, index, x )
+    def apply(index: Int): ExpressionExecutable = {
+      createCellArrayReference(index)
+    }
+
+    protected def createCellArrayReference(index: Int): CellArrayReference = {
+      getType.elementTypes(index) match {
+        case x:ScalarType => CellArrayReferenceScalar(this, index,x)
+        case StringType => CellArrayReferenceString(this, index)
+        case x:MatrixType => CellArrayReferenceMatrix(this, index, x)
+        case x:FunctionType => throw new IllegalArgumentException("Function type cell entries are not supported")
+        case x:CellArrayType => CellArrayReferenceCellArray(this, index, x )
       }
     }
   }
 
-  case class CellArrayExecutable(elements: List[ExpressionExecutable]) extends CellArrayBase{
+  sealed trait CellArrayAccessibleBase extends CellArrayBase {
+    def elements: List[ExpressionExecutable]
+    def instantiate(args: Executable*): CellArrayAccessibleBase
+
+    override def getType = CellArrayType(elements map { _.getType })
+    override def cols = Some(elements.length)
+
+    override def apply(index: Int): ExpressionExecutable = {
+      elements(index)
+    }
+  }
+
+  case class CellArrayExecutable(elements: List[ExpressionExecutable]) extends CellArrayAccessibleBase{
     def instantiate(args: Executable*): CellArrayExecutable = {
       var anyInstantiated = false
       val instantiatedElements = elements map { element =>
@@ -1065,74 +1001,183 @@ object Executables {
 
     }
 
-    def elements: List[CellArrayReference[ExpressionExecutable]] = {
-      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
-    }
-
     override def getType = cellArrayType
   }
 
-  sealed trait CellArrayReference[+T <: ExpressionExecutable] extends ExpressionExecutable{
+  sealed trait CellArrayReference extends ExpressionExecutable{
     def parent: CellArrayBase
     def reference: Int
-
-    def extract: T = {
-      parent.elements(reference).asInstanceOf[T]
-    }
-
-    def getType = {
-      parent.getType.elementTypes(reference)
-    }
   }
 
   
-  case class CellArrayReferenceCellArray(parent: CellArrayBase,
-                                         reference: Int, cellArrayType: CellArrayType) extends
-  CellArrayReference[CellArrayBase] with
-  CellArrayBase {
+  case class CellArrayReferenceCellArray(parent: CellArrayBase, reference: Int, getType: CellArrayType) extends
+  CellArrayReference with CellArrayBase {
     def instantiate(args: Executable*):CellArrayReferenceCellArray = {
       val instantiatedParent = parent.instantiate(args: _*)
       
       if(Executable.instantiated){
-        CellArrayReferenceCellArray(instantiatedParent, reference, cellArrayType)
+        CellArrayReferenceCellArray(instantiatedParent, reference, getType)
+      }else{
+        this
+      }
+    }
+  }
+
+  case class ConvergenceCurrentStateCellArrayPlaceholder(getType: CellArrayType) extends
+  CellArrayBase{
+    def instantiate(args: Executable*): CellArrayBase = {
+      Executable.instantiated = false
+      this
+    }
+  }
+
+  case class ConvergencePreviousStateCellArrayPlaceholder(getType: CellArrayType) extends
+  CellArrayBase{
+    def instantiate(args: Executable*): CellArrayBase = {
+      Executable.instantiated = false
+      this
+    }
+  }
+
+  case class TypeConversionScalar(scalar: ScalarRef, sourceType: RuntimeTypes.ScalarType,
+                                  targetType: RuntimeTypes.ScalarType) extends
+  ScalarRef{
+    def getType = targetType
+
+    def instantiate(args: Executable*): TypeConversionScalar = {
+      val instantiatedScalar = scalar.instantiate(args:_*)
+
+      if(Executable.instantiated){
+        TypeConversionScalar(instantiatedScalar, sourceType, targetType)
+      }else{
+        this
+      }
+    }
+  }
+
+  case class TypeConversionMatrix(matrix: Matrix, sourceType: RuntimeTypes.MatrixType,
+                                  targetType: RuntimeTypes.MatrixType) extends
+  Matrix{
+
+    def instantiate(args: Executable*): TypeConversionMatrix = {
+      val instantiatedMatrix = matrix.instantiate(args:_*)
+
+      if(Executable.instantiated){
+        TypeConversionMatrix(instantiatedMatrix, sourceType, targetType)
       }else{
         this
       }
     }
 
-    override def getType = cellArrayType
-
-    def elements: List[CellArrayReference[ExpressionExecutable]] = {
-      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
-    }
+    def getType = targetType
   }
 
-  case class ConvergenceCurrentStateCellArrayPlaceholder(cellArrayType: RuntimeTypes.CellArrayType) extends
-  CellArrayBase{
-    def elements: List[CellArrayReference[ExpressionExecutable]] = {
-      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
+  case class linspace(start: ScalarRef, end: ScalarRef, numPoints: ScalarRef) extends Matrix {
+
+    def instantiate(args: Executable*): linspace = {
+      var anyInstantiated = false
+      val instantiatedStart = start.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedEnd = end.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedNumPoints = numPoints.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        linspace(instantiatedStart, instantiatedEnd, instantiatedNumPoints)
+      }else{
+        this
+      }
     }
 
-    def instantiate(args: Executable*): CellArrayBase = {
-      Executable.instantiated = false
-      this
-    }
-
-    override def getType = cellArrayType
+    def getType = MatrixType(DoubleType, Some(1), scalarRef2Int(numPoints))
   }
 
-  case class ConvergencePreviousStateCellArrayPlaceholder(cellArrayType: RuntimeTypes.CellArrayType) extends
-  CellArrayBase{
-    def elements: List[CellArrayReference[ExpressionExecutable]] = {
-      (cellArrayType.elementTypes zipWithIndex) map { case (x, index) => createCellArrayReference(x, index, this) }
+  case class repmat(matrix: Matrix, numRows: ScalarRef, numCols: ScalarRef) extends Matrix {
+    def getRows = {
+      (scalarRef2Int(numRows), matrix.rows) match {
+        case (Some(a), Some(b)) => Some(a*b)
+        case _ => None
+      }
     }
 
-    def instantiate(args: Executable*): CellArrayBase = {
-      Executable.instantiated = false
-      this
+    def getCols = {
+      (scalarRef2Int(numCols), matrix.cols) match {
+        case (Some(a), Some(b)) => Some(a*b)
+        case _ => None
+      }
     }
 
-    override def getType = cellArrayType
+    def instantiate(args: Executable*): repmat = {
+      var anyInstantiated = false
+      val instantiatedMatrix = matrix.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedNumRows = numRows.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedNumCols = numCols.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        repmat(instantiatedMatrix, instantiatedNumRows, instantiatedNumCols)
+      }else{
+        this
+      }
+    }
+
+    def getType = MatrixType(matrix.elementType, getRows, getCols)
+  }
+
+  case class pdist2(matrixA: Matrix, matrixB: Matrix) extends Matrix {
+
+    def instantiate(args: Executable*): pdist2 = {
+      var anyInstantiated = false
+      val instantiatedMatrixA = matrixA.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedMatrixB = matrixB.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        pdist2(instantiatedMatrixA, instantiatedMatrixB)
+      }else{
+        this
+      }
+    }
+
+    def getType = MatrixType(DoubleType, matrixA.rows, matrixB.rows)
+  }
+
+  case class minWithIndex(matrix: Matrix, dimension: ScalarRef) extends CellArrayBase{
+    def instantiate(args: Executable*): minWithIndex = {
+      var anyInstantiated = false
+      val instantiatedMatrix = matrix.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedDimension = dimension.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        minWithIndex(instantiatedMatrix, instantiatedDimension)
+      }else{
+        this
+      }
+    }
+
+    def getRowsCols = {
+      scalarRef2Int(dimension) match {
+        case None => (None, None)
+        case Some(1) => (Some(1), matrix.cols)
+        case Some(2) => (matrix.rows, Some(1))
+      }
+    }
+
+    override def getType = {
+      val (rows, cols) = getRowsCols
+      CellArrayType(List(MatrixType(DoubleType, rows, cols),
+        MatrixType(DoubleType, rows, cols)))
+    }
   }
 
 }

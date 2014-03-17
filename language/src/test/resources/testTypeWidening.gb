@@ -1,0 +1,7 @@
+1+true
+1+false
+x = false;
+1+x
+y = ones(2,2)
+c = y > 0
+y*c

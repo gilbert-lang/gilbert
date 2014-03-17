@@ -5,7 +5,7 @@ import org.scalatest.Assertions
 import org.junit.Test
 import definition.AbstractSyntaxTree._
 import definition.Operators._
-import definition.TypedAst._
+import definition.TypedAbstractSyntaxTree._
 import definition.Types._
 
 class LogicalOperationsTest extends Assertions {
@@ -19,7 +19,7 @@ class LogicalOperationsTest extends Assertions {
             TypedFloatingPoint(3.1), BooleanType)
         ))
     val typer = new Typer()
-    val result = typer.typeWithResolution(ast)
+    val result = typer.typeProgram(ast)
     
     expectResult(expected)(result)
   }
@@ -47,7 +47,7 @@ class LogicalOperationsTest extends Assertions {
             BooleanType)))
     
     val typer = new Typer{}
-    val result = typer.typeWithResolution(ast)
+    val result = typer.typeProgram(ast)
     
     expectResult(expected)(result)
   }

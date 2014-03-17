@@ -1,10 +1,8 @@
 package org.gilbertlang.runtime.execution.stratosphere
 
 import org.gilbertlang.runtime.Executor
-import eu.stratosphere.api.scala.operators.CsvInputFormat
+import eu.stratosphere.api.scala.operators.{DelimitedInputFormat, CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
 import eu.stratosphere.api.scala._
-import eu.stratosphere.api.scala.operators.CsvOutputFormat
-import eu.stratosphere.api.scala.operators.DelimitedOutputFormat
 import scala.collection.convert.WrapAsScala
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
@@ -15,11 +13,9 @@ import org.gilbertlang.runtime.execution.CellwiseFunctions
 import breeze.linalg.norm
 import breeze.linalg.*
 import org.gilbertlang.runtimeMacros.linalg.Configuration
-import eu.stratosphere.api.common.operators.Operator
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 import org.gilbertlang.runtime.RuntimeTypes._
-import scala.collection.mutable
 import org.gilbertlang.runtime.Executables.diag
 import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
 import org.gilbertlang.runtime.Executables.WriteMatrix
@@ -61,7 +57,6 @@ import org.gilbertlang.runtime.Executables.CellArrayReferenceString
 import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
 import org.gilbertlang.runtime.Executables.IterationStatePlaceholderCellArray
 import org.gilbertlang.runtime.Executables.MatrixScalarTransformation
-import org.gilbertlang.runtime.Executables.CellArrayReferenceFunction
 import org.gilbertlang.runtime.Executables.Transpose
 import org.gilbertlang.runtimeMacros.linalg.Partition
 import org.gilbertlang.runtime.RuntimeTypes.MatrixType
@@ -69,7 +64,7 @@ import org.gilbertlang.runtime.Executables.function
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 import eu.stratosphere.api.scala.CollectionDataSource
-import eu.stratosphere.types.{DoubleValue, IntValue, StringValue}
+import eu.stratosphere.types.{DoubleValue, StringValue}
 
 
 class StratosphereExecutor extends Executor with WrapAsScala {
@@ -99,17 +94,31 @@ class StratosphereExecutor extends Executor with WrapAsScala {
     executable match {
 
       case executable: WriteMatrix => {
-        handle[WriteMatrix, Matrix](
-          executable,
-          { exec => evaluate[Matrix](exec.matrix) },
-          { (_, matrix) =>
+        executable.matrix.getType match {
+          case MatrixType(DoubleType,_,_) =>
+            handle[WriteMatrix, Matrix](
+            executable,
+            { exec => evaluate[Matrix](exec.matrix) },
+            { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
               List(matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
-                ""),
-                  s"WriteMatrix($completePathWithFilename)"))
+                ""), s"WriteMatrix($completePathWithFilename)"))
             }
-          })
+            })
+          case MatrixType(BooleanType,_,_) =>
+            handle[WriteMatrix, BooleanMatrix](
+            executable,
+            { exec => evaluate[BooleanMatrix](exec.matrix) },
+            { (_, matrix) =>
+            {
+              val completePathWithFilename = newTempFileName()
+              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(SubmatrixBoolean.outputFormatter("\n", " "),
+                ""), s"WriteMatrix($completePathWithFilename)"))
+            }
+            })
+        }
+
       }
 
       case executable: WriteCellArray => {
@@ -125,7 +134,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             val loopIndex = index
             val filtered = cellArray filter { x => x.index == loopIndex}
             val sink = cellArrayType.elementTypes(index) match {
-              case MatrixType(DoubleType) =>
+              case MatrixType(DoubleType,_,_) =>
                 val mappedCell = filtered map { x => x.wrappedValue[Submatrix]}
                 mappedCell.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
                   ""),
@@ -831,7 +840,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             }
           })
       }
-  
+
       case compound: CompoundExecutable => {
         val executables = compound.executables flatMap { evaluate[List[ScalaSink[_]]](_) }
         new ScalaPlan(executables)
@@ -1254,11 +1263,11 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     element.asInstanceOf[Scalar[String]] map {
                       entry => CellEntry(index, ValueWrapper(entry))
                     }
-                  case MatrixType(DoubleType) =>
+                  case MatrixType(DoubleType,_,_) =>
                     element.asInstanceOf[Matrix] map {
                       entry => CellEntry(index, ValueWrapper(entry))
                     }
-                  case MatrixType(BooleanType) =>
+                  case MatrixType(BooleanType,_,_) =>
                     element.asInstanceOf[BooleanMatrix] map {
                       entry => CellEntry(index, ValueWrapper(entry))
                     }
@@ -1267,7 +1276,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                       entry => CellEntry(index, ValueWrapper(entry))
                     }
                   case Undefined | Void | FunctionType | Unknown |
-                    MatrixType(_) =>
+                    MatrixType(_,_,_) =>
                     throw new StratosphereExecutionError("Cannot create cell array from given type.")
                 }
             }
@@ -1315,10 +1324,10 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           val filtered = cellArray filter { x => x.index == exec.reference }
           val tpe = exec.getType
           tpe match {
-            case MatrixType(DoubleType) =>
+            case MatrixType(DoubleType,_,_) =>
               filtered map {
                 x => x.wrappedValue[Submatrix]}
-            case MatrixType(BooleanType) =>
+            case MatrixType(BooleanType,_,_) =>
               filtered map { x => x.wrappedValue[SubmatrixBoolean]}
           }
         }
@@ -1333,10 +1342,6 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           cellArray filter { x => x.index == exec.reference } map { x => x.wrappedValue[CellEntry]}
         }
         )
-      }
-
-      case executable: CellArrayReferenceFunction => {
-        throw new StratosphereExecutionError("Cannot execute function. Needs function application")
       }
 
       case function: function => {
@@ -1389,7 +1394,34 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         }
       }
 
+      case typeConversion: TypeConversionScalar => {
+        (typeConversion.sourceType, typeConversion.targetType) match {
+          case (BooleanType, DoubleType) =>
+            handle[TypeConversionScalar, Scalar[Boolean]](
+            typeConversion,
+            { input => evaluate[Scalar[Boolean]](input.scalar)},
+            { (_, scalar) =>  scalar map { x => if(x == true) 1.0 else 0.0} }
+            )
+        }
+      }
 
+      case typeConversion: TypeConversionMatrix => {
+        (typeConversion.sourceType, typeConversion.targetType) match {
+          case (MatrixType(BooleanType,_,_), MatrixType(DoubleType,_,_)) =>
+            handle[TypeConversionMatrix, BooleanMatrix](
+            typeConversion,
+            {input => evaluate[BooleanMatrix](input.matrix)},
+            {
+              (_, matrix) => matrix map { submatrix =>
+                Submatrix(submatrix.getPartition, submatrix.activeIterator map {
+                  case ((row,col), value) =>
+                    (row,col, if(value) 1.0 else 0.0)
+                  } toSeq
+                )
+              }
+            })
+        }
+      }
     }
   }
 }
