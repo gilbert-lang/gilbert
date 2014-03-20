@@ -52,11 +52,10 @@ object AbstractSyntaxTree {
   case class ASTFunctionReference(reference: ASTIdentifier) extends ASTExpression
 
   abstract sealed trait ASTCellExpression extends ASTExpression
-  case class ASTCellArrayIndexing(cellArray: ASTExpression, index: ASTInteger) extends
+  case class ASTCellArrayIndexing(cellArray: ASTExpression, index: ASTNumericLiteral) extends
   ASTCellExpression
   case class ASTCellArray(cells: List[ASTExpression]) extends ASTCellExpression
 
   sealed abstract class ASTScalar extends ASTExpression
-  case class ASTInteger(value: Int) extends ASTScalar
-  case class ASTFloatingPoint(value: Double) extends ASTScalar
+  case class ASTNumericLiteral(value: Double) extends ASTScalar
 }

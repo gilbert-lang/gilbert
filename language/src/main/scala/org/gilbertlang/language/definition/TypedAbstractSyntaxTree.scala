@@ -24,7 +24,6 @@ import org.gilbertlang.language.definition.Types.StringType
 import org.gilbertlang.language.definition.Types.MatrixType
 import org.gilbertlang.language.definition.Operators.UnaryOperator
 import org.gilbertlang.language.definition.Operators.BinaryOperator
-import org.gilbertlang.language.definition.Types.IntegerType
 import org.gilbertlang.language.definition.Types.DoubleType
 import org.gilbertlang.language.definition.Types.BooleanType
 
@@ -44,9 +43,9 @@ object TypedAbstractSyntaxTree {
   sealed abstract class TypedStatementOrFunction
 
   case class TypedFunction(values: List[TypedIdentifier], identifier: TypedIdentifier,
-                                  parameters: List[TypedIdentifier], body: TypedProgram) extends
+                           parameters: List[TypedIdentifier], body: TypedProgram) extends
   TypedStatementOrFunction
-
+  
   sealed abstract class TypedStatement extends TypedStatementOrFunction
 
   sealed abstract class TypedStatementWithResult extends TypedStatement
@@ -59,50 +58,49 @@ object TypedAbstractSyntaxTree {
     val datatype: Type
   }
 
-  case class TypeConversion(expression: TypedExpression, datatype: Type) extends TypedExpression
-
   case class TypedString(value: String) extends TypedExpression {
     val datatype = StringType
   }
-
+  
   case class TypedIdentifier(value: String, datatype: Type) extends TypedFunctionExpression
-
+  
   case class TypedMatrix(value: List[TypedMatrixRow], datatype: MatrixType) extends TypedExpression
-
+  
   case class TypedMatrixRow(value: List[TypedExpression])
-
+  
   case class TypedUnaryExpression(expression: TypedExpression, operator: UnaryOperator,
-                                         datatype: Type)
+                                  datatype: Type)
     extends TypedExpression
-
+  
   case class TypedBinaryExpression(leftExpression: TypedExpression, operator: BinaryOperator,
-                                   rightExpression: TypedExpression, datatype: Type) extends TypedExpression
-
+      rightExpression: TypedExpression, datatype: Type)
+    extends TypedExpression
+  
   case class TypedFunctionApplication(function: TypedFunctionExpression, args: List[TypedExpression], datatype: Type)
     extends TypedExpression
 
   sealed trait TypedFunctionExpression extends TypedExpression
   case class TypedAnonymousFunction(parameters: List[TypedIdentifier], body: TypedExpression,
-                                           closure: List[String], datatype: Type) extends TypedFunctionExpression
+                                    closure: List[String], datatype: Type) extends TypedFunctionExpression
   case class TypedFunctionReference(reference: TypedIdentifier, datatype: Type) extends TypedFunctionExpression
 
   sealed trait TypedCellExpression extends TypedExpression
   case class TypedCellArray(elements: List[TypedExpression], datatype: Type) extends TypedCellExpression
   case class TypedCellArrayIndexing(cellArray: TypedExpression, index: Int,
-                                           datatype: Type) extends TypedCellExpression
+                                    datatype: Type) extends TypedCellExpression
 
   sealed abstract class TypedScalar extends TypedExpression
 
-  case class TypedInteger(value: Int) extends TypedScalar {
-    val datatype = IntegerType
-  }
-
-  case class TypedFloatingPoint(value: Double) extends TypedScalar {
+  case class TypedNumericLiteral(value: Double) extends TypedScalar {
     val datatype = DoubleType
   }
-
+  
   case class TypedBoolean(value: Boolean) extends TypedExpression{
     val datatype = BooleanType
+  }
+
+  case class TypeConversion(expression: TypedExpression, targetType: Type) extends TypedExpression{
+    val datatype = targetType
   }
 
 }

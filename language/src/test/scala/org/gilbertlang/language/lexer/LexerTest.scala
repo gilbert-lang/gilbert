@@ -18,8 +18,8 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
 
   @Test def testMLexer() {
     val expected = List(Identifier("A"), Keyword("="), Identifier("load"), Keyword("("),
-      StringLiteral("path to file"), Keyword(","), IntegerLiteral(10), Keyword(","),
-      IntegerLiteral(10), Keyword(")"), Keyword("\n"), Identifier("B"), Keyword("="), Identifier("bin"),
+      StringLiteral("path to file"), Keyword(","), NumericLiteral(10), Keyword(","),
+      NumericLiteral(10), Keyword(")"), Keyword("\n"), Identifier("B"), Keyword("="), Identifier("bin"),
       Keyword("("), Identifier("A"), Keyword(")"), Keyword("\n"), Identifier("C"), Keyword("="),
       Identifier("B"), Keyword("\'"), Keyword("*"), Identifier("B"), Keyword("\n"), Identifier("D"),
       Keyword("="), Identifier("C"), Keyword("./"), Identifier("maxValue"), Keyword("("), Identifier("C"),
@@ -51,7 +51,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
   }
 
   @Test def testZeroLexing() {
-    val expected = List(Identifier("A"), Keyword("="), Identifier("rand"), Keyword("("), IntegerLiteral(0),
+    val expected = List(Identifier("A"), Keyword("="), Identifier("rand"), Keyword("("), NumericLiteral(0),
  Keyword(")"), EOF)
 
     val inputFileURL = ClassLoader.getSystemResource("zeroLexing.gb");

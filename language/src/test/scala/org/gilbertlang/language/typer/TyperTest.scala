@@ -3,16 +3,16 @@ package typer
 
 import org.junit.Test
 import definition.AbstractSyntaxTree._
-import definition.TypedAbstractSyntaxTree._
 import definition.Types._
 import definition.Values._
 import org.gilbertlang.language.definition.Operators.{GTOp, MultOp, DivOp, PlusOp}
+import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
 
 class TyperTest extends Comparisons {
 
   @Test def testProgram {
-    val ast = ASTProgram(List(ASTAssignment(ASTIdentifier("x"), ASTInteger(12))))
-    val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x", IntegerType), TypedInteger(12))))
+    val ast = ASTProgram(List(ASTAssignment(ASTIdentifier("x"), ASTNumericLiteral(12))))
+    val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x", DoubleType), TypedNumericLiteral(12))))
     val typer = new Typer()
     val result = typer.typeProgram(ast)
 
@@ -22,7 +22,7 @@ class TyperTest extends Comparisons {
   @Test def testCharacterIntegerUnification {
     val typer = new Typer()
 
-    expectResult(Some(IntegerType))(typer.unify(CharacterType, IntegerType))
+    expectResult(Some(DoubleType))(typer.unify(CharacterType, DoubleType))
   }
 
   @Test def testMatrixMatrixUnification1 {
@@ -31,8 +31,8 @@ class TyperTest extends Comparisons {
     
     val typer = new Typer()
 
-    expectResult(Some(MatrixType(IntegerType, IntValue(10), IntValue(42))))(typer.unify(MatrixType(newTV(), newVV(), IntValue(42)),
-      MatrixType(IntegerType, IntValue(10), newVV())))
+    expectResult(Some(MatrixType(DoubleType, IntValue(10), IntValue(42))))(typer.unify(MatrixType(newTV(), newVV(), IntValue(42)),
+      MatrixType(DoubleType, IntValue(10), newVV())))
   }
 
   @Test def testFunctionTyping {
@@ -43,7 +43,7 @@ class TyperTest extends Comparisons {
             TypedIdentifier(
               "X",
               MatrixType(
-                IntegerType,
+                DoubleType,
                 ValueVar(1),
                 ValueVar(2)
               )
@@ -54,7 +54,7 @@ class TyperTest extends Comparisons {
             FunctionType(
               List(
                 MatrixType(
-                  IntegerType,
+                  DoubleType,
                   UniversalValue(
                     ValueVar(1)
                   ),
@@ -64,7 +64,7 @@ class TyperTest extends Comparisons {
                 )
               ),
               MatrixType(
-                IntegerType,
+                DoubleType,
                 UniversalValue(
                   ValueVar(1)
                 ),
@@ -78,7 +78,7 @@ class TyperTest extends Comparisons {
             TypedIdentifier(
               "Y",
               MatrixType(
-                IntegerType,
+                DoubleType,
                 ValueVar(1),
                 ValueVar(2)
               )
@@ -91,7 +91,7 @@ class TyperTest extends Comparisons {
                   TypedIdentifier(
                     "X",
                     MatrixType(
-                      IntegerType,
+                      DoubleType,
                       ValueVar(1),
                       ValueVar(2)
                     )
@@ -100,15 +100,15 @@ class TyperTest extends Comparisons {
                     TypedIdentifier(
                       "Y",
                       MatrixType(
-                        IntegerType,
+                        DoubleType,
                         ValueVar(1),
                         ValueVar(2)
                       )
                     ),
                     PlusOp,
-                    TypedInteger(1),
+                    TypedNumericLiteral(1),
                     MatrixType(
-                      IntegerType,
+                      DoubleType,
                       ValueVar(1),
                       ValueVar(2)
                     )
@@ -126,8 +126,8 @@ class TyperTest extends Comparisons {
   }
 
   @Test def testTypeWideningNumeric {
-    val input = ASTBinaryExpression(ASTInteger(1), DivOp, ASTFloatingPoint(0.1))
-    val expected = TypedBinaryExpression(TypedInteger(1), DivOp, TypedFloatingPoint(0.1),DoubleType)
+    val input = ASTBinaryExpression(ASTNumericLiteral(1), DivOp, ASTNumericLiteral(0.1))
+    val expected = TypedBinaryExpression(TypedNumericLiteral(1), DivOp, TypedNumericLiteral(0.1),DoubleType)
     val typer = new Typer()
 
     val result = typer.typeExpression(input)
@@ -137,18 +137,18 @@ class TyperTest extends Comparisons {
 
   @Test def testCellArrayTyping {
     val filename = "testCellArrayTyping.gb"
-    val expected = TypedProgram(List(TypedCellArray(List(TypedBoolean(true), TypedBinaryExpression(TypedInteger(2),
-      PlusOp,TypedFloatingPoint(2.0),IntegerType), TypedFunctionApplication(TypedIdentifier("zeros",
-      FunctionType(List(IntegerType, IntegerType),MatrixType(DoubleType,ReferenceValue(0),ReferenceValue(1)))),
-      List(TypedInteger(10), TypedInteger(10)),MatrixType(DoubleType,IntValue(10),IntValue(10)))),
-      ConcreteCellArrayType(List(BooleanType, IntegerType, MatrixType(DoubleType,IntValue(10),IntValue(10)))))))
+    val expected = TypedProgram(List(TypedCellArray(List(TypedBoolean(true), TypedBinaryExpression(TypedNumericLiteral(2),
+      PlusOp,TypedNumericLiteral(2.0),DoubleType), TypedFunctionApplication(TypedIdentifier("zeros",
+      FunctionType(List(DoubleType, DoubleType),MatrixType(DoubleType,ReferenceValue(0),ReferenceValue(1)))),
+      List(TypedNumericLiteral(10), TypedNumericLiteral(10)),MatrixType(DoubleType,IntValue(10),IntValue(10)))),
+      ConcreteCellArrayType(List(BooleanType, DoubleType, MatrixType(DoubleType,IntValue(10),IntValue(10)))))))
     TestUtils.testTypingRessource(filename, expected)
   }
 
   @Test def testCellArrayIndexingTyping{
     val filename = "testCellArrayIndexingTyping.gb"
     val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x",ConcreteCellArrayType(List(BooleanType,
-      DoubleType))),TypedCellArray(List(TypedBoolean(true), TypedFloatingPoint(2.0)),
+      DoubleType))),TypedCellArray(List(TypedBoolean(true), TypedNumericLiteral(2.0)),
       ConcreteCellArrayType(List(BooleanType,
       DoubleType)))), TypedCellArrayIndexing(TypedIdentifier("x",ConcreteCellArrayType(List(BooleanType,
       DoubleType))),0,BooleanType)))
@@ -303,125 +303,91 @@ class TyperTest extends Comparisons {
             )
           )
         ),
-        TypedAssignment(
-          TypedIdentifier(
-            "a",
-            MatrixType(
-              DoubleType,
-              IntValue(10),
-              IntValue(10)
-            )
-          ),
-          TypedFunctionApplication(
+        TypedOutputResultStatement(
+          TypedAssignment(
             TypedIdentifier(
-              "f",
-              FunctionType(
-                List(
+              "a",
+              MatrixType(
+                DoubleType,
+                IntValue(10),
+                IntValue(10)
+              )
+            ),
+            TypedFunctionApplication(
+              TypedIdentifier(
+                "f",
+                FunctionType(
+                  List(
+                    MatrixType(
+                      DoubleType,
+                      IntValue(10),
+                      IntValue(10)
+                    )
+                  ),
                   MatrixType(
                     DoubleType,
                     IntValue(10),
                     IntValue(10)
                   )
-                ),
-                MatrixType(
-                  DoubleType,
-                  IntValue(10),
-                  IntValue(10)
                 )
-              )
-            ),
-            List(
-              TypedFunctionApplication(
-                TypedIdentifier(
-                  "zeros",
-                  FunctionType(
-                    List(
-                      IntegerType,
-                      IntegerType
-                    ),
-                    MatrixType(
-                      DoubleType,
-                      ReferenceValue(0),
-                      ReferenceValue(1)
+              ),
+              List(
+                TypedFunctionApplication(
+                  TypedIdentifier(
+                    "zeros",
+                    FunctionType(
+                      List(
+                        DoubleType,
+                        DoubleType
+                      ),
+                      MatrixType(
+                        DoubleType,
+                        ReferenceValue(0),
+                        ReferenceValue(1)
+                      )
                     )
+                  ),
+                  List(
+                    TypedNumericLiteral(10),
+                    TypedNumericLiteral(10)
+                  ),
+                  MatrixType(
+                    DoubleType,
+                    IntValue(10),
+                    IntValue(10)
                   )
-                ),
-                List(
-                  TypedInteger(10),
-                  TypedInteger(10)
-                ),
-                MatrixType(
-                  DoubleType,
-                  IntValue(10),
-                  IntValue(10)
                 )
+              ),
+              MatrixType(
+                DoubleType,
+                IntValue(10),
+                IntValue(10)
               )
-            ),
-            MatrixType(
-              DoubleType,
-              IntValue(10),
-              IntValue(10)
             )
           )
         ),
-        TypedAssignment(
-          TypedIdentifier(
-            "b",
-            MatrixType(
-              IntegerType,
-              IntValue(1),
-              IntValue(1)
-            )
-          ),
-          TypedFunctionApplication(
+        TypedOutputResultStatement(
+          TypedAssignment(
             TypedIdentifier(
-              "f",
-              FunctionType(
-                List(
-                  MatrixType(
-                    IntegerType,
-                    IntValue(1),
-                    IntValue(1)
-                  )
-                ),
-                MatrixType(
-                  IntegerType,
-                  IntValue(1),
-                  IntValue(1)
-                )
-              )
+              "b",
+              BooleanType
             ),
-            List(
-              TypedFunctionApplication(
-                TypedIdentifier(
-                  "ones",
-                  FunctionType(
-                    List(
-                      IntegerType,
-                      IntegerType
-                    ),
-                    MatrixType(
-                      IntegerType,
-                      ReferenceValue(0),
-                      ReferenceValue(1)
-                    )
-                  )
-                ),
-                List(
-                  TypedInteger(1),
-                  TypedInteger(1)
-                ),
-                MatrixType(
-                  IntegerType,
-                  IntValue(1),
-                  IntValue(1)
+            TypedFunctionApplication(
+              TypedIdentifier(
+                "f",
+                FunctionType(
+                  List(
+                    BooleanType
+                  ),
+                  BooleanType
                 )
-              )
-            ),
-            MatrixType(
-              IntegerType,
-              IntValue(1),
-              IntValue(1)
+              ),
+              List(
+                TypedBoolean(
+                  true
+                )
+              ),
+              BooleanType
             )
           )
         )
@@ -439,7 +405,7 @@ class TyperTest extends Comparisons {
           TypedIdentifier(
             "x",
             MatrixType(
-              IntegerType,
+              DoubleType,
               IntValue(1),
               IntValue(1)
             )
@@ -449,22 +415,22 @@ class TyperTest extends Comparisons {
               "ones",
               FunctionType(
                 List(
-                  IntegerType,
-                  IntegerType
+                  DoubleType,
+                  DoubleType
                 ),
                 MatrixType(
-                  IntegerType,
+                  DoubleType,
                   ReferenceValue(0),
                   ReferenceValue(1)
                 )
               )
             ),
             List(
-              TypedInteger(1),
-              TypedInteger(1)
+              TypedNumericLiteral(1),
+              TypedNumericLiteral(1)
             ),
             MatrixType(
-              IntegerType,
+              DoubleType,
               IntValue(1),
               IntValue(1)
             )
@@ -475,7 +441,7 @@ class TyperTest extends Comparisons {
             TypedIdentifier(
               "y",
               MatrixType(
-                IntegerType,
+                DoubleType,
                 ValueVar(67),
                 ValueVar(68)
               )
@@ -486,7 +452,7 @@ class TyperTest extends Comparisons {
             FunctionType(
               List(
                 MatrixType(
-                  IntegerType,
+                  DoubleType,
                   UniversalValue(
                     ValueVar(67)
                   ),
@@ -496,7 +462,7 @@ class TyperTest extends Comparisons {
                 )
               ),
               MatrixType(
-                IntegerType,
+                DoubleType,
                 UniversalValue(
                   ValueVar(67)
                 ),
@@ -510,7 +476,7 @@ class TyperTest extends Comparisons {
             TypedIdentifier(
               "z",
               MatrixType(
-                IntegerType,
+                DoubleType,
                 ValueVar(67),
                 ValueVar(68)
               )
@@ -522,7 +488,7 @@ class TyperTest extends Comparisons {
                 TypedIdentifier(
                   "y",
                   MatrixType(
-                    IntegerType,
+                    DoubleType,
                     ValueVar(67),
                     ValueVar(68)
                   )
@@ -531,15 +497,15 @@ class TyperTest extends Comparisons {
                   TypedIdentifier(
                     "z",
                     MatrixType(
-                      IntegerType,
+                      DoubleType,
                       ValueVar(67),
                       ValueVar(68)
                     )
                   ),
                   PlusOp,
-                  TypedInteger(1),
+                  TypedNumericLiteral(1),
                   MatrixType(
-                    IntegerType,
+                    DoubleType,
                     ValueVar(67),
                     ValueVar(68)
                   )
@@ -555,13 +521,13 @@ class TyperTest extends Comparisons {
               FunctionType(
                 List(
                   MatrixType(
-                    IntegerType,
+                    DoubleType,
                     IntValue(1),
                     IntValue(1)
                   )
                 ),
                 MatrixType(
-                  IntegerType,
+                  DoubleType,
                   IntValue(1),
                   IntValue(1)
                 )
@@ -571,14 +537,14 @@ class TyperTest extends Comparisons {
               TypedIdentifier(
                 "x",
                 MatrixType(
-                  IntegerType,
+                  DoubleType,
                   IntValue(1),
                   IntValue(1)
                 )
               )
             ),
             MatrixType(
-              IntegerType,
+              DoubleType,
               IntValue(1),
               IntValue(1)
             )
@@ -596,7 +562,7 @@ class TyperTest extends Comparisons {
       List(
         TypedOutputResultStatement(
           TypedBinaryExpression(
-            TypedInteger(1),
+            TypedNumericLiteral(1),
             PlusOp,
             TypeConversion(
               TypedBoolean(true),
@@ -607,7 +573,7 @@ class TyperTest extends Comparisons {
         ),
         TypedOutputResultStatement(
           TypedBinaryExpression(
-            TypedInteger(1),
+            TypedNumericLiteral(1),
             PlusOp,
             TypeConversion(
               TypedBoolean(false),
@@ -625,7 +591,7 @@ class TyperTest extends Comparisons {
         ),
         TypedOutputResultStatement(
           TypedBinaryExpression(
-            TypedInteger(1),
+            TypedNumericLiteral(1),
             PlusOp,
             TypeConversion(
               TypedIdentifier(
@@ -642,7 +608,7 @@ class TyperTest extends Comparisons {
             TypedIdentifier(
               "y",
               MatrixType(
-                IntegerType,
+                DoubleType,
                 IntValue(2),
                 IntValue(2)
               )
@@ -652,22 +618,22 @@ class TyperTest extends Comparisons {
                 "ones",
                 FunctionType(
                   List(
-                    IntegerType,
-                    IntegerType
+                    DoubleType,
+                    DoubleType
                   ),
                   MatrixType(
-                    IntegerType,
+                    DoubleType,
                     ReferenceValue(0),
                     ReferenceValue(1)
                   )
                 )
               ),
               List(
-                TypedInteger(2),
-                TypedInteger(2)
+                TypedNumericLiteral(2),
+                TypedNumericLiteral(2)
               ),
               MatrixType(
-                IntegerType,
+                DoubleType,
                 IntValue(2),
                 IntValue(2)
               )
@@ -688,13 +654,13 @@ class TyperTest extends Comparisons {
               TypedIdentifier(
                 "y",
                 MatrixType(
-                  IntegerType,
+                  DoubleType,
                   IntValue(2),
                   IntValue(2)
                 )
               ),
               GTOp,
-              TypedInteger(0),
+              TypedNumericLiteral(0),
               MatrixType(
                 BooleanType,
                 IntValue(2),
@@ -708,7 +674,7 @@ class TyperTest extends Comparisons {
             TypedIdentifier(
               "y",
               MatrixType(
-                IntegerType,
+                DoubleType,
                 IntValue(2),
                 IntValue(2)
               )

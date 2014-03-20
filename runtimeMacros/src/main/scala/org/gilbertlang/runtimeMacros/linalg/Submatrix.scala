@@ -33,8 +33,9 @@ case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnInd
 
   override def repr = this
 
-  def activeIterator = matrix.activeIterator
-  def activeKeysIterator = matrix.activeKeysIterator
+  def activeIterator = matrix.activeIterator map { case ((row, col), value) => ((row+ rowOffset, col + columnOffset),
+    value)}
+  def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}
   def activeValuesIterator = matrix.activeValuesIterator
 
   def activeSize = matrix.activeSize
@@ -86,14 +87,16 @@ object Submatrix extends SubmatrixOps {
       Submatrix(breeze.linalg.copy(submatrix.matrix), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
     }
   }
-    def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Double)]): Submatrix = {
-      import partitionInformation._
-      val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
-      val gilbertMatrix = GilbertMatrix(numRows, numColumns, adjustedEntries)
-      Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
-    }
-  
-    def apply(partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix = {
+
+  def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Double)]): Submatrix = {
+    import partitionInformation._
+    val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
+    val gilbertMatrix = GilbertMatrix(numRows, numColumns, adjustedEntries)
+    Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
+  }
+
+
+  def apply(partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix = {
       import partitionInformation._
       Submatrix(GilbertMatrix(numRows, numColumns, numNonZeroElements), rowIndex, columnIndex, rowOffset,
           columnOffset, numTotalRows, numTotalColumns)
@@ -122,7 +125,7 @@ object Submatrix extends SubmatrixOps {
       def apply(submatrix: Submatrix): String = {
         var result = "";
         for (((row, col), value) <- submatrix.activeIterator) {
-          result += ((row+1)+submatrix.rowOffset) + fieldDelimiter + ((col+1)+submatrix.columnOffset) + fieldDelimiter + 
+          result += (row+1) + fieldDelimiter + (col+1) + fieldDelimiter +
           value + elementDelimiter
 
         }
@@ -172,8 +175,8 @@ object Submatrix extends SubmatrixOps {
   implicit def canSliceRowSubmatrix: CanSlice2[Submatrix, Int, ::.type, Submatrix] = {
     new CanSlice2[Submatrix, Int, ::.type, Submatrix]{
       override def apply(submatrix: Submatrix, row: Int, ignored: ::.type) = {
-        Submatrix(submatrix.matrix(row, ::), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
-            submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
+        Submatrix(submatrix.matrix(row, ::), 0, submatrix.columnIndex, 0,
+            submatrix.columnOffset, 1, submatrix.totalColumns)
       }
     }
   }
@@ -181,8 +184,8 @@ object Submatrix extends SubmatrixOps {
   implicit def canSliceRowsSubmatrix: CanSlice2[Submatrix, Range, ::.type, Submatrix] = {
     new CanSlice2[Submatrix, Range, ::.type, Submatrix]{
       override def apply(submatrix: Submatrix, rows: Range, ignored: ::.type) = {
-        Submatrix(submatrix.matrix(rows, ::), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
-            submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
+        Submatrix(submatrix.matrix(rows, ::), 0, submatrix.columnIndex, 0,
+            submatrix.columnOffset, rows.size, submatrix.totalColumns)
       }
     }
   }
@@ -198,8 +201,8 @@ object Submatrix extends SubmatrixOps {
   implicit def canSliceColsSubmatrix: CanSlice2[Submatrix, ::.type, Range, Submatrix] = {
       new CanSlice2[Submatrix, ::.type, Range, Submatrix]{
         override def apply(submatrix: Submatrix, ignored: ::.type, cols: Range) = {
-          Submatrix(submatrix.matrix(::, cols), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset, 
-              submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
+          Submatrix(submatrix.matrix(::, cols), submatrix.rowIndex, 0, submatrix.rowOffset,
+              0, submatrix.totalRows, cols.size)
         }
       }
   }

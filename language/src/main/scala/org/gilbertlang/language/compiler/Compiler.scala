@@ -21,12 +21,12 @@ package org.gilbertlang.language.compiler
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
 import scala.Some
-import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
-import org.gilbertlang.language.definition.{Values, BuiltinSymbols, TypedAbstractSyntaxTree}
+import org.gilbertlang.language.definition.{TypedAbstractSyntaxTree, Values, BuiltinSymbols}
 import org.gilbertlang.language.definition.Types._
 import org.gilbertlang.language.definition.Operators._
 import scala.language.postfixOps
 import org.gilbertlang.runtime.RuntimeTypes
+import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
 
 trait Compiler {
   
@@ -72,7 +72,6 @@ trait Compiler {
       case StringType => "S"
       case BooleanType => "B"
       case CharacterType => "C"
-      case IntegerType => "I"
       case DoubleType => "D"
       case VoidType => "V"
       case MatrixType(elementTpe, _, _) => "M"
@@ -117,8 +116,7 @@ trait Compiler {
   def compileExpression(typedExpression: TypedExpression): ExpressionExecutable = {
     typedExpression match {
       case x: TypedIdentifier => compileIdentifier(x)
-      case x: TypedInteger => scalar(x.value)
-      case x: TypedFloatingPoint => scalar(x.value)
+      case x: TypedNumericLiteral => scalar(x.value)
       case x: TypedString => string(x.value)
       case x: TypedBoolean => boolean(x.value)
       case x: TypedUnaryExpression => compileUnaryExpression(x)
@@ -232,35 +230,35 @@ trait Compiler {
   // TODO: Support of scalar values as well
   def compileBuiltInSymbol(symbol: String, datatype: Type): ExpressionExecutable = {
     symbol match {
-      case "load$SII" => function(3, LoadMatrix(StringParameter(0), ScalarParameter(1), ScalarParameter(2)))
-      case "repmat$MII" => function(3, repmat(MatrixParameter(0), ScalarParameter(1), ScalarParameter(2)))
-      case "linspace$DDI" => function(3, linspace(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2)))
+      case "load$SDD" => function(3, LoadMatrix(StringParameter(0), ScalarParameter(1), ScalarParameter(2)))
+      case "repmat$MDD" => function(3, repmat(MatrixParameter(0), ScalarParameter(1), ScalarParameter(2)))
+      case "linspace$DDD" => function(3, linspace(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2)))
       case "pdist2$MM" => function(2, pdist2(MatrixParameter(0), MatrixParameter(1)))
-      case "minWithIndex$MI" => function(2, minWithIndex(MatrixParameter(0), ScalarParameter(1)))
-      case "ones$II" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
-      case "rand$IIDD" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
+      case "minWithIndex$MD" => function(2, minWithIndex(MatrixParameter(0), ScalarParameter(1)))
+      case "ones$DD" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
+      case "rand$DDDD" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
         ScalarParameter(3)))
-      case "zeros$II" => function(2, zeros(ScalarParameter(0), ScalarParameter(1)))
-      case "eye$II" => function(2, eye(ScalarParameter(0), ScalarParameter(1)))
+      case "zeros$DD" => function(2, zeros(ScalarParameter(0), ScalarParameter(1)))
+      case "eye$DD" => function(2, eye(ScalarParameter(0), ScalarParameter(1)))
       case "binarize$M" => function(1, CellwiseMatrixTransformation(MatrixParameter(0), Binarize))
       case "binarize$D" => function(1, UnaryScalarTransformation(ScalarParameter(0), Binarize))
       case "maxValue$M" => function(1, AggregateMatrixTransformation(MatrixParameter(0), Maximum))
       case "maxValue$D" => function(2, ScalarScalarTransformation(ScalarParameter(0), ScalarParameter(1), Maximum))
 
-      case "fixpoint$MFIF" => function(4, FixpointIteration(MatrixParameter(0),
+      case "fixpoint$MFDF" => function(4, FixpointIteration(MatrixParameter(0),
         FunctionParameter(1), ScalarParameter(2), FunctionParameter(3)))
 
-      case "fixpoint$MFI" => function(3, FixpointIteration(MatrixParameter(0), FunctionParameter(1),
+      case "fixpoint$MFD" => function(3, FixpointIteration(MatrixParameter(0), FunctionParameter(1),
         ScalarParameter(2), null))
 
-      case "fixpoint$CFIF" =>
+      case "fixpoint$CFDF" =>
         datatype match {
           case FunctionType(List(x:CellArrayType,_,_,_), _) => function(4, FixpointIterationCellArray(
             CellArrayParameter(0, createCellArrayRuntimeType(x)), FunctionParameter(1),ScalarParameter(2),
             FunctionParameter(3)))
         }
 
-      case "fixpoint$CFI" =>
+      case "fixpoint$CFD" =>
         datatype match {
           case FunctionType(List(x:CellArrayType, _, _), _) => function(3,
             FixpointIterationCellArray( CellArrayParameter(0, createCellArrayRuntimeType(x)), FunctionParameter(1),
@@ -272,7 +270,7 @@ trait Compiler {
         function(1, spones(MatrixParameter(0)))
       }
 
-      case "sum$MI" => {
+      case "sum$MD" => {
         function(2, sum(MatrixParameter(0), ScalarParameter(1)))
       }
 

@@ -25,7 +25,6 @@ class TypeFormatter extends Formatter[Type] {
   def prettyString(mtype: Type): String = {
 
     val result = mtype match {
-      case IntegerType => "Int"
       case DoubleType => "Double"
       case CharacterType => "Char"
       case StringType => "String"

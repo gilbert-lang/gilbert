@@ -2,8 +2,8 @@ package org.gilbertlang.language
 package format
 
 import definition.Types._
-import definition.TypedAbstractSyntaxTree._
 import definition.Operators.{TransposeOp, op2Str, CellwiseTransposeOp}
+import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
 
 abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
   private val typeFormatter = new TypeFormatter
@@ -73,8 +73,7 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
   def prettyString(expression: TypedExpression, indentation: Int): String = {
     (expression match {
       case x: TypedIdentifier => prettyString(x, indentation)
-      case TypedInteger(value) => str(value.toString, indentation)
-      case TypedFloatingPoint(value) => str(value.toString, indentation)
+      case TypedNumericLiteral(value) => str(value.toString, indentation)
       case TypedString(value) => str(value, indentation)
       case TypedUnaryExpression(exp, TransposeOp, _) => str("(", indentation) + prettyString(exp, 0) + str(")") +
         op2Str(TransposeOp)

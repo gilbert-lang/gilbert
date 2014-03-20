@@ -658,8 +658,87 @@ class CompilerTest extends Assertions {
 
   @Test def testTypeWidening{
     val filename = "testTypeWidening.gb"
-    val expected = CompoundExecutable(List())
-
+    val expected = CompoundExecutable(
+      List(
+        WriteScalar(
+          ScalarScalarTransformation(
+            scalar(1.0),
+            TypeConversionScalar(
+              boolean(true),
+              BooleanType,
+              DoubleType
+            ),
+            Addition
+          )
+        ),
+        WriteScalar(
+          ScalarScalarTransformation(
+            scalar(1.0),
+            TypeConversionScalar(
+              boolean(false),
+              BooleanType,
+              DoubleType
+            ),
+            Addition
+          )
+        ),
+        WriteScalar(
+          ScalarScalarTransformation(
+            scalar(1.0),
+            TypeConversionScalar(
+              boolean(false),
+              BooleanType,
+              DoubleType
+            ),
+            Addition
+          )
+        ),
+        WriteMatrix(
+          ones(
+            scalar(2.0),
+            scalar(2.0)
+          )
+        ),
+        WriteMatrix(
+          MatrixScalarTransformation(
+            ones(
+              scalar(2.0),
+              scalar(2.0)
+            ),
+            scalar(0.0),
+            GreaterThan
+          )
+        ),
+        WriteMatrix(
+          MatrixMult(
+            ones(
+              scalar(2.0),
+              scalar(2.0)
+            ),
+            TypeConversionMatrix(
+              MatrixScalarTransformation(
+                ones(
+                  scalar(2.0),
+                  scalar(2.0)
+                ),
+                scalar(0.0),
+                GreaterThan
+              ),
+              MatrixType(
+                BooleanType,
+                Some(2),
+                Some(2)
+              ),
+              MatrixType(
+                DoubleType,
+                Some(2),
+                Some(2)
+              )
+            )
+          )
+        )
+      )
+    )
     val result = Gilbert.compileRessource(filename)
     expectResult(expected)(result)
   }

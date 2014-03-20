@@ -49,17 +49,17 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
 
   def repmatType = {
     val (t,a,b) = newUTVV()
-    FunctionType((MatrixType(t,a,b), IntegerType, IntegerType), MatrixType(t,UndefinedValue, UndefinedValue))
+    FunctionType((MatrixType(t,a,b), DoubleType, DoubleType), MatrixType(t,UndefinedValue, UndefinedValue))
   }
 
   def linspaceType = {
-    FunctionType((DoubleType, DoubleType, IntegerType), MatrixType(DoubleType, IntValue(1), ReferenceValue(2)))
+    FunctionType((DoubleType, DoubleType, DoubleType), MatrixType(DoubleType, IntValue(1), ReferenceValue(2)))
   }
 
   def minWithIndexType = {
     val (t,a,b) = newUNTVV()
-    FunctionType((MatrixType(t,a,b), IntegerType), ConcreteCellArrayType(List(MatrixType(t,UndefinedValue,
-      UndefinedValue), MatrixType(IntegerType,UndefinedValue, UndefinedValue))))
+    FunctionType((MatrixType(t,a,b), DoubleType), ConcreteCellArrayType(List(MatrixType(t,UndefinedValue,
+      UndefinedValue), MatrixType(DoubleType,UndefinedValue, UndefinedValue))))
   }
 
   def pdist2Type = {
@@ -74,28 +74,28 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   }
   
   def eyeType = {
-    FunctionType((IntegerType, IntegerType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
+    FunctionType((DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
   }
   
   def zerosType = {
-    FunctionType((IntegerType, IntegerType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
+    FunctionType((DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
   }
   
   def randType = {
-    FunctionType((IntegerType, IntegerType, DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0), 
+    FunctionType((DoubleType, DoubleType, DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0),
         ReferenceValue(1)))
   }
 
   def loadType = {
-    FunctionType((StringType, IntegerType, IntegerType), MatrixType(DoubleType, ReferenceValue(1), ReferenceValue(2)))
+    FunctionType((StringType, DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(1), ReferenceValue(2)))
   }
 
   def binarizeType = {
-    val (t, a, b) = newUNTVV()
-    val numericType = untv
+    val a = uvv()
+    val b = uvv()
     PolymorphicType(List(
-      FunctionType(MatrixType(t, a, b), MatrixType(IntegerType, a, b)),
-      FunctionType(numericType, IntegerType)))
+      FunctionType(MatrixType(DoubleType, a, b), MatrixType(DoubleType, a, b)),
+      FunctionType(DoubleType, DoubleType)))
   }
 
   def maxValueType = {
@@ -112,15 +112,11 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   }
   
   def sumType = {
-    val (t, a, b) = newUTVV()
-    val t1 = utv
-    val a1 = uvv
-    val t2 = utv
-    val a2 = uvv
+    val (t, a, b) = newUNTVV()
     PolymorphicType(List(
-        FunctionType(MatrixType(t1, a1, IntValue(1)), MatrixType(t1, IntValue(1), IntValue(1))),
-        FunctionType(MatrixType(t2, IntValue(1), a2), MatrixType(t2, IntValue(1), IntValue(1))),
-        FunctionType((MatrixType(t, a, b), IntegerType), MatrixType(t, UndefinedValue, UndefinedValue))))
+        FunctionType(MatrixType(t, a, IntValue(1)), MatrixType(t, IntValue(1), IntValue(1))),
+        FunctionType(MatrixType(t, IntValue(1), a), MatrixType(t, IntValue(1), IntValue(1))),
+        FunctionType((MatrixType(t, a, b), DoubleType), MatrixType(t, UndefinedValue, UndefinedValue))))
   }
   
   def sumRowType = {
@@ -158,15 +154,15 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   
   def onesType = {
     PolymorphicType(List(
-        FunctionType(IntegerType, MatrixType(IntegerType, ReferenceValue(0),ReferenceValue(0))),
-        FunctionType((IntegerType, IntegerType), MatrixType(IntegerType, ReferenceValue(0), ReferenceValue(1)))))
+        FunctionType(DoubleType, MatrixType(DoubleType, ReferenceValue(0),ReferenceValue(0))),
+        FunctionType((DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))))
   }
   
   def fixpointType = {
     val t = utv
     PolymorphicType(List(
-    FunctionType((t, FunctionType(t, t), IntegerType,FunctionType((t,t), BooleanType)), t),
-    FunctionType((t, FunctionType(t,t), IntegerType), t)))
+    FunctionType((t, FunctionType(t, t), DoubleType,FunctionType((t,t), BooleanType)), t),
+    FunctionType((t, FunctionType(t,t), DoubleType), t)))
   }
   
   def writeType = {

@@ -1,0 +1,5 @@
+repIdx = ones(2,2);
+mask = ones(2,2);
+dimension=2;
+multiplier = repIdx == mask;
+sum(multiplier,2);

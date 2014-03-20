@@ -33,8 +33,9 @@ case class SubmatrixBoolean(var matrix: GilbertMatrixBoolean, var rowIndex: Int,
 
   override def repr = this
 
-  def activeIterator = matrix.activeIterator
-  def activeKeysIterator = matrix.activeKeysIterator
+  def activeIterator = matrix.activeIterator map { case ((row, col), value) => ((row+ rowOffset, col + columnOffset),
+    value)}
+  def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}
   def activeValuesIterator = matrix.activeValuesIterator
 
   def activeSize = matrix.activeSize
@@ -116,7 +117,7 @@ object SubmatrixBoolean extends SubmatrixBooleanOps {
       def apply(submatrix: SubmatrixBoolean): String = {
         var result = "";
         for (((row, col), value) <- submatrix.activeIterator) {
-          result += ((row+1)+submatrix.rowOffset) + fieldDelimiter + ((col+1)+submatrix.columnOffset) + fieldDelimiter + 
+          result += (row+1) + fieldDelimiter + (col+1) + fieldDelimiter +
           value + elementDelimiter
 
         }

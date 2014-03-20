@@ -287,6 +287,32 @@ object PlanPrinter {
         printIndented(depth, typeConversion, "TypeConversionMatrix")
         print(typeConversion.matrix, depth+1)
       }
+
+      case func: repmat => {
+        printIndented(depth, func, "Repmat")
+        print(func.matrix, depth+1)
+        print(func.numRows, depth+1)
+        print(func.numCols, depth+1)
+      }
+
+      case func: linspace => {
+        printIndented(depth, func, "Linspace")
+        print(func.start, depth+1)
+        print(func.end, depth+1)
+        print(func.numPoints, depth+1)
+      }
+
+      case func: pdist2 => {
+        printIndented(depth, func, "Pdist2")
+        print(func.matrixA, depth+1)
+        print(func.matrixB, depth+1)
+      }
+
+      case func: minWithIndex => {
+        printIndented(depth, func, "MinWithIndex")
+        print(func.matrix, depth+1)
+        print(func.dimension, depth+1)
+      }
     }
 
   }

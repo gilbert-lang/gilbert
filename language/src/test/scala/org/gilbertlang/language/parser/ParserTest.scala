@@ -13,7 +13,7 @@ class ParserTest extends Parser with Assertions {
 
   @Test def testParser {
     val expected = ASTProgram(List(ASTAssignment(ASTIdentifier("A"), ASTFunctionApplication(ASTIdentifier("load"),
-      List(ASTString("inputfile"), ASTInteger(10), ASTInteger(10)))), ASTAssignment(ASTIdentifier("B"),
+      List(ASTString("inputfile"), ASTNumericLiteral(10), ASTNumericLiteral(10)))), ASTAssignment(ASTIdentifier("B"),
       ASTFunctionApplication(ASTIdentifier("bin"), List(ASTIdentifier("A")))), ASTAssignment(ASTIdentifier("C"),
       ASTBinaryExpression(ASTUnaryExpression(ASTIdentifier("B"), TransposeOp), MultOp, ASTIdentifier("B"))),
       ASTOutputResultStatement(ASTAssignment(ASTIdentifier("D"), ASTBinaryExpression(ASTIdentifier("C"),
@@ -90,7 +90,7 @@ class ParserTest extends Parser with Assertions {
   @Test def testBooleanOperationParsing {
     val expected = ASTProgram(List(
     ASTAssignment(ASTIdentifier("x"), ASTBinaryExpression(
-    ASTBinaryExpression(ASTFloatingPoint(10.2), GTEOp, ASTFloatingPoint(3.2)),
+    ASTBinaryExpression(ASTNumericLiteral(10.2), GTEOp, ASTNumericLiteral(3.2)),
     LogicalAndOp,
     ASTBoolean(true)
     ))
@@ -106,15 +106,15 @@ class ParserTest extends Parser with Assertions {
       ASTCellArray(List(
         ASTBoolean(true),
         ASTBinaryExpression(
-          ASTInteger(5),
+          ASTNumericLiteral(5),
           MultOp,
-          ASTInteger(7)
+          ASTNumericLiteral(7)
         ),
         ASTFunctionApplication(
           ASTIdentifier("zeros"),
           List(
-            ASTInteger(10),
-            ASTInteger(10)
+            ASTNumericLiteral(10),
+            ASTNumericLiteral(10)
           )
         )
     ))
@@ -128,8 +128,8 @@ class ParserTest extends Parser with Assertions {
   @Test def testCellArrayIndexingParsing {
     val expected = ASTProgram(List(
       ASTCellArrayIndexing(
-        ASTCellArrayIndexing(ASTIdentifier("a"),ASTInteger(0)),
-        ASTInteger(1)
+        ASTCellArrayIndexing(ASTIdentifier("a"),ASTNumericLiteral(0)),
+        ASTNumericLiteral(1)
       )
     ))
     val filename = "testCellArrayIndexingParsing.gb"
@@ -143,7 +143,7 @@ class ParserTest extends Parser with Assertions {
       List(
         ASTAssignment(
           ASTIdentifier("x"),
-          ASTInteger(1)
+          ASTNumericLiteral(1)
         ),
         ASTFunction(
           List(
@@ -160,7 +160,7 @@ class ParserTest extends Parser with Assertions {
                 ASTBinaryExpression(
                   ASTIdentifier("z"),
                   PlusOp,
-                  ASTInteger(1)
+                  ASTNumericLiteral(1)
                 )
               )
             )

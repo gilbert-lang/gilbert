@@ -60,10 +60,7 @@ abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
       case ASTString(value) => {
         indentStr(indentation) + "String(\"" + value + "\")"
       }
-      case ASTInteger(value) => {
-        indentStr(indentation) + "Integer(" + value + ")"
-      }
-      case ASTFloatingPoint(value) => {
+      case ASTNumericLiteral(value) => {
         indentStr(indentation) + "FloatingPoint(" + value + ")"
       }
       case ASTIdentifier(id) => {

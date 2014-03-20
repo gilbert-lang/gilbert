@@ -322,6 +322,36 @@ abstract class DagWalker {
         visit(typeConversion.matrix)
         onLeave(typeConversion)
       }
+
+      case repmat: repmat => {
+        onArrival(repmat)
+        visit(repmat.matrix)
+        visit(repmat.numRows)
+        visit(repmat.numCols)
+        onLeave(repmat)
+      }
+
+      case linspace: linspace => {
+        onArrival(linspace)
+        visit(linspace.start)
+        visit(linspace.end)
+        visit(linspace.numPoints)
+        onLeave(linspace)
+      }
+
+      case pdist2: pdist2 => {
+        onArrival(pdist2)
+        visit(pdist2.matrixA)
+        visit(pdist2.matrixB)
+        onLeave(pdist2)
+      }
+
+      case minWithIndex: minWithIndex => {
+        onArrival(minWithIndex)
+        visit(minWithIndex.matrix)
+        visit(minWithIndex.dimension)
+        onLeave(minWithIndex)
+      }
     }
   }
 

@@ -1,15 +1,16 @@
-numCenters = 3
-dimension = 2
-numDatapoints = 10
-datapoints = load("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/examples/src/main/resources/datapoints.csv", numDatapoints, dimension)
-centers = load("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/examples/src/main/resources/centers.csv", numCenters, dimension)
-mask = repmat(linspace(1, numCenters, numCenters), numCenters, 1)
+numCenters = 3;
+dimension = 2;
+numDatapoints = 10;
+datapoints = load("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/examples/datapoints.csv", numDatapoints,dimension);
+centers = load("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/examples/centers.csv", numCenters, dimension);
+mask = repmat(linspace(1, numCenters, numCenters), numDatapoints, 1)';
 function newCenters = kmeansStep(centers)
   distances = pdist2(datapoints, centers);
   assignments = minWithIndex(distances, 2);
   repIdx = repmat(assignments{2}', numCenters, 1);
   multiplier = repIdx == mask;
   divisor = repmat(sum(multiplier,2),1, dimension);
-  newCenters = (multiplier*centers)./divisor;
+  newCenters = (multiplier*datapoints)./divisor;
 end
-kmeansStep(centers)
+eps = 0.1;
+fixpoint(centers,@kmeansStep, 10, @(prev, cur) norm(prev-cur, 2) < eps)

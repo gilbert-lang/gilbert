@@ -3,8 +3,8 @@ package typer
 
 import definition.Types._
 import definition.Values._
-import definition.TypedAbstractSyntaxTree._
 import org.scalatest.Assertions
+import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
 
 trait Comparisons extends Assertions {
   val universalTypeMapping = scala.collection.mutable.HashMap[AbstractTypeVar, AbstractTypeVar]()

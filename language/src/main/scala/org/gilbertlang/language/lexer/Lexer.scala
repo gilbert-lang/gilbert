@@ -63,14 +63,14 @@ trait Lexer extends Scanners with LanguageTokens {
 
         val d = (e::r).mkString("")
 
-        FloatingPointLiteral((a+b+l+c+d).toDouble)
+        NumericLiteral((a+b+l+c+d).toDouble)
     }
-      | digit ~ rep(digit) ~ '.' ~ rep(digit) ^^ { case h~t~p~r => FloatingPointLiteral((h + t.mkString("") + p  + r
+      | digit ~ rep(digit) ~ '.' ~ rep(digit) ^^ { case h~t~p~r => NumericLiteral((h + t.mkString("") + p  + r
       .mkString("")).toDouble) }
-      | '.' ~ digit ~ rep(digit) ^^ { case p ~ h ~ r => FloatingPointLiteral(("0" + p + h + r.mkString("")).toDouble) }
+      | '.' ~ digit ~ rep(digit) ^^ { case p ~ h ~ r => NumericLiteral(("0" + p + h + r.mkString("")).toDouble) }
       | digit ~ rep(digit) ^^ { 
         case h ~ t => 
-          IntegerLiteral((h::t).mkString("").toInt) 
+          NumericLiteral((h::t).mkString("").toDouble)
         }
       | whitespace ~ rep(whitespace) ^^ { case h ~ t => Whitespace(h + t.mkString(""))}
       | guard(Parser { in => if (isTransposable(previousToken)) Failure("failure",in) else Success("success",

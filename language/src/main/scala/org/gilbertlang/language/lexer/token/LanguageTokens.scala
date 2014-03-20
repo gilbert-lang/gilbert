@@ -34,12 +34,8 @@ trait LanguageTokens extends Tokens {
     def chars = "string " + string
   }
   
-  case class IntegerLiteral(value: Int) extends Token {
-    def chars = "integer " + value.toString
-  }
-  
-  case class FloatingPointLiteral(value: Double) extends Token {
-    def chars = "floating point " + value.toString
+  case class NumericLiteral(value: Double) extends Token {
+    def chars = "numeric literal " + value.toString
   }
   
   case class BooleanLiteral(value: Boolean) extends Token{

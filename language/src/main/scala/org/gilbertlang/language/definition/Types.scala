@@ -45,9 +45,8 @@ object Types {
   }
   
   private val wideableTypes = scala.collection.immutable.Map[Type, List[Type]](
-    IntegerType -> List(DoubleType),
-    CharacterType -> List(DoubleType, IntegerType),
-    BooleanType -> List(DoubleType, IntegerType)
+    CharacterType -> List(DoubleType),
+    BooleanType -> List(DoubleType)
   )
 
   def getElementType(tpe: Type): Type = {
@@ -103,7 +102,6 @@ object Types {
   case object BooleanType extends Type
 
   sealed trait NumericType extends Type
-  case object IntegerType extends NumericType
   case object DoubleType extends NumericType
 
   sealed trait StructuralType extends Type

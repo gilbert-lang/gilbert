@@ -36,7 +36,7 @@ trait Parser extends Parsers {
   val lexer = new Lexer with DiscardWhitespaces with DiscardComments {}
   type Elem = lexer.Token
 
-  import lexer.{Keyword, Identifier, StringLiteral, IntegerLiteral, FloatingPointLiteral,
+  import lexer.{Keyword, Identifier, StringLiteral, NumericLiteral,
  BooleanLiteral, EOF, TypeAnnotation}
   import Keywords._
   import Delimiters._
@@ -218,10 +218,10 @@ trait Parser extends Parsers {
   }
 
   def cellArrayIndexing = {
-    identifier ~ rep1(LBRACE ~> integerLiteral <~ RBRACE) ^^ {
+    identifier ~ rep1(LBRACE ~> numericLiteral <~ RBRACE) ^^ {
       case id ~ accesses =>
         //accommodate for the matlab index base => subtract 1
-        val shiftedAccesses = accesses map { case ASTInteger(value) => ASTInteger(value-1)}
+        val shiftedAccesses = accesses map { case ASTNumericLiteral(value) => ASTNumericLiteral(value-1)}
         shiftedAccesses.foldLeft[ASTExpression](id)(ASTCellArrayIndexing(_, _))
     }
   }
@@ -238,15 +238,10 @@ trait Parser extends Parsers {
         { case exp ~ LPAREN ~ args ~ RPAREN => ASTFunctionApplication(exp,args) }
   }
 
-  def scalar: Parser[ASTScalar] = integerLiteral | floatingPointLiteral
+  def scalar: Parser[ASTScalar] = numericLiteral
 
-  def integerLiteral = elem("integer", { case IntegerLiteral(_) => true case _ => false }) ^^
-    {
-      case IntegerLiteral(i) =>
-        ASTInteger(i)
-    }
-  def floatingPointLiteral = elem("floating point", { case FloatingPointLiteral(_) => true case _ => false }) ^^
-    { case FloatingPointLiteral(f) => ASTFloatingPoint(f) }
+  def numericLiteral = elem("numeric literal", { case NumericLiteral(_) => true case _ => false }) ^^
+    { case NumericLiteral(f) => ASTNumericLiteral(f) }
   def stringLiteral = elem("string", { case StringLiteral(_) => true case _ => false }) ^^
     { case StringLiteral(s) => ASTString(s) }
   def booleanLiteral = elem("boolean", { case BooleanLiteral(_) => true case _ => false}) ^^ 

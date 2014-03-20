@@ -6,13 +6,10 @@ import eu.stratosphere.api.scala._
 import scala.collection.convert.WrapAsScala
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
-import org.gilbertlang.runtimeMacros.linalg.Submatrix
-import org.gilbertlang.runtimeMacros.linalg.SubmatrixBoolean
-import org.gilbertlang.runtimeMacros.linalg.numerics
+import org.gilbertlang.runtimeMacros.linalg._
 import org.gilbertlang.runtime.execution.CellwiseFunctions
 import breeze.linalg.norm
 import breeze.linalg.*
-import org.gilbertlang.runtimeMacros.linalg.Configuration
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 import org.gilbertlang.runtime.RuntimeTypes._
@@ -46,7 +43,6 @@ import org.gilbertlang.runtime.Executables.sumCol
 import org.gilbertlang.runtime.Executables.string
 import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
 import org.gilbertlang.runtime.Executables.CellArrayExecutable
-import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
 import org.gilbertlang.runtime.Executables.sum
 import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
 import org.gilbertlang.runtime.Executables.spones
@@ -58,13 +54,65 @@ import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
 import org.gilbertlang.runtime.Executables.IterationStatePlaceholderCellArray
 import org.gilbertlang.runtime.Executables.MatrixScalarTransformation
 import org.gilbertlang.runtime.Executables.Transpose
-import org.gilbertlang.runtimeMacros.linalg.Partition
 import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.function
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 import eu.stratosphere.api.scala.CollectionDataSource
 import eu.stratosphere.types.{DoubleValue, StringValue}
+import org.gilbertlang.runtime.Executables.diag
+import org.gilbertlang.runtimeMacros.linalg.numerics
+import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
+import org.gilbertlang.runtime.Executables.WriteMatrix
+import org.gilbertlang.runtime.Executables.MatrixParameter
+import scala.Some
+import org.gilbertlang.runtime.Executables.ConvergenceCurrentStateCellArrayPlaceholder
+import org.gilbertlang.runtime.Executables.eye
+import org.gilbertlang.runtime.Executables.TypeConversionMatrix
+import org.gilbertlang.runtime.Executables.CellArrayReferenceCellArray
+import org.gilbertlang.runtime.Executables.FunctionParameter
+import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
+import org.gilbertlang.runtime.Executables.WriteFunction
+import org.gilbertlang.runtime.Executables.LoadMatrix
+import org.gilbertlang.runtime.Executables.randn
+import org.gilbertlang.runtime.Executables.CompoundExecutable
+import org.gilbertlang.runtime.Executables.UnaryScalarTransformation
+import org.gilbertlang.runtime.Executables.scalar
+import org.gilbertlang.runtime.Executables.ScalarMatrixTransformation
+import org.gilbertlang.runtime.Executables.StringParameter
+import org.gilbertlang.runtime.Executables.WriteScalar
+import org.gilbertlang.runtime.Executables.zeros
+import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.TypeConversionScalar
+import org.gilbertlang.runtime.Executables.ScalarParameter
+import org.gilbertlang.runtime.Executables.CellwiseMatrixTransformation
+import org.gilbertlang.runtime.Executables.CellArrayReferenceScalar
+import org.gilbertlang.runtime.Executables.MatrixMult
+import org.gilbertlang.runtime.Executables.boolean
+import org.gilbertlang.runtime.Executables.FixpointIterationCellArray
+import org.gilbertlang.runtime.Executables.sumCol
+import org.gilbertlang.runtime.Executables.string
+import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
+import org.gilbertlang.runtime.Executables.CellArrayExecutable
+import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
+import org.gilbertlang.runtime.Executables.sum
+import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
+import org.gilbertlang.runtime.Executables.spones
+import org.gilbertlang.runtime.Executables.ones
+import org.gilbertlang.runtime.Executables.AggregateMatrixTransformation
+import org.gilbertlang.runtime.Executables.WriteCellArray
+import org.gilbertlang.runtime.Executables.CellArrayReferenceString
+import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
+import org.gilbertlang.runtime.Executables.IterationStatePlaceholderCellArray
+import org.gilbertlang.runtime.Executables.MatrixScalarTransformation
+import org.gilbertlang.runtime.Executables.repmat
+import org.gilbertlang.runtime.Executables.Transpose
+import org.gilbertlang.runtime.Executables.ConvergencePreviousStateCellArrayPlaceholder
+import org.gilbertlang.runtimeMacros.linalg.Partition
+import org.gilbertlang.runtime.RuntimeTypes.MatrixType
+import org.gilbertlang.runtime.Executables.function
+import org.gilbertlang.runtime.Executables.sumRow
+import org.gilbertlang.runtime.Executables.WriteString
 
 
 class StratosphereExecutor extends Executor with WrapAsScala {
@@ -132,23 +180,35 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           while(index < cellArrayType.elementTypes.length){
             val completePathWithFilename = newTempFileName()
             val loopIndex = index
-            val filtered = cellArray filter { x => x.index == loopIndex}
+            val filtered = cellArray filter {
+              x =>
+                x.index == loopIndex
+            }
+
+            filtered.setName("WriteCellArray: Select entry")
             val sink = cellArrayType.elementTypes(index) match {
               case MatrixType(DoubleType,_,_) =>
-                val mappedCell = filtered map { x => x.wrappedValue[Submatrix]}
+                val mappedCell = filtered map {
+                  x =>
+                    x.wrappedValue[Submatrix]
+                }
+                mappedCell.setName("WriteCellArray: Unwrapped value Matrix(Double)")
                 mappedCell.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
                   ""),
                   s"WriteCellArray(Matrix[Double], $completePathWithFilename)")
               case StringType =>
                 val mappedCell =filtered map( x => x.wrappedValue[String])
+                mappedCell.setName("WriteCellArray: Unwrapped value String")
                 mappedCell.write(completePathWithFilename, CsvOutputFormat(),
                   s"WriteCellArray(String, $completePathWithFilename)")
               case DoubleType =>
                 val mappedCell = filtered map(x => x.wrappedValue[Double])
+                mappedCell.setName("WriteCellArray: Unwrapped value Double")
                 mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Double," +
                   s"$completePathWithFilename)")
               case BooleanType =>
                 val mappedCell = filtered map(x => x.wrappedValue[Boolean])
+                mappedCell.setName("WriteCellArray: Unwrapped value Boolean")
                 mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Boolean," +
                   s"$completePathWithFilename)")
             }
@@ -1421,6 +1481,326 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               }
             })
         }
+      }
+
+      case r: repmat => {
+        r.matrix.getType match {
+          case MatrixType(DoubleType, _, _) =>
+            handle[repmat, (Matrix, Scalar[Double], Scalar[Double])](
+              r,
+              {r => (evaluate[Matrix](r.matrix), evaluate[Scalar[Double]](r.numRows),
+                evaluate[Scalar[Double]](r.numCols))},
+              {
+                case (_, (matrix, rowsMult, colsMult)) =>
+                  val rowsColsMult = rowsMult cross colsMult map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+
+                  val newBlocks = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                    val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
+                      colsMult*matrix.totalColumns)
+                    val oldPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrix.totalRows,
+                      matrix.totalColumns)
+                    val rowIncrementor = oldPartitionPlan.maxRowIndex
+                    val colIncrementor = oldPartitionPlan.maxColumnIndex
+
+
+                    val result = for(rowIdx <- matrix.rowIndex until partitionPlan.maxRowIndex by rowIncrementor;
+                    colIdx <- matrix.columnIndex until partitionPlan.maxColumnIndex by colIncrementor) yield{
+                      val partition = partitionPlan.getPartition(rowIdx, colIdx)
+                      (partition.id, partition)
+                    }
+
+                    result.toIterator
+                  }
+
+                  newBlocks.setName("Repmat: New blocks")
+
+                  val repmatEntries = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                    val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
+                      rowsMult*matrix.totalRows, colsMult*matrix.totalColumns)
+
+                    matrix.activeIterator flatMap { case ((row, col), value) =>
+                      for(rMult <- 0 until rowsMult; cMult <- 0 until colsMult) yield {
+                        (partitionPlan.partitionId(rMult*matrix.totalRows + row, cMult*matrix.totalColumns + col),
+                          rMult*matrix.totalRows + row, cMult*matrix.totalColumns + col, value)
+                      }
+                    }
+                  }
+                  repmatEntries.setName("Repmat: Repeated entries")
+
+                  val result = newBlocks cogroup repmatEntries where { block => block._1} isEqualTo { entry => entry
+                    ._1} map {
+                    (blocks, entries) =>
+                      if(!blocks.hasNext){
+                        throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
+                      }
+
+                      val partition = blocks.next._2
+
+                      if (blocks.hasNext) {
+                        throw new IllegalArgumentError("LoadMatrix coGroup phase must have at most one block")
+                      }
+
+                      Submatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
+                  }
+                  result.setName("Repmat: Repeated matrix")
+                  result
+
+              }
+            )
+          case MatrixType(BooleanType, _, _) =>
+            handle[repmat, (BooleanMatrix, Scalar[Double], Scalar[Double])](
+            r,
+            {r => (evaluate[BooleanMatrix](r.matrix), evaluate[Scalar[Double]](r.numRows),
+              evaluate[Scalar[Double]](r.numCols))},
+            {
+              case (_, (matrix, rowsMult, colsMult)) =>
+                val rowsColsMult = rowsMult cross colsMult map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+
+                val newBlocks = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                  val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
+                    colsMult*matrix.totalColumns)
+                  val oldPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrix.totalRows,
+                    matrix.totalColumns)
+                  val rowIncrementor = oldPartitionPlan.maxRowIndex
+                  val colIncrementor = oldPartitionPlan.maxColumnIndex
+
+
+                  val result = for(rowIdx <- matrix.rowIndex until partitionPlan.maxRowIndex by rowIncrementor;
+                                   colIdx <- matrix.columnIndex until partitionPlan.maxColumnIndex by colIncrementor) yield{
+                    val partition = partitionPlan.getPartition(rowIdx, colIdx)
+                    (partition.id, partition)
+                  }
+
+                  result.toIterator
+                }
+
+                newBlocks.setName("Repmat: New blocks")
+
+                val repmatEntries = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                  val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
+                    rowsMult*matrix.totalRows, colsMult*matrix.totalColumns)
+
+                  matrix.activeIterator flatMap { case ((row, col), value) =>
+                    for(rMult <- 0 until rowsMult; cMult <- 0 until colsMult) yield {
+                      (partitionPlan.partitionId(rMult*matrix.totalRows + row, cMult*matrix.totalColumns + col),
+                        rMult*matrix.totalRows + row, cMult*matrix.totalColumns + col, value)
+                    }
+                  }
+                }
+                repmatEntries.setName("Repmat: Repeated entries")
+
+                val result = newBlocks cogroup repmatEntries where { block => block._1} isEqualTo { entry => entry
+                  ._1} map {
+                  (blocks, entries) =>
+                    if(!blocks.hasNext){
+                      throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
+                    }
+
+                    val partition = blocks.next._2
+
+                    if (blocks.hasNext) {
+                      throw new IllegalArgumentError("LoadMatrix coGroup phase must have at most one block")
+                    }
+
+                    SubmatrixBoolean(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
+                }
+                result.setName("Repmat: Repeated matrix")
+                result
+
+            }
+            )
+        }
+
+      }
+
+      case l: linspace => {
+        handle[linspace, (Scalar[Double], Scalar[Double], Scalar[Double])](
+        l,
+        { l => (evaluate[Scalar[Double]](l.start), evaluate[Scalar[Double]](l.end),
+          evaluate[Scalar[Double]](l.numPoints))},
+        { case (_,(start, end, numPoints)) =>
+          val startEnd = start cross end map { (start, end) => (start, end)}
+          startEnd.setName("Linspace: Start end pair")
+
+          val blocks = numPoints flatMap { num =>
+            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, 1, num.toInt)
+            for(partition <- partitionPlan.iterator) yield partition
+          }
+          blocks.setName("Linspace: New blocks")
+
+          val result = blocks cross startEnd map { case (block, (start, end)) =>
+            val spacing = (end-start)/(block.numTotalColumns-1)
+
+            val entries = for(counter <- 0 until block.numColumns) yield {
+              (0, counter + block.columnOffset, spacing * (counter + block.columnOffset)+start)
+            }
+            Submatrix(block, entries)
+          }
+          result.setName("Linspace: Linear spaced matrix")
+          result
+
+        }
+        )
+      }
+
+      case m: minWithIndex => {
+        handle[minWithIndex, (Matrix, Scalar[Double])](
+          m,
+          {m => (evaluate[Matrix](m.matrix), evaluate[Scalar[Double]](m.dimension))},
+          {
+            case (_, (matrix, dimension)) =>
+              val totalSizeDimension = matrix cross dimension map { (matrix, dim) =>
+                if(dim == 1){
+                  (1, matrix.totalColumns, dim)
+                }else if(dim == 2){
+                  (matrix.totalRows, 1, dim)
+                }else{
+                  throw new StratosphereExecutionError("minWithIndex does not support the dimension " + dim)
+                }
+              } reduceAll{ entries =>
+                if(entries.hasNext)
+                  entries.next()
+                else{
+                  throw new StratosphereExecutionError("minWithIndex result matrix has to have size distinct from (0," +
+                    "0)")
+                }
+              }
+              totalSizeDimension.setName("MinWithIndex: Total size with dimension")
+
+
+              val minPerBlock = matrix cross dimension flatMap { (matrix, dim) =>
+                if(dim == 1){
+                  val minPerColumn = for(column <- 0 until matrix.cols) yield{
+                    val (minRow, minValue) = matrix(::, column).iterator.minBy{ case (row, value) => value }
+                    (column + matrix.columnOffset, minRow, minValue)
+                  }
+                  minPerColumn.toIterator
+                }else if(dim == 2){
+                  val minPerRow = for(row <- 0 until matrix.rows) yield {
+                    val ((_,minCol), minValue) = matrix(row, ::).iterator.minBy { case (col, value) => value }
+                    (row + matrix.rowOffset, minCol, minValue)
+                  }
+                  minPerRow.toIterator
+                }else{
+                  throw new StratosphereExecutionError("minWithIndex does not support the dimension "+ dim)
+                }
+              }
+              minPerBlock.setName("MinWithIndex: Min per block")
+
+              val minIndexValue = (minPerBlock groupBy { entry => entry._1}).combinableReduceGroup{ entries =>
+                entries minBy ( x => x._3)
+              }
+              minIndexValue.setName("MinWithIndex: argmin and min value")
+
+              val newBlocks = totalSizeDimension flatMap { case (rows, cols, _) =>
+                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+                for(partition <- partitionPlan.toIterator) yield {
+                  (partition.id, partition)
+                }
+              }
+              newBlocks.setName("MinWithIndex: New blocks")
+              val partitionedMinIndexValue = minIndexValue cross totalSizeDimension map { (mIdxValue, sizeDimension) =>
+                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, sizeDimension._1,
+                  sizeDimension._2)
+
+                if(sizeDimension._3 == 1){
+                  val partitionId = partitionPlan.partitionId(0, mIdxValue._1)
+                  (partitionId, 0, mIdxValue._1, mIdxValue._2, mIdxValue._3)
+                }else if(sizeDimension._3 == 2){
+                  val partitionId = partitionPlan.partitionId(mIdxValue._1, 0)
+                  (partitionId, mIdxValue._1, 0, mIdxValue._2, mIdxValue._3)
+                }else{
+                  throw new StratosphereExecutionError("minWithIndex does not support the dimension "+ sizeDimension
+                    ._3)
+                }
+              }
+              partitionedMinIndexValue.setName("MinWithIndex: Partitioned argmin and min value")
+
+              val minValues = newBlocks cogroup partitionedMinIndexValue where ( x => x._1) isEqualTo( x => x._1) map {
+                (blocks, entries) =>
+                  val minValues = entries map {
+                    case (_, row, col, _, value) =>
+                      (row,col,value)
+                  }
+
+                  if(!blocks.hasNext){
+                    throw new IllegalArgumentError("MinWithIndex coGroup phase must have at least one block")
+                  }
+
+                  val partition = blocks.next._2
+
+                  if (blocks.hasNext) {
+                    throw new IllegalArgumentError("MinWithIndex coGroup phase must have at most one block")
+                  }
+
+                  val minValuesSeq = minValues.toList
+                  CellEntry(0,ValueWrapper(Submatrix(partition, minValuesSeq)))
+              }
+              minValues.setName("MinWithIndex: Min values cell entry")
+
+              val minIndices = newBlocks cogroup partitionedMinIndexValue where ( x => x._1) isEqualTo( x => x._1) map
+              { (blocks, entries) =>
+                  val minIndices = entries map { case (_, row, col, minIndex, _) => (row,col,(minIndex+1).toDouble)}
+
+                  if(!blocks.hasNext){
+                    throw new IllegalArgumentError("MinWithIndex coGroup phase must have at least one block")
+                  }
+
+                  val partition = blocks.next._2
+
+                  if (blocks.hasNext) {
+                    throw new IllegalArgumentError("MinWithIndex coGroup phase must have at most one block")
+                  }
+
+                  CellEntry(1,ValueWrapper(Submatrix(partition, minIndices.toSeq)))
+              }
+              minIndices.setName("MinWithIndex: Min indices cell entry")
+
+              val result = minValues union minIndices
+              result.setName("MinWithIndex: Cell array")
+              result
+
+          }
+        )
+      }
+
+      case p: pdist2 => {
+        handle[pdist2, (Matrix, Matrix)](
+          p,
+          {p => (evaluate[Matrix](p.matrixA), evaluate[Matrix](p.matrixB)) },
+          {
+            case (_,(matrixA, matrixB)) =>
+              val partialSqDiffs = matrixA join matrixB where { a => a.columnIndex } isEqualTo
+                { b => b.columnIndex } map {
+                (a,b) =>
+                  val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, a.totalRows, b.totalRows)
+                  val newEntries = for(rowA <- 0 until a.rows; rowB <- 0 until b.rows) yield {
+                    val diff = a(rowA,::) - b(rowB,::)
+                    val diffsq = diff :^ 2.0
+                    val summedDiff = breeze.linalg.sum(diffsq)
+                    (rowA + a.rowOffset, rowB + b.rowOffset, summedDiff)
+                  }
+
+                  val partition = partitionPlan.getPartition(a.rowIndex, b.rowIndex)
+                  Submatrix(partition, newEntries.toSeq)
+              }
+              partialSqDiffs.setName("Pdist2: Partial squared diffs")
+
+              val pdist2 = partialSqDiffs groupBy( x => (x.rowIndex, x.columnIndex)) combinableReduceGroup {
+                diffs =>
+                  if(!diffs.hasNext){
+                    throw new StratosphereExecutionError("Diffs is empty")
+                  }
+
+                  val first = diffs.next
+
+                  val summedDiffs = diffs.foldLeft(first)(_ + _)
+                  summedDiffs :^ (0.5)
+              }
+              pdist2.setName("Pdist2: pair wise distance matrix")
+              pdist2
+          }
+        )
       }
     }
   }
