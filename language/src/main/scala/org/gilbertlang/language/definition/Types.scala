@@ -67,14 +67,14 @@ object Types {
             if(parametersA.length != parametersB.length){
               false
             }else{
-              (parametersA zip parametersB forall { case (a,b) => structuralCompatible(a,
-                b) }) && structuralCompatible(valueA, valueB)
+              (parametersA zip parametersB forall { case (parameterA,parameterB) => structuralCompatible(parameterA,
+                parameterB) }) && structuralCompatible(valueA, valueB)
             }
           case (PolymorphicType(typesA), PolymorphicType(typesB)) =>
             if(typesA.length != typesB.length){
               false
             }else{
-              typesA zip typesB forall { case (a,b) => structuralCompatible(a,b)}
+              typesA zip typesB forall { case (typeA,typeB) => structuralCompatible(typeA,typeB)}
             }
           case (a: CellArrayType, b: CellArrayType) =>
             val typesA = a.types
@@ -83,7 +83,7 @@ object Types {
             if(typesA.length != typesB.length){
               false
             }else{
-              typesA zip typesB forall { case (a,b) => structuralCompatible(a,b)}
+              typesA zip typesB forall { case (typeA,typeB) => structuralCompatible(typeA,typeB)}
             }
           case _ => false
         }

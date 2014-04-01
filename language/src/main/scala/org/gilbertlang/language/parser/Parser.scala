@@ -74,7 +74,7 @@ trait Parser extends Parsers {
 
   def functionValues = (identifier <~ EQ ^^ { i => List(i) }
     | (LBRACKET ~> identifierList) <~ RBRACKET <~ EQ
-    | failure("function value expected"))
+    | failure("function scalarRef expected"))
 
   def functionParams = LPAREN ~> identifierList <~ RPAREN
 

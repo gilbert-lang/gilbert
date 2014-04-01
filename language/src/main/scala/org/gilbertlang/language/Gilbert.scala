@@ -43,7 +43,7 @@ object Gilbert {
     
     val ast = parser.parse(reader) match {
       case None => throw new ParseError("Could not parse input")
-      case Some(ast) => ast
+      case Some(astValue) => astValue
     }
     
     val typedAST = typer.typeProgram(ast)

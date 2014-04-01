@@ -44,7 +44,7 @@ object Values {
   abstract class Value
   case class ValueVar(id: Int = -1) extends Value
   case class IntValue(value: Int) extends Value
-  //case class ExpressionValue(value: TypedExpression) extends MValue
+  //case class ExpressionValue(scalarRef: TypedExpression) extends MValue
   case class ReferenceValue(reference: Int) extends Value
   case class UniversalValue(value: ValueVar) extends Value{
 //    override def equals(uv: Any): Boolean = {

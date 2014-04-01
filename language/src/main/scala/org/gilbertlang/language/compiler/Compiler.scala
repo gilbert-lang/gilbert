@@ -209,11 +209,11 @@ trait Compiler {
                   val instantiatedFunction = instantiateFunctionDefinition(id, parameters)
                   instantiatedFunction match {
                     case VoidExecutable => VoidExecutable
-                    case x =>
+                    case _ =>
                       assign(id+typeSuffix, instantiatedFunction)
                       instantiatedFunction
                   }
-                case x => x
+                case y => y
               }
             }
           case _ =>
@@ -422,7 +422,7 @@ trait Compiler {
         val arguments = functionApplication.args map { compileExpression }
         body.instantiate(arguments:_*) match {
         case x:ExpressionExecutable => x
-        case _ => throw new TypeCompileError("Return value of a function has to be an expression")
+        case _ => throw new TypeCompileError("Return scalarRef of a function has to be an expression")
       }
       case _ => throw new TypeCompileError("Id has to be of a function type")
     }
@@ -437,11 +437,11 @@ trait Compiler {
       case None => throw new CompileError("Function " + id + " is not registered.")
     }
 
-    assignments foreach { case (id, value) => compiler.assign(id, value) }
+    assignments foreach { case (assignmentID, value) => compiler.assign(assignmentID, value) }
 
     if( parameterTypes.length >= typedFunction.parameters.length){
       val parameterNames = typedFunction.parameters map { parameter => parameter.value }
-      ((parameterNames zip parameterTypes) zipWithIndex) map { case ((id, tpe), idx) => compiler.addParameter(id,tpe,
+      ((parameterNames zip parameterTypes) zipWithIndex) map { case ((parameterID, tpe), idx) => compiler.addParameter(parameterID,tpe,
       idx)}
 
       compiler.compile(typedFunction.body)

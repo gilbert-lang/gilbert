@@ -146,23 +146,23 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   x =>
                     x.wrappedValue[Submatrix]
                 }
-                mappedCell.setName("WriteCellArray: Unwrapped value Matrix(Double)")
+                mappedCell.setName("WriteCellArray: Unwrapped scalarRef Matrix(Double)")
                 mappedCell.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
                   ""),
                   s"WriteCellArray(Matrix[Double], $completePathWithFilename)")
               case StringType =>
                 val mappedCell =filtered map( x => x.wrappedValue[String])
-                mappedCell.setName("WriteCellArray: Unwrapped value String")
+                mappedCell.setName("WriteCellArray: Unwrapped scalarRef String")
                 mappedCell.write(completePathWithFilename, CsvOutputFormat(),
                   s"WriteCellArray(String, $completePathWithFilename)")
               case DoubleType =>
                 val mappedCell = filtered map(x => x.wrappedValue[Double])
-                mappedCell.setName("WriteCellArray: Unwrapped value Double")
+                mappedCell.setName("WriteCellArray: Unwrapped scalarRef Double")
                 mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Double," +
                   s"$completePathWithFilename)")
               case BooleanType =>
                 val mappedCell = filtered map(x => x.wrappedValue[Boolean])
-                mappedCell.setName("WriteCellArray: Unwrapped value Boolean")
+                mappedCell.setName("WriteCellArray: Unwrapped scalarRef Boolean")
                 mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Boolean," +
                   s"$completePathWithFilename)")
             }
@@ -654,8 +654,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { (_, matrix) =>
             {
               matrix map {
-                case Submatrix(matrix, rowIdx, columnIdx, rowOffset, columnOffset, numTotalRows, numTotalColumns) =>
-                  Submatrix(matrix.t, columnIdx, rowIdx, columnOffset, rowOffset, numTotalColumns,
+                case Submatrix(gilbertMatrix, rowIdx, columnIdx, rowOffset, columnOffset, numTotalRows, numTotalColumns) =>
+                  Submatrix(gilbertMatrix.t, columnIdx, rowIdx, columnOffset, rowOffset, numTotalColumns,
                     numTotalRows)
               }
             }
@@ -736,16 +736,16 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               val rowsCols = rows cross cols
               val rowsColsPair = rowsCols map { (rows, cols) => (rows.toInt, cols.toInt)}
 
-              val blocks = rowsColsPair flatMap { case (rows, cols) =>
-                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+              val blocks = rowsColsPair flatMap { case (numRows, numCols) =>
+                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, numRows, numCols)
                 for (partition <- partitionPlan.iterator) yield {
                   (partition.id, partition)
                 }
               }
 
               val partitionedData = rowsColsPair cross source map {
-                case ((rows, cols), (row, column, value)) =>
-                  val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+                case ((numRows, numCols), (row, column, value)) =>
+                  val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, numRows, numCols)
                   (partitionPlan.partitionId(row-1, column-1), row-1, column-1, value)
               }
 
@@ -834,14 +834,14 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               evaluate[Scalar[Double]](exec.mean), evaluate[Scalar[Double]](exec.std))
           },
           {
-            case (_, (rows, cols, mean, std)) =>
-              val rowsCols = rows cross cols map { (rows, cols) => (rows, cols) }
-              rowsCols.setName("Randn: Rows and cols combined")
+            case (_, (rowsDS, colsDS, meanDS, stdDS)) =>
+              val rowsColsDS = rowsDS cross colsDS map { (rows, cols) => (rows, cols) }
+              rowsColsDS.setName("Randn: Rows and cols combined")
 
-              val rowsColsMean = rowsCols cross mean map { case ((rows, cols), mean) => (rows, cols, mean) }
+              val rowsColsMean = rowsColsDS cross meanDS map { case ((rows, cols), mean) => (rows, cols, mean) }
               rowsColsMean.setName("Randn: Rows, cols and mean combined")
 
-              val randomPartitions = rowsColsMean cross std flatMap
+              val randomPartitions = rowsColsMean cross stdDS flatMap
                 {
                   case ((rows, cols, mean), std) =>
                     val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, cols.toInt)
@@ -1044,7 +1044,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       case IterationStatePlaceholder =>
         iterationStatePlaceholderValue match {
           case Some(value) => value
-          case None => throw new StratosphereExecutionError("The iteration state placeholder value was not set yet.")
+          case None => throw new StratosphereExecutionError("The iteration state placeholder scalarRef was not set yet.")
         }
 
       case executable: FixpointIterationCellArray =>
@@ -1097,7 +1097,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       case _:IterationStatePlaceholderCellArray =>
         iterationStatePlaceholderValueCellArray match {
           case Some(value) => value
-          case None => throw new StratosphereExecutionError("The iteration state placeholder value was not set yet.")
+          case None => throw new StratosphereExecutionError("The iteration state placeholder scalarRef was not set yet.")
         }
 
       case executable: sum =>
@@ -1262,26 +1262,26 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       case ConvergencePreviousStatePlaceholder =>
         convergencePreviousStateValue match {
           case Some(matrix) => matrix
-          case None => throw new StratosphereExecutionError("Convergence previous state value has not been set.")
+          case None => throw new StratosphereExecutionError("Convergence previous state scalarRef has not been set.")
         }
 
       case ConvergenceCurrentStatePlaceholder =>
         convergenceCurrentStateValue match {
           case Some(matrix) => matrix
-          case None => throw new StratosphereExecutionError("Convergence current state value has not been set.")
+          case None => throw new StratosphereExecutionError("Convergence current state scalarRef has not been set.")
         }
 
       case placeholder: ConvergenceCurrentStateCellArrayPlaceholder =>
         convergenceCurrentStateCellArrayValue match {
           case Some(cellArray) => cellArray
-          case None => throw new StratosphereExecutionError("Convergence current state cell array value has not been " +
+          case None => throw new StratosphereExecutionError("Convergence current state cell array scalarRef has not been " +
             "set.")
         }
 
       case placeholder: ConvergencePreviousStateCellArrayPlaceholder =>
         convergencePreviousStateCellArrayValue match {
           case Some(cellArray) => cellArray
-          case None => throw new StratosphereExecutionError("Convergence previous state cell array value has not been" +
+          case None => throw new StratosphereExecutionError("Convergence previous state cell array scalarRef has not been" +
             " set.")
         }
 
@@ -1320,10 +1320,10 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               {r => (evaluate[Matrix](r.matrix), evaluate[Scalar[Double]](r.numRows),
                 evaluate[Scalar[Double]](r.numCols))},
               {
-                case (_, (matrix, rowsMult, colsMult)) =>
-                  val rowsColsMult = rowsMult cross colsMult map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+                case (_, (matrixDS, rowsMultDS, colsMultDS)) =>
+                  val rowsColsMult = rowsMultDS cross colsMultDS map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
 
-                  val newBlocks = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                  val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                     val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
                       colsMult*matrix.totalColumns)
                     val oldPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrix.totalRows,
@@ -1343,7 +1343,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
                   newBlocks.setName("Repmat: New blocks")
 
-                  val repmatEntries = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                  val repmatEntries = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                     val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
                       rowsMult*matrix.totalRows, colsMult*matrix.totalColumns)
 
@@ -1382,10 +1382,10 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             {r => (evaluate[BooleanMatrix](r.matrix), evaluate[Scalar[Double]](r.numRows),
               evaluate[Scalar[Double]](r.numCols))},
             {
-              case (_, (matrix, rowsMult, colsMult)) =>
-                val rowsColsMult = rowsMult cross colsMult map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+              case (_, (matrixDS, rowsMultDS, colsMultDS)) =>
+                val rowsColsMult = rowsMultDS cross colsMultDS map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
 
-                val newBlocks = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                   val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
                     colsMult*matrix.totalColumns)
                   val oldPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrix.totalRows,
@@ -1405,7 +1405,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
                 newBlocks.setName("Repmat: New blocks")
 
-                val repmatEntries = matrix cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                val repmatEntries = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                   val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
                     rowsMult*matrix.totalRows, colsMult*matrix.totalColumns)
 
@@ -1445,11 +1445,11 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         l,
         { l => (evaluate[Scalar[Double]](l.start), evaluate[Scalar[Double]](l.end),
           evaluate[Scalar[Double]](l.numPoints))},
-        { case (_,(start, end, numPoints)) =>
-          val startEnd = start cross end map { (start, end) => (start, end)}
+        { case (_,(startDS, endDS, numPointsDS)) =>
+          val startEnd = startDS cross endDS map { (start, end) => (start, end)}
           startEnd.setName("Linspace: Start end pair")
 
-          val blocks = numPoints flatMap { num =>
+          val blocks = numPointsDS flatMap { num =>
             val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, 1, num.toInt)
             for(partition <- partitionPlan.iterator) yield partition
           }
@@ -1516,7 +1516,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               val minIndexValue = (minPerBlock groupBy { entry => entry._1}).combinableReduceGroup{ entries =>
                 entries minBy ( x => x._3)
               }
-              minIndexValue.setName("MinWithIndex: argmin and min value")
+              minIndexValue.setName("MinWithIndex: argmin and min scalarRef")
 
               val newBlocks = totalSizeDimension flatMap { case (rows, cols, _) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
@@ -1540,7 +1540,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     ._3)
                 }
               }
-              partitionedMinIndexValue.setName("MinWithIndex: Partitioned argmin and min value")
+              partitionedMinIndexValue.setName("MinWithIndex: Partitioned argmin and min scalarRef")
 
               val minValues = newBlocks cogroup partitionedMinIndexValue where ( x => x._1) isEqualTo( x => x._1) map {
                 (blocks, entries) =>

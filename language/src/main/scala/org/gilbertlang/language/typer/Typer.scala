@@ -114,7 +114,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         resolveType(datatype))
       case TypedCellArrayIndexing(cellArray, index, datatype) => TypedCellArrayIndexing(finalizeTyping
         (cellArray), index , resolveType(datatype))
-      case TypeConversion(expression, tpe) => TypeConversion(finalizeTyping(expression), resolveType(tpe))
+      case TypeConversion(expressionToConvert, tpe) => TypeConversion(finalizeTyping(expressionToConvert), resolveType(tpe))
     }
   }
   
@@ -213,7 +213,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case TypedIdentifier(id, _) =>
         getValue(id) match {
           case Some(t) => evaluateExpression(t)
-          case _ => throw new ValueNotFoundError("identifier " + id + " has no value assigned")
+          case _ => throw new ValueNotFoundError("identifier " + id + " has no scalarRef assigned")
         }
       case _ => throw new NotImplementedError("expression evaluation is not yet fully implemented")
     }
@@ -459,7 +459,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
           }
         case (ConcreteCellArrayType(typesA), ConcreteCellArrayType(typesB)) =>
           if(typesA.length == typesB.length){
-            val unifiedTypes = typesA zip typesB flatMap { case (a,b) => unify(a,b)}
+            val unifiedTypes = typesA zip typesB flatMap { case (cellTypeA,cellTypeB) => unify(cellTypeA,cellTypeB)}
             if(unifiedTypes.length == typesA.length){
               Some(ConcreteCellArrayType(unifiedTypes))
             }else
@@ -476,7 +476,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
           if(typesA.length < typesB.length){
             None
           }else{
-            val unifiedTypes = typesA zip tB flatMap { case(a,b) => unify(a,b)}
+            val unifiedTypes = typesA zip tB flatMap { case(cellTypeA,cellTypeB) => unify(cellTypeA,cellTypeB)}
 
             if(unifiedTypes.length == typesA.length){
               b.types = unifiedTypes
@@ -495,7 +495,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
           if(typesB.length < typesA.length){
             None
           }else{
-            val unifiedTypes = tA zip typesB flatMap { case(a,b) => unify(a,b)}
+            val unifiedTypes = tA zip typesB flatMap { case(cellTypeA,cellTypeB) => unify(cellTypeA,cellTypeB)}
             a.types = unifiedTypes
             Some(ConcreteCellArrayType(unifiedTypes))
           }
@@ -510,7 +510,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
             tB ++= List.fill[Type](typesA.length - typesB.length)(newTV())
           }
 
-          val unifiedTypes = tA zip tB flatMap { case(a,b) => unify(a,b)}
+          val unifiedTypes = tA zip tB flatMap { case(cellTypeA,cellTypeB) => unify(cellTypeA,cellTypeB)}
           a.types = unifiedTypes
           b.types = unifiedTypes
 
@@ -533,7 +533,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       exp match {
         case ASTIdentifier(id) => Set(id)
         case _: ASTNumericLiteral | _: ASTString | _: ASTBoolean => Set()
-        case ASTUnaryExpression(exp, _) => helper(exp)
+        case ASTUnaryExpression(unaryExpression, _) => helper(unaryExpression)
         case ASTBinaryExpression(a, _, b) => helper(a) ++ helper(b)
         case ASTAnonymousFunction(parameters, body) =>
           helper(body) -- (parameters map { case ASTIdentifier(id) => id }).toSet
@@ -618,8 +618,8 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
 
   def intermediateRepresentationStatement(stmt: ASTStatement): TypedStatement = stmt match {
-    case ASTOutputResultStatement(stmt) => TypedOutputResultStatement(intermediateRepresentationStmtWithResult
-      (stmt))
+    case ASTOutputResultStatement(outputResultStmt) => TypedOutputResultStatement(intermediateRepresentationStmtWithResult
+      (outputResultStmt))
     case ASTNOP => TypedNOP
     case x: ASTStatementWithResult => intermediateRepresentationStmtWithResult(x)
   }
@@ -644,15 +644,15 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     case ASTNumericLiteral(value) => TypedNumericLiteral(value)
     case ASTString(value) => TypedString(value)
     case ASTBoolean(value) => TypedBoolean(value)
-    case ASTUnaryExpression(exp, op) =>
-      val typedExpression = intermediateRepresentationExpression(exp)
+    case ASTUnaryExpression(unaryExpression, op) =>
+      val typedExpression = intermediateRepresentationExpression(unaryExpression)
       val operatorType = typeOperator(op)
       val unificationResult = resolvePolymorphicType(operatorType, FunctionType(extractType(typedExpression), newTV()))
 
       unificationResult match {
         case Some((FunctionType(List(tpe), resultType), _)) =>
           TypedUnaryExpression(typeConversion(typedExpression,tpe), op, resultType)
-        case _ => throw new TypeNotFoundError("Unary expression: " + ASTUnaryExpression(exp, op))
+        case _ => throw new TypeNotFoundError("Unary expression: " + ASTUnaryExpression(unaryExpression, op))
       }
     case ASTBinaryExpression(a, op, b) =>
       val typedExpressionA = intermediateRepresentationExpression(a)
@@ -763,12 +763,12 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   }
 
   def intermediateRepresentationIdentifier(id: ASTIdentifier) = id match {
-    case ASTIdentifier(id) =>
-      val idType = getType(id) match {
+    case ASTIdentifier(idValue) =>
+      val idType = getType(idValue) match {
         case Some(t) => t
-        case _ => throw new TypeNotFoundError("Identifier " + id + " is unbound")
+        case _ => throw new TypeNotFoundError("Identifier " + idValue + " is unbound")
       }
-      TypedIdentifier(id, idType)
+      TypedIdentifier(idValue, idType)
   }
 
   def typeFunction(func: ASTFunction): TypedFunction = {

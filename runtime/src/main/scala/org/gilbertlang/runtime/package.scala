@@ -59,8 +59,8 @@ package object runtime {
     }
   }
 
-  def scalarRef2Int(value: ScalarRef) = {
-    value match {
+  def scalarRef2Int(scalarRef: ScalarRef) = {
+    scalarRef match {
       case scalar(value) => Some(value.toInt)
       case _ => None
     }

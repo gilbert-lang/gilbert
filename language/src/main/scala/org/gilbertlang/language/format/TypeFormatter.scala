@@ -38,10 +38,10 @@ class TypeFormatter extends Formatter[Type] {
       case PolymorphicType(types) =>
         val concatenatedTypes = types map { prettyString } mkString ", "
         "(" + concatenatedTypes + ")"
-      case FunctionType(args, result) =>
+      case FunctionType(args, resultType) =>
         val concatenatedArgs = args map { prettyString } mkString ", "
-        val resultType = prettyString(result)
-        "(" + concatenatedArgs + ") => " + resultType
+        val resultTypeStr = prettyString(resultType)
+        "(" + concatenatedArgs + ") => " + resultTypeStr
       case MatrixType(elementType, rows, cols) =>
         val elementTypeStr = prettyString(elementType)
         val rowsStr = valueFormatter.prettyString(rows)

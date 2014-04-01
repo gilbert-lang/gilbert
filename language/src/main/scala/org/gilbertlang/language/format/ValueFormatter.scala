@@ -26,7 +26,7 @@ class ValueFormatter extends Formatter[Value]{
 
     value match {
       case UndefinedValue => "Undefined"
-      case IntValue(value) => value.toString
+      case IntValue(intValue) => intValue.toString
       case ReferenceValue(ref) => "$" + ref
       case UniversalValue(valueVar) => "∀" + prettyString(valueVar)
       case ValueVar(id) => "φ(" + id +")"

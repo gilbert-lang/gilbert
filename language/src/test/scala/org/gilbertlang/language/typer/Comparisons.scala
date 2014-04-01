@@ -146,7 +146,7 @@ trait Comparisons extends Assertions {
         checkValue(expCols, actCols)
       case (a: CellArrayType, b: CellArrayType) =>
         expectResult(a.types.length)(b.types.length)
-        a.types zip b.types foreach { case (a,b) => checkType(a,b)}
+        a.types zip b.types foreach { case (typeA,typeB) => checkType(typeA,typeB)}
       case _ => expectResult(expected)(actual)
     }
   }

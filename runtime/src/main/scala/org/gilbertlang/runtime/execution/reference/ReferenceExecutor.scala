@@ -48,7 +48,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           { transformation => {
             (evaluate[String](transformation.path), evaluate[Double](transformation.numRows).toInt,
                 evaluate[Double](transformation.numColumns).toInt) }},
-          { case (transformation, (path, numRows, numColumns)) =>
+          { case (_, (path, numRows, numColumns)) =>
             val itEntries = for(line <- Source.fromFile(path).getLines()) yield {
               val splits = line.split(" ")
               (splits(0).toInt, splits(1).toInt, splits(2).toDouble)
@@ -429,8 +429,8 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
         handle[ScalarScalarTransformation, (Double, Double)](transformation,
           { transformation => (evaluate[Double](transformation.left), evaluate[Double](transformation.right)) },
           {
-            case (transformation, (left, right)) =>
-              val result: Double = transformation.operation match {
+            case (exec, (left, right)) =>
+              val result: Double = exec.operation match {
               case Addition => left + right
               case Subtraction => left - right
               case Division => left / right

@@ -54,7 +54,7 @@ class SparkExecutor extends Executor {
 
         handle[LoadMatrix, (String, Int, Int)](transformation,
             { x => (evaluate[String](x.path), evaluate[Double](x.numRows).toInt, evaluate[Double](x.numColumns).toInt)},
-            { case (transformation, (path, rows, cols)) =>
+            { case (_, (path, rows, cols)) =>
               sc.textFile(path, degreeOfParallelism).map({ line => {
                 val fields = line.split(" ")
                 (fields(0).toInt, fields(1).toInt, fields(2).toDouble)
@@ -89,8 +89,8 @@ class SparkExecutor extends Executor {
             { transformation => {
               (evaluate[RowPartitionedMatrix](transformation.left),
                   evaluate[RowPartitionedMatrix](transformation.right)) }},
-            { case (transformation, (leftMatrix, rightMatrix)) =>
-              transformation.operation match {
+            { case (exec, (leftMatrix, rightMatrix)) =>
+              exec.operation match {
                 case Addition => leftMatrix zip rightMatrix map {
                   case((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.plus(rightRow))
                 }
@@ -226,8 +226,8 @@ class SparkExecutor extends Executor {
           { transformation => {
             (evaluate[Double](transformation.scalar), evaluate[RowPartitionedMatrix](transformation.matrix))
           }},
-          { case (transformation, (value, matrix)) =>
-            transformation.operation match {
+          { case (exec, (value, matrix)) =>
+            exec.operation match {
               case (Division) =>
                 matrix.map({ case (index, row) =>
                   val newVector = new DenseVector(row.size()).assign(value)
@@ -253,8 +253,8 @@ class SparkExecutor extends Executor {
             {transformation => {
               (evaluate[RowPartitionedMatrix](transformation.matrix), evaluate[Double](transformation.scalar))
             }},
-            { case (transformation, (matrix, scalar)) =>
-              transformation.operation match{
+            { case (exec, (matrix, scalar)) =>
+              exec.operation match{
                 case Addition =>
                   matrix map {
                     case (index, row) => (index, row.plus(scalar))
@@ -279,8 +279,8 @@ class SparkExecutor extends Executor {
             {transformation => {
               (evaluate[Double](transformation.left), evaluate[Double](transformation.right))
             }},
-            {case (transformation, (a,b)) =>
-              transformation.operation match {
+            {case (exec, (a,b)) =>
+              exec.operation match {
                 case Addition => a+b
                 case Subtraction => a-b
                 case Multiplication => a*b
@@ -306,7 +306,7 @@ class SparkExecutor extends Executor {
 
         handle[ones, (Int,Int)](transformation,
             { x =>  (evaluate[Double](x.numRows).toInt, evaluate[Double](x.numColumns).toInt)},
-            { case (transformation, (numRows, numColumns)) =>
+            { case (_, (numRows, numColumns)) =>
               var rows = Seq[(Int, Vector)]()
 
               for (index <- 1 to numRows) {
@@ -321,7 +321,7 @@ class SparkExecutor extends Executor {
         handle[randn, (Int,Int,Double,Double)](transformation,
             { x => (evaluate[Double](x.numRows).toInt, evaluate[Double](x.numColumns).toInt, evaluate[Double](x.mean),
                 evaluate[Double](x.std))},
-            { case (transformation, (numRows, numColumns, mean, std)) =>
+            { case (_, (numRows, numColumns, mean, std)) =>
 
               val gaussian = new Normal(mean, std)
               var rows = Seq[(Int, Vector)]()
