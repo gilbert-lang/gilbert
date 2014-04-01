@@ -29,7 +29,8 @@ object Operations {
   case object Subtraction extends ArithmeticOperation
   case object Multiplication extends ArithmeticOperation
   case object Division extends ArithmeticOperation
-  
+  case object Exponentiation extends ArithmeticOperation
+
   sealed trait ComparisonOperation extends ScalarsOperation with ScalarMatrixOperation
   case object GreaterThan extends ComparisonOperation
   case object GreaterEqualThan extends ComparisonOperation

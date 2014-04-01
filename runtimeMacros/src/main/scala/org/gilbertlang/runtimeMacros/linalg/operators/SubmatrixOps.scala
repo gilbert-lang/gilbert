@@ -13,8 +13,8 @@ trait SubmatrixOps {
     
   @expand
   @expand.valify
-  implicit def opSM_SM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op]
-  (implicit @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ :* _ }) op:
+  implicit def opSM_SM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar, OpPow) Op]
+  (implicit @expand.sequence[Op]({ _ + _ }, { _ - _ }, { _ / _ }, { _ :* _ }, { _ :^ _}) op:
       Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrix]): 
       Op.Impl2[Submatrix, Submatrix, Submatrix] = {
     new Op.Impl2[Submatrix, Submatrix, Submatrix] {

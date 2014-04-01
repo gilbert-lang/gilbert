@@ -337,8 +337,8 @@ trait Compiler {
           case LogicalOrOp => CellwiseMatrixMatrixTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => CellwiseMatrixMatrixTransformation(x,y,SCAnd)
           case ShortCircuitLogicalOrOp => CellwiseMatrixMatrixTransformation(x,y,SCOr)
-          case ExpOp | CellwiseExpOp  =>
-            throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
+          case CellwiseExpOp  => CellwiseMatrixMatrixTransformation(x,y, Exponentiation)
+          case ExpOp => throw new CompileError("Exponentiation of a matrix with a matrix is not supported.")
         }
       case (x:Matrix, y: ScalarRef) =>
         binaryExpression.operator match{
@@ -356,8 +356,8 @@ trait Compiler {
           case LogicalOrOp => MatrixScalarTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => MatrixScalarTransformation(x,y, SCAnd)
           case ShortCircuitLogicalOrOp => MatrixScalarTransformation(x,y,SCOr)
-          case ExpOp | CellwiseExpOp =>
-            throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
+          case ExpOp => throw new CompileError("Matrix exponentiation is not yet supported.")
+          case CellwiseExpOp => MatrixScalarTransformation(x,y, Exponentiation)
         }
       case (x:ScalarRef, y: Matrix) =>
         binaryExpression.operator match{
@@ -375,8 +375,9 @@ trait Compiler {
           case LogicalOrOp => ScalarMatrixTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => ScalarMatrixTransformation(x,y, SCAnd)
           case ShortCircuitLogicalOrOp => ScalarMatrixTransformation(x,y, SCOr)
-          case ExpOp | CellwiseExpOp =>
-            throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
+          case CellwiseExpOp => ScalarMatrixTransformation(x,y,Exponentiation)
+          case ExpOp => throw new CompileError("Exponentiation of an scalar with a matrix is not supported.")
+
         }
       case (x: ScalarRef, y: ScalarRef) =>
         binaryExpression.operator match{
@@ -394,8 +395,7 @@ trait Compiler {
           case LogicalOrOp => ScalarScalarTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => ScalarScalarTransformation(x,y, SCAnd)
           case ShortCircuitLogicalOrOp => ScalarScalarTransformation(x,y,SCOr)
-          case ExpOp | CellwiseExpOp =>
-            throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
+          case ExpOp | CellwiseExpOp => ScalarScalarTransformation(x,y, Exponentiation)
         }
       case (_: FunctionRef, _) | (_, _: FunctionRef) =>
         throw new CompileError("Binary operation on a function is not supported")

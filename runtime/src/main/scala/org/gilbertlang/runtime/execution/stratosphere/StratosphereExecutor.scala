@@ -247,22 +247,22 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           executable,
           { exec => (evaluate[Scalar[Double]](exec.scalar), evaluate[Matrix](exec.matrix)) },
           {
-            case (_, (scalar, matrix)) =>
+            case (_, (scalarDS, matrixDS)) =>
               operation match {
                 case Addition =>
-                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix + scalar }
+                  val result = scalarDS cross matrixDS map { (scalar, submatrix) => submatrix + scalar }
                   result.setName("SM: Addition")
                   result
                 case Subtraction =>
-                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix + -scalar }
+                  val result = scalarDS cross matrixDS map { (scalar, submatrix) => submatrix + -scalar }
                   result.setName("SM: Subtraction")
                   result
                 case Multiplication =>
-                  val result = scalar cross matrix map { (scalar, submatrix) => submatrix * scalar }
+                  val result = scalarDS cross matrixDS map { (scalar, submatrix) => submatrix * scalar }
                   result.setName("SM: Multiplication")
                   result
                 case Division =>
-                  val result = scalar cross matrix map { (scalar, submatrix) =>
+                  val result = scalarDS cross matrixDS map { (scalar, submatrix) =>
                     {
                       val partition = submatrix.getPartition
                       val result = Submatrix.init(partition, scalar)
@@ -270,6 +270,14 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     }
                   }
                   result.setName("SM: Division")
+                  result
+                case Exponentiation =>
+                  val result = scalarDS cross matrixDS map { (scalar, submatrix) =>
+                    val partition = submatrix.getPartition
+                    val scalarMatrix = Submatrix.init(partition, scalar)
+                    scalarMatrix :^ submatrix
+                  }
+                  result.setName("SM: CellwiseExponentiation")
                   result
               }
           })
@@ -332,24 +340,27 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           executable,
           { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.scalar)) },
           {
-            case (_, (matrix, scalar)) =>
+            case (_, (matrixDS, scalarDS)) =>
               operation match {
                 case Addition =>
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix + scalar }
+                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix + scalar }
                   result.setName("MS: Addition")
                   result
                 case Subtraction =>
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix - scalar }
+                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix - scalar }
                   result.setName("MS: Subtraction")
                   result
                 case Multiplication =>
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix * scalar }
+                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix * scalar }
                   result.setName("MS: Multiplication")
                   result
                 case Division =>
-                  val result = matrix cross scalar map { (submatrix, scalar) => submatrix / scalar }
+                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix / scalar }
                   result.setName("MS: Division")
                   result
+                case Exponentiation =>
+                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix :^ scalar}
+                  result.setName("MS: Exponentiation")
               }
           })
           case operation : ComparisonOperation =>
@@ -438,6 +449,9 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                       val result =left cross right map { (left, right) => left / right }
                       result.setName("SS: Division")
                       result
+                    case Exponentiation =>
+                      val result = left cross right map { (left, right) => math.pow(left,right)}
+                      result.setName("SS: Exponentiation")
                   }
               })
           case operation: MinMax =>
@@ -627,6 +641,11 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     { (left, right) => left / right
                     }
                   result.setName("MM: Division")
+                  result
+                case Exponentiation =>
+                  val result = left join right where {x => (x.rowIndex, x.columnIndex)} isEqualTo { y => (y.rowIndex,
+                   y.columnIndex)} map { (left, right) => left :^ right }
+                  result.setName("MM: Exponentiation")
                   result
               }
           })

@@ -96,9 +96,9 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             { input => (evaluate[Matrix[Boolean]](input.left), evaluate[Matrix[Boolean]](input.right))},
             { case (_, (left, right)) =>
               logicOperation match {
-                case And =>
+                case And | SCAnd =>
                   left :& right
-                case Or =>
+                case Or | SCOr =>
                   left :| right
               }
             }
@@ -118,7 +118,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               }
             }
             )
-          case operation =>
+          case operation: ArithmeticOperation =>
             handle[CellwiseMatrixMatrixTransformation, (Matrix[Double], Matrix[Double])](
             transformation,
             {input => (evaluate[Matrix[Double]](input.left), evaluate[Matrix[Double]](input.right))},
@@ -128,6 +128,15 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                 case Subtraction => left - right
                 case Multiplication => left :* right
                 case Division => left / right
+              }
+            }
+            )
+          case operation: MinMax =>
+            handle[CellwiseMatrixMatrixTransformation, (Matrix[Double], Matrix[Double])](
+            transformation,
+            {input => (evaluate[Matrix[Double]](input.left), evaluate[Matrix[Double]](input.right))},
+            { case (_, (left, right)) =>
+              operation match {
                 case Maximum => numerics.max(left, right)
                 case Minimum => numerics.min(left,right)
               }
@@ -159,6 +168,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                 case Norm2 =>
                   val sumOfSquares = breeze.linalg.sum(matrix :* matrix)
                   math.sqrt(sumOfSquares)
+                case SumAll => matrix.sum
               }
             }
           })
@@ -171,13 +181,34 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             { exec => (evaluate[Boolean](exec.scalar), evaluate[Matrix[Boolean]](exec.matrix))},
             { case (_, (scalar, matrix)) =>
               logicOperation match {
-                case And =>
+                case And | SCAnd =>
                   matrix :& scalar
-                case Or =>
+                case Or | SCOr =>
                   matrix :| scalar
               }
             })
-          case operation =>
+          case operation: ComparisonOperation =>
+            handle[ScalarMatrixTransformation, (Double, Matrix[Double])](
+            executable,
+            { exec => (evaluate[Double](exec.scalar), evaluate[Matrix[Double]](exec.matrix)) },
+            {
+              case (_, (scalar, matrix)) =>
+                operation match {
+                  case GreaterThan =>
+                    matrix :< scalar
+                  case GreaterEqualThan =>
+                    matrix :<= scalar
+                  case LessThan =>
+                    matrix :> scalar
+                  case LessEqualThan =>
+                    matrix :>= scalar
+                  case Equals =>
+                    matrix :== scalar
+                  case NotEquals =>
+                    matrix :!= scalar
+                }
+            })
+          case operation: ArithmeticOperation =>
             handle[ScalarMatrixTransformation, (Double, Matrix[Double])](
             executable,
             { exec => (evaluate[Double](exec.scalar), evaluate[Matrix[Double]](exec.matrix)) },
@@ -194,18 +225,6 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                     val factory = implicitly[MatrixFactory[Double]]
                     val dividend = factory.init(matrix.rows, matrix.cols, scalar, dense = true)
                     dividend / matrix
-                  case GreaterThan =>
-                    matrix :< scalar
-                  case GreaterEqualThan =>
-                    matrix :<= scalar
-                  case LessThan =>
-                    matrix :> scalar
-                  case LessEqualThan =>
-                    matrix :>= scalar
-                  case Equals =>
-                    matrix :== scalar
-                  case NotEquals =>
-                    matrix :!= scalar
                 }
             })
         }
@@ -218,13 +237,34 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             {exec => (evaluate[Matrix[Boolean]](exec.matrix), evaluate[Boolean](exec.scalar))},
             { case (_, (matrix, scalar)) =>
               logicOperation match {
-                case And =>
+                case And | SCAnd =>
                   matrix :& scalar
-                case Or =>
+                case Or | SCOr =>
                   matrix :| scalar
               }
             })
-          case operation =>
+          case operation : ComparisonOperation =>
+            handle[MatrixScalarTransformation, (Matrix[Double],Double)](
+            executable,
+            { exec => (evaluate[Matrix[Double]](exec.matrix), evaluate[Double](exec.scalar)) },
+            {
+              case (_, (matrix, scalar)) =>
+                operation match {
+                  case GreaterThan =>
+                    matrix :> scalar
+                  case GreaterEqualThan =>
+                    matrix :>= scalar
+                  case LessThan =>
+                    matrix :< scalar
+                  case LessEqualThan =>
+                    matrix :<= scalar
+                  case Equals =>
+                    matrix :== scalar
+                  case NotEquals =>
+                    matrix :!= scalar
+                }
+            })
+          case operation : ArithmeticOperation =>
             handle[MatrixScalarTransformation, (Matrix[Double],Double)](
             executable,
             { exec => (evaluate[Matrix[Double]](exec.matrix), evaluate[Double](exec.scalar)) },
@@ -239,18 +279,6 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                     matrix * scalar
                   case Division =>
                     matrix / scalar
-                  case GreaterThan =>
-                    matrix :> scalar
-                  case GreaterEqualThan =>
-                    matrix :>= scalar
-                  case LessThan =>
-                    matrix :< scalar
-                  case LessEqualThan =>
-                    matrix :<= scalar
-                  case Equals =>
-                    matrix :== scalar
-                  case NotEquals =>
-                    matrix :!= scalar
                 }
             })
         }
@@ -283,7 +311,6 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           })
 
       case (transformation: ones) =>
-
         handle[ones, (Int, Int)](transformation,
           { transformation => (evaluate[Double](transformation.numRows).toInt,
               evaluate[Double](transformation.numColumns).toInt) },
@@ -441,8 +468,10 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               case LessEqualThan => left <= right
               case Equals => left == right
               case NotEquals => left != right
-              case And => left && right
-              case Or => left || right
+              case SCAnd => left && right
+              case SCOr => left || right
+              case And => left & right
+              case Or => left | right
               case Maximum => math.max(left, right)
               case Minimum => math.min(left, right)
               }

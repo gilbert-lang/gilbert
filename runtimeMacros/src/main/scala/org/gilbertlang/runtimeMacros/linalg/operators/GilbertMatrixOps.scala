@@ -12,8 +12,8 @@ trait GilbertMatrixOps{
   
   @expand
   @expand.valify
-  implicit def opGM_GM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar) Op]
-  (implicit @expand.sequence[Op]({_ + _}, {_ - _}, {_ / _}, {_ :* _}) op: 
+  implicit def opGM_GM[@expand.args(OpAdd, OpSub, OpDiv, OpMulScalar, OpPow) Op]
+  (implicit @expand.sequence[Op]({_ + _}, {_ - _}, {_ / _}, {_ :* _}, {_ :^ _}) op:
       Op.Impl2[Matrix[Double],Matrix[Double],Matrix[Double]]): 
       Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrix] = {
     new Op.Impl2[GilbertMatrix, GilbertMatrix, GilbertMatrix]{
