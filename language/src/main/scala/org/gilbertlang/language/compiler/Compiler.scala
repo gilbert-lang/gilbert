@@ -60,6 +60,7 @@ trait Compiler {
       case StringType => RuntimeTypes.StringType
       case f: FunctionType => RuntimeTypes.FunctionType
       case cellArray: CellArrayType => RuntimeTypes.CellArrayType(cellArray.types map createRuntimeType)
+      case tpe => throw new TypeCompileError(s"Type $tpe is not supported by the runtime type system.")
     }
   }
 
@@ -78,6 +79,7 @@ trait Compiler {
       case cell: CellArrayType => "C"
       case FunctionType(parameters, result) => "F"
       case _: AbstractTypeVar => throw new CompileError("Create type suffix requires concrete types.")
+      case tpe => throw new CompileError(s"Cannot create a type suffix for type $tpe.")
     }
   }
 
@@ -136,12 +138,12 @@ trait Compiler {
     val compiledExpression = compileExpression(typeConversion.expression)
     compiledExpression match {
       case x: ScalarRef =>
-
         TypeConversionScalar(x, sourceType.asInstanceOf[RuntimeTypes.ScalarType],
           targetType.asInstanceOf[RuntimeTypes.ScalarType])
       case x: Matrix =>
         TypeConversionMatrix(x, sourceType.asInstanceOf[RuntimeTypes.MatrixType],
           targetType.asInstanceOf[RuntimeTypes.MatrixType])
+      case expression => throw new CompileError(s"Type conversions are not supported for $expression.")
     }
   }
 
@@ -309,8 +311,7 @@ trait Compiler {
         }
       case x: StringRef => throw new NotImplementedError("Unary operation of string is not yet implemented")
       case _: FunctionRef => throw new CompileError("Unary operations on functions are not supported")
-      case VoidExecutable => throw new CompileError("Unary operations on VoidExecutable are not supported")
-      case _: CellArrayExecutable => throw new CompileError("Unary operations on cell array are not supported")
+      case _: CellArrayBase => throw new CompileError("Unary operations on cell array are not supported")
     }
   }
 
@@ -396,22 +397,13 @@ trait Compiler {
           case ExpOp | CellwiseExpOp =>
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
         }
-      case (x: StringRef, y: StringRef) =>
-        throw new NotImplementedError("Binary operation for 2 strings is not yet implemented")
-      case (x: StringRef, y: Matrix) =>
-        throw new NotImplementedError("Binary operation for string and matrix is not supported")
-      case (x: StringRef, y: ScalarRef) =>
-        throw new NotImplementedError("Binary operation for string and scalar is not yet implemented")
-      case (x: Matrix, y: StringRef) =>
-        throw new NotImplementedError("BinaryOperation for matrix and string is not supported")
-      case (x: ScalarRef, y: StringRef) =>
-        throw new NotImplementedError("BinaryOperation for scalar and string is not supported")
       case (_: FunctionRef, _) | (_, _: FunctionRef) =>
         throw new CompileError("Binary operation on a function is not supported")
-      case (VoidExecutable, _) | (_ , VoidExecutable) =>
-        throw new CompileError("Binary operation on VoidExecutable is not supported")
+      case (_: StringRef, _) | (_, _: StringRef) =>
+        throw new CompileError("Binary operation on a string ref is not supported")
+      case (_: CellArrayBase, _) | (_, _: CellArrayBase) =>
+        throw new CompileError("Binary operation on a cell array is not supported")
     }
-
   }
 
   def compileFunctionApplication(functionApplication: TypedFunctionApplication) = {
@@ -445,7 +437,6 @@ trait Compiler {
       idx)}
 
       compiler.compile(typedFunction.body)
-
 
       val results = typedFunction.values map { result => compiler.retrieveExecutable(result.value) }
       function(typedFunction.parameters.length, results(0))
