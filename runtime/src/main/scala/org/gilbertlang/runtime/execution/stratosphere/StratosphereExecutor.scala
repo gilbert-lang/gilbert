@@ -1620,7 +1620,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   val first = diffs.next()
 
                   val summedDiffs = diffs.foldLeft(first)(_ + _)
-                  summedDiffs :^ (0.5)
+                  summedDiffs :^ 0.5
               }
               pdist2.setName("Pdist2: pair wise distance matrix")
               pdist2

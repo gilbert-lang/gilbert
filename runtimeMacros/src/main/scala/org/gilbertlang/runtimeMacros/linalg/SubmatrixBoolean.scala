@@ -113,7 +113,7 @@ object SubmatrixBoolean extends SubmatrixBooleanOps {
     }
   
   def outputFormatter(elementDelimiter: String, fieldDelimiter: String) = {
-    new Function1[SubmatrixBoolean, String] {
+    new (SubmatrixBoolean => String) {
       def apply(submatrix: SubmatrixBoolean): String = {
         var result = ""
         for (((row, col), value) <- submatrix.activeIterator) {

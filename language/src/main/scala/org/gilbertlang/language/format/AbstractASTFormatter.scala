@@ -13,7 +13,7 @@ abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
   }
 	
   def prettyString(program: ASTProgram, indentation: Int): String = {
-    program.statementsOrFunctions map { prettyString(_,indentation) } mkString(nl)
+    program.statementsOrFunctions map { prettyString(_,indentation) } mkString nl
   }
   
   def prettyString(stmtOrFunction: ASTStatementOrFunction, indentation: Int): String = {
@@ -29,9 +29,9 @@ abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
   
   def prettyString(function: ASTFunction, indentation: Int): String = {
     indentStr(indentation) + "Function[" + 
-    "(" + (function.values map { prettyString(_,0) } mkString(",")) + ") " +
+    "(" + (function.values map { prettyString(_,0) } mkString ",") + ") " +
     prettyString(function.identifier,0) +
-    "(" + (function.parameters map { prettyString(_, 0) } mkString(",")) + ")]" + nl +
+    "(" + (function.parameters map { prettyString(_, 0) } mkString ",") + ")]" + nl +
     prettyString(function.body,indentation+1)
   }
   
@@ -61,7 +61,7 @@ abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
         indentStr(indentation) + "FunctionReference(" + function + ")"
       case ASTAnonymousFunction(arguments, body) =>
         indentStr(indentation) + "AnonymousFunction[(" +
-        (arguments map { prettyString(_,0) } mkString(",")) + ")]" + nl +
+        (arguments map { prettyString(_,0) } mkString ",") + ")]" + nl +
         prettyString(body,indentation+1)
       case ASTUnaryExpression(operand, TransposeOp | CellwiseTransposeOp) =>
         indentStr(indentation) + prettyString(operand,0) + "'"
@@ -74,7 +74,7 @@ abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
         prettyString(operandB, indentation+1)
       case ASTFunctionApplication(function, arguments) =>
         indentStr(indentation) + "FunctionApplication[" + prettyString(function,0) +
-        "(" + ( arguments map { prettyString(_, 0) } mkString(",")) + ")"
+        "(" + ( arguments map { prettyString(_, 0) } mkString ",") + ")"
     }
   }
 }

@@ -19,22 +19,22 @@ object ImplicitConversions {
 
   class ValueExtractor[T](dataset: DataSet[T]){
     def getValue[U <: Value : ClassTag](index: Int, fieldNum: Int): U = {
-      if(dataset.contract.isInstanceOf[JavaCollectionDataSource]){
-        val collectionDataSource = dataset.contract.asInstanceOf[JavaCollectionDataSource]
-        val inputFormat = collectionDataSource.getFormatWrapper.getUserCodeObject
-          .asInstanceOf[JavaCollectionInputFormat]
-        val record = new Record()
-        inputFormat.open(new GenericInputSplit())
+      dataset.contract match {
+        case collectionDataSource: JavaCollectionDataSource =>
+          val inputFormat = collectionDataSource.getFormatWrapper.getUserCodeObject
+            .asInstanceOf[JavaCollectionInputFormat]
+          val record = new Record()
+          inputFormat.open(new GenericInputSplit())
 
-        for(counter <- 0 to index){
-          inputFormat.nextRecord(record)
-        }
-        val classTag = implicitly[ClassTag[U]]
+          for (counter <- 0 to index) {
+            inputFormat.nextRecord(record)
+          }
+          val classTag = implicitly[ClassTag[U]]
 
-        record.getField[U](fieldNum, classTag.runtimeClass.asInstanceOf[Class[U]])
-      }else{
-        throw new IllegalArgumentException("Dataset has to be of type CollectionDataSource and not " +
-          dataset.getClass)
+          record.getField[U](fieldNum, classTag.runtimeClass.asInstanceOf[Class[U]])
+        case _ =>
+          throw new IllegalArgumentException("Dataset has to be of type CollectionDataSource and not " +
+            dataset.getClass)
       }
     }
   }

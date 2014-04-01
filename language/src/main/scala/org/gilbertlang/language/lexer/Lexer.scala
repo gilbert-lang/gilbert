@@ -48,11 +48,11 @@ trait Lexer extends Scanners with LanguageTokens {
   { new { def mkString(delim: String):String = x._1.mkString("") + x._2.mkString("") }}
 
   def token(previousToken: Token): Parser[Token] =  (
-    character ~ rep(character | digit | '_') ^^ { case firstLetter ~ lettersOrDigits => processIdentifier(firstLetter + (lettersOrDigits.mkString("")))}
+    character ~ rep(character | digit | '_') ^^ { case firstLetter ~ lettersOrDigits => processIdentifier(firstLetter + lettersOrDigits.mkString(""))}
       | rep1(digit) ~ opt('.' ~ rep(digit)) ~ (character('e') | character('E')) ~ opt(character('+') | character('-')) ~
       rep1(digit) ^^ {
       case digits ~ pointAndDecimalFraction ~ exponentCharacter ~ sign ~ exponent =>
-        val a = (digits).mkString("")
+        val a = digits.mkString("")
         val b = pointAndDecimalFraction match {
           case Some(p ~ l) => p + l.mkString("")
           case None => ""
@@ -62,7 +62,7 @@ trait Lexer extends Scanners with LanguageTokens {
           case None => ""
         }
 
-        val d = (exponent).mkString("")
+        val d = exponent.mkString("")
 
         NumericLiteral((a+b+exponentCharacter+c+d).toDouble)
     }
@@ -70,7 +70,7 @@ trait Lexer extends Scanners with LanguageTokens {
       + fraction.mkString("")).toDouble) }
       | '.' ~ rep1(digit) ^^ { case point ~ fraction => NumericLiteral(("0" + point + fraction.mkString(""))
       .toDouble) }
-      | rep1(digit) ^^ { digits => NumericLiteral((digits).mkString("").toDouble)}
+      | rep1(digit) ^^ { digits => NumericLiteral(digits.mkString("").toDouble)}
       | rep1(whitespace) ^^ { whitespaces => Whitespace(whitespaces.mkString(""))}
       | guard(Parser {
           in =>

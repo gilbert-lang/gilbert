@@ -59,12 +59,12 @@ trait Compiler {
       case BooleanType => RuntimeTypes.BooleanType
       case StringType => RuntimeTypes.StringType
       case f: FunctionType => RuntimeTypes.FunctionType
-      case cellArray: CellArrayType => RuntimeTypes.CellArrayType(cellArray.types map (createRuntimeType))
+      case cellArray: CellArrayType => RuntimeTypes.CellArrayType(cellArray.types map createRuntimeType)
     }
   }
 
   private def createTypeSuffix(parameters: List[Type]): String = {
-    "$" + (parameters map { createTypeSuffix } mkString(""))
+    "$" + (parameters map { createTypeSuffix } mkString "")
   }
 
   private def createTypeSuffix(tpe: Type): String = {

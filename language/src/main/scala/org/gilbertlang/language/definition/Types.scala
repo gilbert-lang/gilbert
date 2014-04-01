@@ -93,7 +93,7 @@ object Types {
 
   sealed trait Type {
     def isWideableTo(other: Type): Boolean = {
-      Type.this == other || (wideableTypes.getOrElse(Type.this, List()) contains (other))
+      Type.this == other || (wideableTypes.getOrElse(Type.this, List()) contains other)
     }
   }
 

@@ -196,7 +196,7 @@ trait Parser extends Parsers {
     case e ~ None => e
   }
 
-  def unaryExpression = (elementaryExpression | LPAREN ~> expression <~ RPAREN )
+  def unaryExpression = elementaryExpression | LPAREN ~> expression <~ RPAREN
 
   def elementaryExpression: Parser[ASTExpression] = (functionApplication
     | cellExpression
@@ -250,9 +250,9 @@ trait Parser extends Parsers {
   def matrix = LBRACKET ~> repsep(matrixRow, newlineOrSemicolon) <~ RBRACKET ^^ { m => ASTMatrix(m) }
   def matrixRow = repsep(expression, COMMA) ^^ { r => ASTMatrixRow(r) }
 
-  def prefix_operator = ( PLUS | MINUS  )
+  def prefix_operator = PLUS | MINUS
 
-  def multiplicationOperator = (MULT | DIV | CELLWISE_MULT | CELLWISE_DIV )
+  def multiplicationOperator = MULT | DIV | CELLWISE_MULT | CELLWISE_DIV
 
   def additionOperator = PLUS  | MINUS
   def comparisonOperator = GT | GTE | LT | LTE | DEQ

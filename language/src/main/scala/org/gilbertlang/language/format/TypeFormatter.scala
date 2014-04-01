@@ -31,15 +31,15 @@ class TypeFormatter extends Formatter[Type] {
       case VoidType => "Void"
       case BooleanType => "Boolean"
       case ConcreteCellArrayType(types) =>
-        "ConcreteCellArrayType(" + (types map prettyString mkString(", ")) + ")"
+        "ConcreteCellArrayType(" + (types map prettyString mkString ", ") + ")"
       case InterimCellArrayType(types) =>
-        "InterimCellArrayType(" + (types map prettyString mkString(", ")) + ")"
+        "InterimCellArrayType(" + (types map prettyString mkString ", ") + ")"
       case UndefinedType => "Undefined"
       case PolymorphicType(types) =>
-        val concatenatedTypes = types map { prettyString } mkString (", ")
+        val concatenatedTypes = types map { prettyString } mkString ", "
         "(" + concatenatedTypes + ")"
       case FunctionType(args, result) =>
-        val concatenatedArgs = args map { prettyString } mkString(", ")
+        val concatenatedArgs = args map { prettyString } mkString ", "
         val resultType = prettyString(result)
         "(" + concatenatedArgs + ") => " + resultType
       case MatrixType(elementType, rows, cols) =>

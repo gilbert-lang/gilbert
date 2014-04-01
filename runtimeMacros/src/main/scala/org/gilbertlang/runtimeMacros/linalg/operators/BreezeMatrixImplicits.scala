@@ -23,7 +23,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
             val zipMapValues = implicitly[CanZipMapValues[CSCMatrix[T], T, T, CSCMatrix[T]]]
             zipMapValues.map(x,y,fn)
           case (x,y) =>
-            val data = ((x.valuesIterator zip (y.valuesIterator)) map { case (x,y) => fn(x,y) }).toArray[T]
+            val data = ((x.valuesIterator zip y.valuesIterator) map { case (x,y) => fn(x,y) }).toArray[T]
             new DenseMatrix[T](x.rows, y.cols, data)
         }
       }
@@ -65,7 +65,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
           case x: DenseMatrix[T] => x.t
           case x: CSCMatrix[T] => x.t
           case x =>
-            val data = (x.valuesIterator).toArray[T]
+            val data = x.valuesIterator.toArray[T]
             val result = new DenseMatrix[T](x.rows, x.cols, data)
             result.t
         }

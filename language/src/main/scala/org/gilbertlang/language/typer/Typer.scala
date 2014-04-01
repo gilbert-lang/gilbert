@@ -177,7 +177,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   def resolvePolymorphicType(a: Type, b: Type): Option[(Type, Int)] = {
     a match {
       case PolymorphicType(types) =>
-        types.zipWithIndex.toIterator.map {
+        (types.zipWithIndex.toIterator.map {
           case (signature, index) => unify(specializeType(generalizeType(b)), signature) match {
             case Some(_) => unify(b, signature) match {
               case Some(t) => Some(t, index)
@@ -185,7 +185,9 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
             }
             case _ => None
           }
-        } find ({ x: Option[(Type, Int)] => x != None }) flatten
+        } find {
+          x: Option[(Type, Int)] => x != None
+        }).flatten
       case _ => unify(b, a) match {
         case Some(t) => Some(t, 0)
         case _ => None
@@ -329,10 +331,10 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         case UniversalType(_) => throw new TypingError("Universal cannot be applied to a non type variable")
         case x: AbstractTypeVar => Set(x)
         case MatrixType(elementType, rowValue, colValue) => helper(elementType)
-        case PolymorphicType(types) => (types flatMap (helper)).toSet
-        case FunctionType(args, result) => (args flatMap (helper)).toSet ++ helper(result)
-        case ConcreteCellArrayType(types) => (types flatMap(helper)).toSet
-        case InterimCellArrayType(types) => (types flatMap (helper)).toSet
+        case PolymorphicType(types) => (types flatMap helper).toSet
+        case FunctionType(args, result) => (args flatMap helper).toSet ++ helper(result)
+        case ConcreteCellArrayType(types) => (types flatMap helper).toSet
+        case InterimCellArrayType(types) => (types flatMap helper).toSet
         case _ => Set()
       }
     }
@@ -430,7 +432,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         case (FunctionType(args1, result1), FunctionType(args2, result2)) =>
           if (args1.length != args2.length) None
           else {
-            val unifiedArgs = (for ((x, y) <- (args1 zip args2)) yield {
+            val unifiedArgs = (for ((x, y) <- args1 zip args2) yield {
               unify(x, y)
             }) flatMap { x => x }
             val unifiedResult = unify(result1, result2)
@@ -538,9 +540,13 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         case ASTFunctionApplication(function, parameters) =>
           helper(function) ++ (parameters flatMap { helper }).toSet
         case ASTFunctionReference(function) => helper(function)
-        case ASTMatrix(rows) => rows flatMap { helper } toSet
-        case ASTMatrixRow(exps) => exps flatMap { helper } toSet
-        case ASTCellArray(elements) => elements flatMap helper toSet
+        case ASTMatrix(rows) => (rows flatMap {
+          helper
+        }).toSet
+        case ASTMatrixRow(exps) => (exps flatMap {
+          helper
+        }).toSet
+        case ASTCellArray(elements) => (elements flatMap helper).toSet
         case ASTCellArrayIndexing(cellArray, index) => helper(cellArray) ++ helper(index)
       }
     }

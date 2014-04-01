@@ -42,7 +42,7 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
   }
 
   def prettyString(program: TypedProgram, indentation: Int): String = {
-    val stmtsOrFuncs = program.statementsOrFunctions map { prettyString(_, indentation + 1) } mkString ("\n")
+    val stmtsOrFuncs = program.statementsOrFunctions map { prettyString(_, indentation + 1) } mkString "\n"
     strnl("Program(", indentation) + stmtsOrFuncs + nl + strnl(")", indentation)
   }
 
@@ -54,8 +54,8 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
   }
 
   def prettyString(function: TypedFunction, indentation: Int): String = {
-    str("Function [", indentation) + (function.values map { prettyString(_, 0) } mkString (", ")) + str("] = ") +
-      function.identifier + str("(") + (function.parameters map { prettyString(_, 0) } mkString (", ")) + str("): ") +
+    str("Function [", indentation) + (function.values map { prettyString(_, 0) } mkString ", ") + str("] = ") +
+      function.identifier + str("(") + (function.parameters map { prettyString(_, 0) } mkString ", ") + str("): ") +
       typeFormatter.prettyString(function.identifier.datatype) + str("{") + nl +
       prettyString(function.body, indentation + 1) +
       str("}", indentation)
@@ -82,10 +82,10 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
       case TypedBinaryExpression(a, op, b, _) => str("(", indentation) + prettyString(a, 0) + str(" ") + op2Str(op) +
         str(" ") + prettyString(b, 0) + str(")")
       case TypedFunctionApplication(func, args, _) =>
-        prettyString(func, indentation) + str("(") + (args map { prettyString(_, 0) } mkString (", ")) + str(")")
+        prettyString(func, indentation) + str("(") + (args map { prettyString(_, 0) } mkString ", ") + str(")")
       case TypedFunctionReference(func, _) => str("@", indentation) + prettyString(func, 0)
       case TypedAnonymousFunction(params, body, closure, _) => str("@(", indentation) +
-        (params map { prettyString(_, 0) } mkString (", ")) + str(")") + str("(") + (closure mkString (", ")) +
+        (params map { prettyString(_, 0) } mkString ", ") + str(")") + str("(") + (closure mkString ", ") +
         str(")") + prettyString(body, 0)
     }) + verboseType(expression.datatype)
   }

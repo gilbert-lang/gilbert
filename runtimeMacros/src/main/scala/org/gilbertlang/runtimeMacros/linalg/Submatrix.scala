@@ -121,7 +121,7 @@ object Submatrix extends SubmatrixOps {
     }
   
   def outputFormatter(elementDelimiter: String, fieldDelimiter: String) = {
-    new Function1[Submatrix, String] {
+    new (Submatrix => String) {
       def apply(submatrix: Submatrix): String = {
         var result = ""
         for (((row, col), value) <- submatrix.activeIterator) {

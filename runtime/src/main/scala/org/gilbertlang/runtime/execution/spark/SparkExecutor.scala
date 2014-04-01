@@ -442,11 +442,11 @@ class SparkExecutor extends Executor {
                   require(matrix.count == 1)
                   matrix flatMap { case (index, row) =>
                     for(elem <- row.nonZeroes())
-            	        yield({
-            	          val newRow = new RandomAccessSparseVector(y,1)
-            	          newRow.setQuick(elem.index(),elem.get())
-            	          (elem.index(),newRow)
-            	        })
+            	        yield {
+                      val newRow = new RandomAccessSparseVector(y, 1)
+                      newRow.setQuick(elem.index(), elem.get())
+                      (elem.index(), newRow)
+                    }
                   }
 
                 case (Some(x), Some(1)) =>
