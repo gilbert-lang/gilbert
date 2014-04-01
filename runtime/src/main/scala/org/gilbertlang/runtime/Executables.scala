@@ -954,8 +954,9 @@ object Executables {
         case x:ScalarType => CellArrayReferenceScalar(this, index,x)
         case StringType => CellArrayReferenceString(this, index)
         case x:MatrixType => CellArrayReferenceMatrix(this, index, x)
-        case x:FunctionType => throw new IllegalArgumentException("Function type cell entries are not supported")
+        case x:FunctionType => throw new RuntimeException("Function type cell entries are not supported")
         case x:CellArrayType => CellArrayReferenceCellArray(this, index, x )
+        case Undefined => throw new RuntimeException("")
       }
     }
   }
@@ -1170,6 +1171,7 @@ object Executables {
         case None => (None, None)
         case Some(1) => (Some(1), matrix.cols)
         case Some(2) => (matrix.rows, Some(1))
+        case Some(dim) => throw new RuntimeException("minWithIndex does not support dimension: " + dim)
       }
     }
 

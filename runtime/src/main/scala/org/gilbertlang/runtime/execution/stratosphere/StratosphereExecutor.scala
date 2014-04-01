@@ -1,7 +1,7 @@
 package org.gilbertlang.runtime.execution.stratosphere
 
 import org.gilbertlang.runtime.Executor
-import eu.stratosphere.api.scala.operators.{DelimitedInputFormat, CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
+import eu.stratosphere.api.scala.operators.{CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
 import eu.stratosphere.api.scala._
 import scala.collection.convert.WrapAsScala
 import org.gilbertlang.runtime.Operations._
@@ -13,51 +13,6 @@ import breeze.linalg.*
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 import org.gilbertlang.runtime.RuntimeTypes._
-import org.gilbertlang.runtime.Executables.diag
-import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
-import org.gilbertlang.runtime.Executables.WriteMatrix
-import org.gilbertlang.runtime.Executables.MatrixParameter
-import scala.Some
-import org.gilbertlang.runtime.Executables.eye
-import org.gilbertlang.runtime.Executables.CellArrayReferenceCellArray
-import org.gilbertlang.runtime.Executables.FunctionParameter
-import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
-import org.gilbertlang.runtime.Executables.WriteFunction
-import org.gilbertlang.runtime.Executables.LoadMatrix
-import org.gilbertlang.runtime.Executables.randn
-import org.gilbertlang.runtime.Executables.CompoundExecutable
-import org.gilbertlang.runtime.Executables.UnaryScalarTransformation
-import org.gilbertlang.runtime.Executables.scalar
-import org.gilbertlang.runtime.Executables.ScalarMatrixTransformation
-import org.gilbertlang.runtime.Executables.StringParameter
-import org.gilbertlang.runtime.Executables.WriteScalar
-import org.gilbertlang.runtime.Executables.zeros
-import org.gilbertlang.runtime.Executables.FixpointIteration
-import org.gilbertlang.runtime.Executables.ScalarParameter
-import org.gilbertlang.runtime.Executables.CellwiseMatrixTransformation
-import org.gilbertlang.runtime.Executables.CellArrayReferenceScalar
-import org.gilbertlang.runtime.Executables.MatrixMult
-import org.gilbertlang.runtime.Executables.boolean
-import org.gilbertlang.runtime.Executables.FixpointIterationCellArray
-import org.gilbertlang.runtime.Executables.sumCol
-import org.gilbertlang.runtime.Executables.string
-import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
-import org.gilbertlang.runtime.Executables.CellArrayExecutable
-import org.gilbertlang.runtime.Executables.sum
-import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
-import org.gilbertlang.runtime.Executables.spones
-import org.gilbertlang.runtime.Executables.ones
-import org.gilbertlang.runtime.Executables.AggregateMatrixTransformation
-import org.gilbertlang.runtime.Executables.WriteCellArray
-import org.gilbertlang.runtime.Executables.CellArrayReferenceString
-import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
-import org.gilbertlang.runtime.Executables.IterationStatePlaceholderCellArray
-import org.gilbertlang.runtime.Executables.MatrixScalarTransformation
-import org.gilbertlang.runtime.Executables.Transpose
-import org.gilbertlang.runtime.RuntimeTypes.MatrixType
-import org.gilbertlang.runtime.Executables.function
-import org.gilbertlang.runtime.Executables.sumRow
-import org.gilbertlang.runtime.Executables.WriteString
 import eu.stratosphere.api.scala.CollectionDataSource
 import eu.stratosphere.types.{DoubleValue, StringValue}
 import org.gilbertlang.runtime.Executables.diag
@@ -113,6 +68,7 @@ import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.function
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
+import scala.language.postfixOps
 
 
 class StratosphereExecutor extends Executor with WrapAsScala {
@@ -841,14 +797,25 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     } map { subvector => subvector.asMatrix }
                 }
                 case Norm2 => {
-                  matrix map { submatrix =>
-                    norm(submatrix( *, ::),2)
-                  } groupBy { subvector => subvector.index } combinableReduceGroup { subvectors =>
-                    val firstElement = subvectors.next.copy
-                    subvectors.foldLeft(firstElement) { _ + _ }
-                  } map { subvector => subvector.asMatrix  }
-                }
+                  val squaredValues = matrix map { submatrix => submatrix :^ 2.0 }
+                  squaredValues.setName("VWM: Norm2 squared values")
 
+                  val sumSquaredValues = squaredValues map { submatrix => breeze.linalg.sum(submatrix(*, ::)) } groupBy
+                    { subvector => subvector.index } combinableReduceGroup
+                    { subvectors =>
+                      val firstSubvector = subvectors.next.copy
+                      subvectors.foldLeft(firstSubvector)(_ + _)
+                    }
+                  sumSquaredValues.setName("VWM: Norm2 sum squared values")
+
+                  val result = sumSquaredValues map {
+                    sqv =>
+                      val matrix = sqv.asMatrix
+                      matrix mapActiveValues { value => math.sqrt(value) }
+                  }
+                  result.setName("VWM: Norm2")
+                  result
+                }
               }
             }
           })

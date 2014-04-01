@@ -7,7 +7,7 @@ import java.io.DataOutput
 import java.io.DataInput
 import org.gilbertlang.runtimeMacros.linalg.operators.GilbertVectorOps
 import breeze.linalg.support.CanZipMapValues
-import org.gilbertlang.runtimeMacros.linalg.operators.BreezeVectorOps
+import org.gilbertlang.runtimeMacros.linalg.operators.BreezeVectorImplicits
 import org.gilbertlang.runtimeMacros.linalg.io.Serializer
 import scala.reflect.ClassTag
 import breeze.math.Semiring
@@ -15,7 +15,7 @@ import breeze.storage.DefaultArrayValue
 import breeze.linalg.support.CanCopy
 
 class GilbertVector(var vector: BreezeVector[Double]) extends BreezeVector[Double] with 
-BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorOps {
+BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorImplicits {
   def this() = this(null)
   
   def write(out: DataOutput){

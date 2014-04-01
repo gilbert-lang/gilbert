@@ -9,14 +9,14 @@ import scala.reflect.ClassTag
 import breeze.linalg.BitVector
 import org.gilbertlang.runtimeMacros.linalg.Bitmatrix
 
-trait BreezeVectorOps {
-  implicit def sparseVector2SparseMatrix(sparseVector: SparseVector[Double]) = {
+trait BreezeVectorImplicits {
+  implicit def sparseVector2SparseMatrix[T:ClassTag:Semiring:DefaultArrayValue](sparseVector: SparseVector[T]) = {
     new SparseVectorDecorator(sparseVector)
   }
   
-  class SparseVectorDecorator(val sparseVector: SparseVector[Double]){
-    def asSparseMatrix: BreezeSparseMatrix[Double] = {
-      val builder = new BreezeSparseMatrix.Builder[Double](sparseVector.length, 1, sparseVector.activeSize)
+  class SparseVectorDecorator[T:ClassTag:Semiring:DefaultArrayValue](val sparseVector: SparseVector[T]){
+    def asSparseMatrix: BreezeSparseMatrix[T] = {
+      val builder = new BreezeSparseMatrix.Builder[T](sparseVector.length, 1, sparseVector.activeSize)
       for((row, value) <- sparseVector.activeIterator){
         builder.add(row, 0, value)
       }

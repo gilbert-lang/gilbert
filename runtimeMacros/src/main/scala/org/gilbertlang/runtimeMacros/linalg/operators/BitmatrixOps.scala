@@ -5,15 +5,13 @@ import breeze.linalg.operators.OpSet
 import breeze.linalg.operators.OpAnd
 import breeze.linalg.operators.OpOr
 import breeze.linalg.operators.BinaryUpdateRegistry
-import breeze.linalg.Matrix
 import breeze.linalg.operators.BinaryRegistry
 import breeze.macros.expand
 import breeze.linalg.operators.OpType
 import breeze.linalg._
-import breeze.linalg.support.CanCopy
 
 trait BitmatrixOps {
-  this: Bitmatrix.type => 
+  this: Bitmatrix.type =>
   
   implicit object SetBMBMOp extends OpSet.InPlaceImpl2[Bitmatrix, Bitmatrix]{
     def apply(a: Bitmatrix, b: Bitmatrix) {
