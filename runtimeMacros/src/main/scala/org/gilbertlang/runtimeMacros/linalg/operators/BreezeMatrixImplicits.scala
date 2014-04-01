@@ -102,7 +102,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
           case x: CSCMatrix[T] => x(row, ::)
           case x =>
             val data = (for(col <- 0 until x.cols) yield x(row,col)).toArray[T]
-            new DenseMatrix[T](1,x.cols, data);
+            new DenseMatrix[T](1,x.cols, data)
         }
       }
     }

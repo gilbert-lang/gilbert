@@ -29,7 +29,7 @@ import org.apache.commons.io.IOUtils
 object PlayWithLanguage {
 
   def main(args: Array[String]): Unit = {
-    var isReader:InputStreamReader = null;
+    var isReader:InputStreamReader = null
 
     try {
       isReader = new InputStreamReader(ClassLoader.getSystemResourceAsStream("play.gb"))

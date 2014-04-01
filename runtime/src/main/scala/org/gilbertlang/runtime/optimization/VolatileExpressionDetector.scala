@@ -20,12 +20,13 @@ package org.gilbertlang.runtime.optimization
 
 import org.gilbertlang.runtime.Executables._
 import scala.collection.mutable.Stack
+import scala.collection.mutable
 
 class VolatileExpressionDetector extends DagWalker {
 
   private var fixpointEnvironment = false
   private val volatileExpressions = scala.collection.mutable.Set[Int]()
-  private val stack = Stack[Boolean]()
+  private val stack = mutable.Stack[Boolean]()
 
   def find(executable: Executable): Set[Int] = {
     visit(executable)

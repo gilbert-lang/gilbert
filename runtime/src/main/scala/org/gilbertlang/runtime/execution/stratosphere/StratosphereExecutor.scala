@@ -1028,7 +1028,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 convergenceCurrentStateValue = oldCurrentState
                 result filter {
                   boolean =>
-                    boolean == false
+                    !boolean
                 }
               }
 
@@ -1082,7 +1082,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               convergencePreviousStateCellArrayValue = oldPreviousState
               convergenceCurrentStateCellArrayValue = oldCurrentState
 
-              result filter { boolean => boolean == false }
+              result filter { boolean => !boolean }
             }
 
             iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
@@ -1291,7 +1291,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             handle[TypeConversionScalar, Scalar[Boolean]](
             typeConversion,
             { input => evaluate[Scalar[Boolean]](input.scalar)},
-            { (_, scalar) =>  scalar map { x => if(x == true) 1.0 else 0.0} }
+            { (_, scalar) =>  scalar map { x => if(x) 1.0 else 0.0} }
             )
         }
 

@@ -9,7 +9,7 @@ object TypeConversion {
   def main(args:Array[String]){
     val executable = Gilbert.compileRessource("typeConversion.gb")
 
-    val plan = withStratosphere(executable);
+    val plan = withStratosphere(executable)
     LocalExecutor.execute(plan)
   }
 }

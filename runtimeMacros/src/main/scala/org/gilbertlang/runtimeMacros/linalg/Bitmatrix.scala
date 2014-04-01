@@ -29,7 +29,7 @@ class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
     if(isTranspose)
       col+ row*cols
     else
-      row + col*rows;
+      row + col*rows
   }
   
   def rowColIndex(linearIndex: Int) = {

@@ -9,7 +9,7 @@ object Kmeans {
   def main(args:Array[String]){
     val executable = Gilbert.compileRessource("kmeans.gb")
 
-    val plan = withStratosphere(executable);
+    val plan = withStratosphere(executable)
     LocalExecutor.execute(plan)
   }
 }

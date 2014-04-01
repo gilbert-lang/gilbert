@@ -123,7 +123,7 @@ object Submatrix extends SubmatrixOps {
   def outputFormatter(elementDelimiter: String, fieldDelimiter: String) = {
     new Function1[Submatrix, String] {
       def apply(submatrix: Submatrix): String = {
-        var result = "";
+        var result = ""
         for (((row, col), value) <- submatrix.activeIterator) {
           result += (row+1) + fieldDelimiter + (col+1) + fieldDelimiter +
           value + elementDelimiter

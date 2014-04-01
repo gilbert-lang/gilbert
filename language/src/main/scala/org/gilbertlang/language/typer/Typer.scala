@@ -89,7 +89,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case TypedFunctionReference(func, datatype) =>
         TypedFunctionReference(finalizeTyping(func), resolveType(datatype))
       case TypedAnonymousFunction(args, body, closure, datatype) =>
-        TypedAnonymousFunction(args map {finalizeTyping}, finalizeTyping(body),
+        TypedAnonymousFunction(args map finalizeTyping, finalizeTyping(body),
           closure, resolveType(datatype))
     }
   }
@@ -249,7 +249,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   def specializeType(datatype: Type): Type = {
     val replacement = scala.collection.mutable.Map[AbstractTypeVar, AbstractTypeVar]()
     val replacementValues = scala.collection.mutable.Map[ValueVar, ValueVar]()
-    var specialized: Boolean = false;
+    var specialized: Boolean = false
     def helper(a: Type): Type = {
       a match {
         case UniversalType(x: NumericTypeVar) =>
@@ -694,7 +694,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
       oldMappings foreach {
         case (id, Some(datatype)) => updateEnvironment(id, datatype)
-        case (id, None) => removeFromEnvironment(id);
+        case (id, None) => removeFromEnvironment(id)
       }
 
       val functionType = FunctionType(typedParameters map { extractType(_) }, extractType(typedBody))

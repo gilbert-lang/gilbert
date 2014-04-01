@@ -6,6 +6,7 @@ import breeze.linalg.{Axis, SparseVector, CSCMatrix}
 import breeze.math.Semiring
 import breeze.storage.DefaultArrayValue
 import scala.collection.mutable.ArrayBuilder
+import scala.collection.mutable
 
 /**
  * Created by till on 01/04/14.
@@ -194,8 +195,8 @@ trait BreezeSparseMatrixImplicits {
   CanCollapseAxis[CSCMatrix[T], Axis._1.type, SparseVector[T], T, SparseVector[T]] =
     new CanCollapseAxis[CSCMatrix[T], Axis._1.type, SparseVector[T], T, SparseVector[T]]{
       override def apply(matrix: CSCMatrix[T], axis: Axis._1.type)(fn: SparseVector[T] => T) = {
-        val dataBuilder = ArrayBuilder.make[T]
-        val indexBuilder = new ArrayBuilder.ofInt
+        val dataBuilder = mutable.ArrayBuilder.make[T]
+        val indexBuilder = new mutable.ArrayBuilder.ofInt
 
         val t = matrix.t
 

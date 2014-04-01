@@ -11,7 +11,7 @@ trait PartitionPlan extends Iterable[Partition]{
   
   override def iterator: Iterator[Partition] = {
     new Iterator[Partition]{
-      var counter = 0;
+      var counter = 0
       
       override def hasNext: Boolean = counter < maxId
       

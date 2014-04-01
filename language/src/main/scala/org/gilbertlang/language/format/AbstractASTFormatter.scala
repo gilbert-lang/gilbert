@@ -6,14 +6,14 @@ import definition.Operators.{TransposeOp, CellwiseTransposeOp, op2Str}
 
 abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
   protected val spacing: String
-  private val nl = "\n";
-  
+  private val nl = "\n"
+
   private def indentStr(indentation: Int) = {
     spacing * indentation
   }
 	
   def prettyString(program: ASTProgram, indentation: Int): String = {
-    program.statementsOrFunctions map { prettyString(_,indentation) } mkString(nl);
+    program.statementsOrFunctions map { prettyString(_,indentation) } mkString(nl)
   }
   
   def prettyString(stmtOrFunction: ASTStatementOrFunction, indentation: Int): String = {

@@ -31,9 +31,9 @@ trait Lexer extends Scanners with LanguageTokens {
 
   def accept(token: Token) = { true }
 
-  def letter:Parser[Char] = elem("letter", _.isLetter)
+  def character:Parser[Char] = elem("letter", _.isLetter)
 
-  def letter(chr: Char): Parser[Char] = elem(chr.toString, _ == chr)
+  def character(chr: Char): Parser[Char] = elem(chr.toString, _ == chr)
 
   def digit:Parser[Char] = elem("digit", _.isDigit)
 
@@ -43,41 +43,43 @@ trait Lexer extends Scanners with LanguageTokens {
     elem("Except: " + except.mkString(""), chr => except forall ( _ != chr))
   }
 
-  implicit def tilde2Str[A <: { def mkString(delim: String):String }, B <: { def mkString(delim: String):String }]
+  implicit def removeTildeInParserCombinatorPairs[A <: { def mkString(delim: String):String }, B <: { def mkString(delim: String):String }]
   (x: ~[A, B]):{ def mkString(delim:String):String } = 
   { new { def mkString(delim: String):String = x._1.mkString("") + x._2.mkString("") }}
 
   def token(previousToken: Token): Parser[Token] =  (
-    letter ~ rep(letter | digit | '_') ^^ { case h ~ t => processIdentifier(h + (t.mkString("")))}
-      | digit ~ rep(digit) ~ opt('.' ~ rep(digit)) ~ (letter('e') | letter('E')) ~ opt(letter('+') | letter('-')) ~ digit ~ rep(digit) ^^ {
-      case h ~ t ~ p ~ l ~ s ~ e ~ r =>
-        val a = (h::t).mkString("")
-        val b = p match {
+    character ~ rep(character | digit | '_') ^^ { case firstLetter ~ lettersOrDigits => processIdentifier(firstLetter + (lettersOrDigits.mkString("")))}
+      | rep1(digit) ~ opt('.' ~ rep(digit)) ~ (character('e') | character('E')) ~ opt(character('+') | character('-')) ~
+      rep1(digit) ^^ {
+      case digits ~ pointAndDecimalFraction ~ exponentCharacter ~ sign ~ exponent =>
+        val a = (digits).mkString("")
+        val b = pointAndDecimalFraction match {
           case Some(p ~ l) => p + l.mkString("")
           case None => ""
         }
-        val c = s match {
+        val c = sign match {
           case Some(pm) => pm
           case None => ""
         }
 
-        val d = (e::r).mkString("")
+        val d = (exponent).mkString("")
 
-        NumericLiteral((a+b+l+c+d).toDouble)
+        NumericLiteral((a+b+exponentCharacter+c+d).toDouble)
     }
-      | digit ~ rep(digit) ~ '.' ~ rep(digit) ^^ { case h~t~p~r => NumericLiteral((h + t.mkString("") + p  + r
-      .mkString("")).toDouble) }
-      | '.' ~ digit ~ rep(digit) ^^ { case p ~ h ~ r => NumericLiteral(("0" + p + h + r.mkString("")).toDouble) }
-      | digit ~ rep(digit) ^^ { 
-        case h ~ t => 
-          NumericLiteral((h::t).mkString("").toDouble)
-        }
-      | whitespace ~ rep(whitespace) ^^ { case h ~ t => Whitespace(h + t.mkString(""))}
-      | guard(Parser { in => if (isTransposable(previousToken)) Failure("failure",in) else Success("success",
-      in) })  ~> '\'' ~> rep(chrExcept(List('\'', '\n', EofCh))) <~ '\'' ^^ { case l => StringLiteral(l.mkString("")) }
-      | '\"' ~> rep(chrExcept(List('\"', '\n', EofCh))) <~ '\"' ^^ { case l => StringLiteral(l.mkString("")) }
-      | '%' ~> '>' ~> rep(chrExcept(List('\n',EofCh))) ^^ { case l => TypeAnnotation(l.mkString("")) }
-      | '%'~> rep(chrExcept(List('\n', EofCh))) ^^ { case l => Comment(l.mkString("")) }
+      | rep1(digit) ~ '.' ~ rep(digit) ^^ { case digits~point~fraction => NumericLiteral((digits.mkString("") + point
+      + fraction.mkString("")).toDouble) }
+      | '.' ~ rep1(digit) ^^ { case point ~ fraction => NumericLiteral(("0" + point + fraction.mkString(""))
+      .toDouble) }
+      | rep1(digit) ^^ { digits => NumericLiteral((digits).mkString("").toDouble)}
+      | rep1(whitespace) ^^ { whitespaces => Whitespace(whitespaces.mkString(""))}
+      | guard(Parser {
+          in =>
+            if (isTransposable(previousToken)) Failure("failure",in)
+            else Success("success",in)
+        })  ~> '\'' ~> rep(chrExcept(List('\'', '\n', EofCh))) <~ '\'' ^^ { case characters => StringLiteral(characters.mkString("")) }
+      | '\"' ~> rep(chrExcept(List('\"', '\n', EofCh))) <~ '\"' ^^ { case characters => StringLiteral(characters.mkString("")) }
+      | '%' ~> '>' ~> rep(chrExcept(List('\n',EofCh))) ^^ { case characters => TypeAnnotation(characters.mkString("")) }
+      | '%'~> rep(chrExcept(List('\n', EofCh))) ^^ { case characters => Comment(characters.mkString("")) }
       | EofCh ^^^ EOF
       | delimiterParser
       | failure("illegal character"))

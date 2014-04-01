@@ -64,7 +64,7 @@ object withStratosphere{
       case function: FunctionRef => WriteFunction(function)
       case _ => executable
     }
-    val executor = new StratosphereExecutor();
+    val executor = new StratosphereExecutor()
     val result = executor.run(write)
     
     result match {

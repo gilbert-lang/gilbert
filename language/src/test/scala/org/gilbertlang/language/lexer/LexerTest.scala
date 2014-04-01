@@ -25,7 +25,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
       Keyword("="), Identifier("C"), Keyword("./"), Identifier("maxValue"), Keyword("("), Identifier("C"),
       Keyword(")"), Keyword("\n"), Keyword("\n"), EOF)
 
-    val inputFileURL = ClassLoader.getSystemResource("lexerInput.gb");
+    val inputFileURL = ClassLoader.getSystemResource("lexerInput.gb")
     var fileReader: FileReader = null
 
     try {
@@ -43,7 +43,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
 
   @Test def testEOFChar() {
     val expected = List(Identifier("X"), EOF)
-    val input = "X";
+    val input = "X"
 
     val result = lex(input)
 
@@ -54,7 +54,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
     val expected = List(Identifier("A"), Keyword("="), Identifier("rand"), Keyword("("), NumericLiteral(0),
  Keyword(")"), EOF)
 
-    val inputFileURL = ClassLoader.getSystemResource("zeroLexing.gb");
+    val inputFileURL = ClassLoader.getSystemResource("zeroLexing.gb")
     var fileReader: FileReader = null
     
     try{

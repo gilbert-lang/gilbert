@@ -341,9 +341,9 @@ class SparkExecutor extends Executor {
             var rows = Seq[(Int, Vector)]()
 
             for(index <- 1 to numRows) {
-              val row = new RandomAccessSparseVector(numCols);
-              row.setQuick(index, 1);
-              rows = rows ++ Seq((index, row));
+              val row = new RandomAccessSparseVector(numCols)
+              row.setQuick(index, 1)
+              rows = rows ++ Seq((index, row))
             }
 
             sc.parallelize(rows, degreeOfParallelism)

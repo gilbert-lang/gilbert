@@ -56,7 +56,7 @@ final class GilbertMatrixBoolean(var matrix: Bitmatrix) extends BreezeMatrix[Boo
   }
   
   override def toString() = {
-    matrix.toString
+    matrix.toString()
   }
 }
 

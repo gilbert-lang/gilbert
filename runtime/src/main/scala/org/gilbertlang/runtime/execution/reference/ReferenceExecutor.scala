@@ -31,7 +31,7 @@ import org.gilbertlang.runtimeMacros.linalg.operators.{BreezeMatrixImplicits, Br
 
 class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixRegistries with BreezeMatrixImplicits {
 
-  type Matrix[T] = breeze.linalg.Matrix[T];
+  type Matrix[T] = breeze.linalg.Matrix[T]
 
   //TODO fix this
   var iterationState: Matrix[Double] = null
@@ -50,7 +50,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                 evaluate[Double](transformation.numColumns).toInt) }},
           { case (transformation, (path, numRows, numColumns)) =>
             val itEntries = for(line <- Source.fromFile(path).getLines()) yield {
-              val splits = line.split(" ");
+              val splits = line.split(" ")
               (splits(0).toInt, splits(1).toInt, splits(2).toDouble)
             }
             val entries = itEntries.toSeq

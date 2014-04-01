@@ -9,7 +9,7 @@ object NNMF {
   def main(args:Array[String]){
     val executable = Gilbert.compileRessource("nnmf.gb")
 
-    val plan = withStratosphere(executable);
+    val plan = withStratosphere(executable)
     LocalExecutor.execute(plan)
   }
 }

@@ -34,7 +34,7 @@ class ParserTest extends Parser with Assertions {
   }
 
   @Test def testFunctionParameters() {
-    val input = """(X,Y,Z)""";
+    val input = """(X,Y,Z)"""
     val expected = List(ASTIdentifier("X"), ASTIdentifier("Y"), ASTIdentifier("Z"))
 
     functionParams(input) match {
@@ -45,7 +45,7 @@ class ParserTest extends Parser with Assertions {
   }
 
   @Test def testIdentifierList() {
-    val input = """X,Y,Z""";
+    val input = """X,Y,Z"""
     val expected = List(ASTIdentifier("X"), ASTIdentifier("Y"), ASTIdentifier("Z"))
 
     identifierList(input) match {

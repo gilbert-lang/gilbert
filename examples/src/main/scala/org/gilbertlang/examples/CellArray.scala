@@ -9,7 +9,7 @@ object CellArray {
   def main(args:Array[String]){
     val executable = Gilbert.compileRessource("cellArray.gb")
 
-    val plan = withStratosphere(executable);
+    val plan = withStratosphere(executable)
     LocalExecutor.execute(plan)
   }
 }
