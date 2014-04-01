@@ -883,7 +883,7 @@ object Executables {
       }
     }
 
-    def getType = ScalarType
+    def getType = Unknown
   }
 
   case class CellArrayReferenceScalar(parent: CellArrayBase, reference: Int, getType: ScalarType) extends
