@@ -99,9 +99,8 @@ trait Compiler {
 
   def compile(typedProgram: TypedProgram): Executable = {
     typedProgram match {
-      case TypedProgram(statementsOrFunctions) => {
+      case TypedProgram(statementsOrFunctions) =>
         compile(statementsOrFunctions)
-      }
     }
   }
 
@@ -109,7 +108,7 @@ trait Compiler {
     val functions = statementsOrFunctions collect { case x: TypedFunction => x }
     val statements = statementsOrFunctions collect { case x: TypedStatement => x }
     functions foreach { function => registerFunction(function.identifier.value, function) }
-    val executables = statements flatMap {compileStatementWithResult}
+    val executables = statements flatMap compileStatementWithResult
     CompoundExecutable(executables)
   }
 
@@ -178,9 +177,9 @@ trait Compiler {
       }
     }
 
-    (anonymousFunction.parameters zipWithIndex) foreach { case (parameter, idx) => {
+    (anonymousFunction.parameters zipWithIndex) foreach { case (parameter, idx) =>
       addParameter(parameter.value, parameter.datatype, idx)
-    }}
+    }
 
     val compiledBody = compileExpression(anonymousFunction.body)
 
@@ -266,35 +265,29 @@ trait Compiler {
         }
 
 
-      case "spones$M" => {
+      case "spones$M" =>
         function(1, spones(MatrixParameter(0)))
-      }
 
-      case "sum$MD" => {
+      case "sum$MD" =>
         function(2, sum(MatrixParameter(0), ScalarParameter(1)))
-      }
 
-      case "sumRow$M" => {
+      case "sumRow$M" =>
         //function(2, sumRow(MatrixParameter(0), ScalarParameter(1)))
         function(2, sumRow(MatrixParameter(0)))
-      }
 
-      case "sumCol$M" => {
+      case "sumCol$M" =>
         //function(2, sumCol(MatrixParameter(0), ScalarParameter(1)))
         function(2, sumCol(MatrixParameter(0)))
-      }
 
-      case "diag$M" => {
+      case "diag$M" =>
         function(1, diag(MatrixParameter(0)))
-      }
 
       case "write$MS" => function(1, WriteMatrix(MatrixParameter(0)))
       case "write$DS" => function(1, WriteScalar(ScalarParameter(0)))
       case "write$SS" => function(1, WriteString(StringParameter(0)))
 
-      case "norm$MD" => {
+      case "norm$MD" =>
         function(2, norm(MatrixParameter(0), ScalarParameter(1)))
-      }
     }
   }
 
@@ -302,20 +295,18 @@ trait Compiler {
     val exec = compileExpression(unaryExpression.expression)
 
     exec match {
-      case x: Matrix => {
+      case x: Matrix =>
         unaryExpression.operator match {
           case PrePlusOp => exec
           case PreMinusOp => CellwiseMatrixTransformation(x, Minus)
           case TransposeOp | CellwiseTransposeOp => Transpose(x)
         }
-      }
-      case x: ScalarRef => {
+      case x: ScalarRef =>
         unaryExpression.operator match {
           case PrePlusOp => exec
           case PreMinusOp => UnaryScalarTransformation(x, Minus)
           case TransposeOp | CellwiseTransposeOp => x
         }
-      }
       case x: StringRef => throw new NotImplementedError("Unary operation of string is not yet implemented")
       case _: FunctionRef => throw new CompileError("Unary operations on functions are not supported")
       case VoidExecutable => throw new CompileError("Unary operations on VoidExecutable are not supported")
@@ -328,7 +319,7 @@ trait Compiler {
     val b = compileExpression(binaryExpression.rightExpression)
 
     (a,b) match {
-      case (x:Matrix, y:Matrix) =>{
+      case (x:Matrix, y:Matrix) =>
         binaryExpression.operator match{
           case MultOp => MatrixMult(x,y)
           case DivOp | CellwiseDivOp => CellwiseMatrixMatrixTransformation(x,y,Division)
@@ -345,12 +336,10 @@ trait Compiler {
           case LogicalOrOp => CellwiseMatrixMatrixTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => CellwiseMatrixMatrixTransformation(x,y,SCAnd)
           case ShortCircuitLogicalOrOp => CellwiseMatrixMatrixTransformation(x,y,SCOr)
-          case ExpOp | CellwiseExpOp  => {
+          case ExpOp | CellwiseExpOp  =>
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
-          }
         }
-      }
-      case (x:Matrix, y: ScalarRef) => {
+      case (x:Matrix, y: ScalarRef) =>
         binaryExpression.operator match{
           case MultOp | CellwiseMultOp => MatrixScalarTransformation(x,y,Multiplication)
           case DivOp | CellwiseDivOp => MatrixScalarTransformation(x,y,Division)
@@ -366,12 +355,10 @@ trait Compiler {
           case LogicalOrOp => MatrixScalarTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => MatrixScalarTransformation(x,y, SCAnd)
           case ShortCircuitLogicalOrOp => MatrixScalarTransformation(x,y,SCOr)
-          case ExpOp | CellwiseExpOp => {
+          case ExpOp | CellwiseExpOp =>
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
-          }
         }
-      }
-      case (x:ScalarRef, y: Matrix) => {
+      case (x:ScalarRef, y: Matrix) =>
         binaryExpression.operator match{
           case MultOp | CellwiseMultOp => ScalarMatrixTransformation(x,y,Multiplication)
           case DivOp | CellwiseDivOp => ScalarMatrixTransformation(x,y,Division)
@@ -387,12 +374,10 @@ trait Compiler {
           case LogicalOrOp => ScalarMatrixTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => ScalarMatrixTransformation(x,y, SCAnd)
           case ShortCircuitLogicalOrOp => ScalarMatrixTransformation(x,y, SCOr)
-          case ExpOp | CellwiseExpOp => {
+          case ExpOp | CellwiseExpOp =>
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
-          }
         }
-      }
-      case (x: ScalarRef, y: ScalarRef) => {
+      case (x: ScalarRef, y: ScalarRef) =>
         binaryExpression.operator match{
           case MultOp | CellwiseMultOp => ScalarScalarTransformation(x,y,Multiplication)
           case DivOp | CellwiseDivOp => ScalarScalarTransformation(x,y,Division)
@@ -408,32 +393,23 @@ trait Compiler {
           case LogicalOrOp => ScalarScalarTransformation(x,y,Or)
           case ShortCircuitLogicalAndOp => ScalarScalarTransformation(x,y, SCAnd)
           case ShortCircuitLogicalOrOp => ScalarScalarTransformation(x,y,SCOr)
-          case ExpOp | CellwiseExpOp => {
+          case ExpOp | CellwiseExpOp =>
             throw new NotImplementedError("Operator " + binaryExpression.operator + " is not yet implemented")
-          }
         }
-      }
-      case (x: StringRef, y: StringRef) => {
+      case (x: StringRef, y: StringRef) =>
         throw new NotImplementedError("Binary operation for 2 strings is not yet implemented")
-      }
-      case (x: StringRef, y: Matrix) => {
+      case (x: StringRef, y: Matrix) =>
         throw new NotImplementedError("Binary operation for string and matrix is not supported")
-      }
-      case (x: StringRef, y: ScalarRef) => {
+      case (x: StringRef, y: ScalarRef) =>
         throw new NotImplementedError("Binary operation for string and scalar is not yet implemented")
-      }
-      case (x: Matrix, y: StringRef) => {
+      case (x: Matrix, y: StringRef) =>
         throw new NotImplementedError("BinaryOperation for matrix and string is not supported")
-      }
-      case (x: ScalarRef, y: StringRef) => {
+      case (x: ScalarRef, y: StringRef) =>
         throw new NotImplementedError("BinaryOperation for scalar and string is not supported")
-      }
-      case (_: FunctionRef, _) | (_, _: FunctionRef) => {
+      case (_: FunctionRef, _) | (_, _: FunctionRef) =>
         throw new CompileError("Binary operation on a function is not supported")
-      }
-      case (VoidExecutable, _) | (_ , VoidExecutable) => {
+      case (VoidExecutable, _) | (_ , VoidExecutable) =>
         throw new CompileError("Binary operation on VoidExecutable is not supported")
-      }
     }
 
   }
@@ -480,7 +456,7 @@ trait Compiler {
 
   def compileStatementWithResult(typedStatement: TypedStatement): Option[Executable] = {
     typedStatement match {
-      case TypedAssignment(lhs, rhs) => {
+      case TypedAssignment(lhs, rhs) =>
         rhs match {
           case TypedAnonymousFunction(parameters, expression, _, datatype) =>
             val functionResult = TypedIdentifier("functionResult", expression.datatype)
@@ -497,64 +473,55 @@ trait Compiler {
             assign(lhs.value, result)
         }
         None
-      }
-      case x: TypedExpression => {
+      case x: TypedExpression =>
         compileExpression(x)
         None
-      }
       case TypedNOP => None
-      case TypedOutputResultStatement(stmt) => {
+      case TypedOutputResultStatement(stmt) =>
         TypedAbstractSyntaxTree.getType(stmt) match {
-          case _: MatrixType => {
+          case _: MatrixType =>
             compileStatement(stmt) match {
               case x: Matrix => Some(WriteMatrix(x))
               case _ => throw new TypeCompileError("Expected executable of type Matrix")
             }
-          }
-          case _: NumericType => {
+          case _: NumericType =>
             compileStatement(stmt) match {
               case x: ScalarRef => Some(WriteScalar(x))
               case _ => throw new TypeCompileError("Expected executable of type ScalarRef")
             }
-          }
 
-          case BooleanType => {
+          case BooleanType =>
             compileStatement(stmt) match {
               case x: ScalarRef => Some(WriteScalar(x))
               case _ => throw new TypeCompileError("Expected executable of type ScalarRef")
             }
-          }
 
-          case StringType => {
+          case StringType =>
             compileStatement(stmt) match {
               case x: StringRef => Some(WriteString(x))
               case _ => throw new TypeCompileError("Expected executable of type StringRef")
             }
-          }
 
-          case _: CellArrayType => {
+          case _: CellArrayType =>
             compileStatement(stmt) match {
               case x: CellArrayBase => Some(WriteCellArray(x))
               case _ => throw new TypeCompileError("Expected executable of type CellArrayBase")
             }
-          }
 
-          case _: FunctionType => {
+          case _: FunctionType =>
             compileStatement(stmt) match {
               case x: FunctionRef => Some(WriteFunction(x))
               case _ => throw new TypeCompileError("Expected executable of type FunctionRef")
             }
-          }
 
           case tpe => throw new TypeCompileError("Cannot output type " + tpe)
         }
-      }
     }
   }
 
   def compileStatement(typedStatement: TypedStatement): Executable = {
     typedStatement match {
-      case TypedAssignment(lhs, rhs) => {
+      case TypedAssignment(lhs, rhs) =>
         rhs match {
           case TypedAnonymousFunction(parameters, expression, _, datatype) =>
             val functionResult = TypedIdentifier("functionResult", expression.datatype)
@@ -574,10 +541,9 @@ trait Compiler {
             assign(lhs.value, result)
             result
         }
-      }
       case x: TypedExpression => compileExpression(x)
       case TypedNOP => VoidExecutable
-      case TypedOutputResultStatement(stmt) => {
+      case TypedOutputResultStatement(stmt) =>
         TypedAbstractSyntaxTree.getType(stmt) match {
           case _: MatrixType =>
             compileStatement(stmt) match {
@@ -589,15 +555,13 @@ trait Compiler {
               case x: ScalarRef => WriteScalar(x)
               case _ => throw new TypeCompileError("Expected executable of type ScalarRef")
             }
-          case StringType => {
+          case StringType =>
             compileStatement(stmt) match {
               case x: StringRef => WriteString(x)
               case _ => throw new TypeCompileError("Expected executable of type StringRef")
             }
-          }
           case _ => VoidExecutable
         }
-      }
     }
   }
 }

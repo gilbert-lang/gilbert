@@ -110,7 +110,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case TypedFunctionApplication(fun, args, datatype) =>
         val resolvedArgs = args map { finalizeTyping }
         TypedFunctionApplication(finalizeTyping(fun), resolvedArgs, resolveType(datatype))
-      case TypedCellArray(elements, datatype) => TypedCellArray(elements map {finalizeTyping},
+      case TypedCellArray(elements, datatype) => TypedCellArray(elements map finalizeTyping,
         resolveType(datatype))
       case TypedCellArrayIndexing(cellArray, index, datatype) => TypedCellArrayIndexing(finalizeTyping
         (cellArray), index , resolveType(datatype))
@@ -124,7 +124,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
   def resolveType(datatype: Type): Type = {
     datatype match {
-      case _: AbstractTypeVar => {
+      case _: AbstractTypeVar =>
         var result: Type = datatype
 
         while (result != typeVarMapping.getOrElse(result, result)) {
@@ -135,10 +135,8 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
           case _: AbstractTypeVar => result
           case _ => resolveType(result)
         }
-      }
-      case MatrixType(elementType, rowValue, colValue) => {
+      case MatrixType(elementType, rowValue, colValue) =>
         MatrixType(resolveType(elementType), resolveValue(rowValue), resolveValue(colValue))
-      }
       case FunctionType(args, result) => FunctionType(args map { resolveType }, resolveType(result))
       case PolymorphicType(types) => PolymorphicType(types map { resolveType })
       case ConcreteCellArrayType(types) => ConcreteCellArrayType( types map { resolveType })
@@ -154,7 +152,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
   def resolveValue(value: Value): Value = {
     val resolvedValue = value match {
-      case _: ValueVar => {
+      case _: ValueVar =>
         var result: Value = value
 
         while (result != valueVarMapping.getOrElse(result, result)) {
@@ -162,7 +160,6 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         }
 
         result
-      }
       case _ => value
     }
 
@@ -198,14 +195,12 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
   def resolveValueReferences(datatype: Type, arguments: List[TypedExpression]): Type = {
     datatype match {
-      case FunctionType(args, result) => {
+      case FunctionType(args, result) =>
         FunctionType(args map { resolveValueReferences(_, arguments) }, resolveValueReferences(result, arguments))
-      }
       case PolymorphicType(types) => PolymorphicType(types map { resolveValueReferences(_, arguments) })
-      case MatrixType(elementType, rowValue, colValue) => {
+      case MatrixType(elementType, rowValue, colValue) =>
         MatrixType(resolveValueReferences(elementType, arguments), resolveValueReferences(rowValue, arguments),
           resolveValueReferences(colValue, arguments))
-      }
       case x => x
     }
   }
@@ -213,12 +208,11 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   def evaluateExpression(expression: TypedExpression): Value = {
     expression match {
       case TypedNumericLiteral(value) => IntValue(value.toInt)
-      case TypedIdentifier(id, _) => {
+      case TypedIdentifier(id, _) =>
         getValue(id) match {
           case Some(t) => evaluateExpression(t)
           case _ => throw new ValueNotFoundError("identifier " + id + " has no value assigned")
         }
-      }
       case _ => throw new NotImplementedError("expression evaluation is not yet fully implemented")
     }
   }
@@ -264,9 +258,8 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         case UniversalType(x: TypeVar) =>
           specialized = true
           replacement.getOrElseUpdate(x, newTV())
-        case MatrixType(elementType, rowValue, colValue) => {
+        case MatrixType(elementType, rowValue, colValue) =>
           MatrixType(helper(elementType), helperValue(rowValue), helperValue(colValue))
-        }
         case PolymorphicType(types) => PolymorphicType(types map { specializeType })
         case FunctionType(args, result) => FunctionType(args map { helper }, helper(result))
         case ConcreteCellArrayType(types) => ConcreteCellArrayType(types map { helper })
@@ -307,9 +300,8 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case ASTUnaryExpression(exp, _) => freeVariables(exp)
       case ASTBinaryExpression(a, op, b) => freeVariables(a) ++ freeVariables(b)
       case ASTFunctionReference(id) => freeVariables(id)
-      case ASTAnonymousFunction(params, body) => {
+      case ASTAnonymousFunction(params, body) =>
         freeVariables(body) -- (params map { case ASTIdentifier(id) => id }).toSet
-      }
       case ASTFunctionApplication(func, args) => freeVariables(func) ++ (args flatMap { freeVariables }).toSet
       case ASTMatrix(rows) => (rows flatMap { freeVariables(_) }).toSet
       case ASTMatrixRow(exps) => (exps flatMap { freeVariables }).toSet
@@ -321,13 +313,12 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
   def freeVariables(identifier: ASTIdentifier): Set[String] = {
     identifier match {
-      case ASTIdentifier(id) => {
+      case ASTIdentifier(id) =>
         if (BuiltinSymbols.isSymbol(id)) {
           Set()
         } else {
           Set(id)
         }
-      }
     }
   }
 
@@ -355,9 +346,8 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         case x @ UniversalType(_: AbstractTypeVar) => x
         case UniversalType(_) => throw new TypingError("Universal cannot be applied to a non type variable")
         case x: AbstractTypeVar => if (freeVars contains x) x else UniversalType(x)
-        case MatrixType(elementType, rowValue, colValue) => {
+        case MatrixType(elementType, rowValue, colValue) =>
           MatrixType(helper(elementType), generalizeValue(rowValue), generalizeValue(colValue))
-        }
         case PolymorphicType(types) => PolymorphicType(types map { helper })
         case FunctionType(args, result) => FunctionType(args map { helper }, helper(result))
         case ConcreteCellArrayType(types) => ConcreteCellArrayType(types map { helper })
@@ -401,14 +391,12 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       Some(resolvedValueA)
     } else {
       (resolvedValueA, resolvedValueB) match {
-        case (x: ValueVar, y) => {
+        case (x: ValueVar, y) =>
           updateValueVarMapping(x, y)
           Some(y)
-        }
-        case (x, y: ValueVar) => {
+        case (x, y: ValueVar) =>
           updateValueVarMapping(y, x)
           Some(x)
-        }
         case (UndefinedValue, _) => Some(UndefinedValue)
         case (_, UndefinedValue) => Some(UndefinedValue)
         case _ => None
@@ -427,23 +415,19 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       Some(typeA)
     } else {
       (typeA, typeB) match {
-        case (x: TypeVar, _) => {
+        case (x: TypeVar, _) =>
           updateTypeVarMapping(x, typeB)
           Some(typeB)
-        }
-        case (_, y: TypeVar) => {
+        case (_, y: TypeVar) =>
           updateTypeVarMapping(y, typeA)
           Some(typeA)
-        }
-        case (x: NumericTypeVar, y: NumericType) => {
+        case (x: NumericTypeVar, y: NumericType) =>
           updateTypeVarMapping(x, y)
           Some(y)
-        }
-        case (x: NumericType, y: NumericTypeVar) => {
+        case (x: NumericType, y: NumericTypeVar) =>
           updateTypeVarMapping(y, x)
           Some(x)
-        }
-        case (FunctionType(args1, result1), FunctionType(args2, result2)) => {
+        case (FunctionType(args1, result1), FunctionType(args2, result2)) =>
           if (args1.length != args2.length) None
           else {
             val unifiedArgs = (for ((x, y) <- (args1 zip args2)) yield {
@@ -456,8 +440,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
               case _ => None
             }
           }
-        }
-        case (MatrixType(matrixType1, rows1, cols1), MatrixType(matrixType2, rows2, cols2)) => {
+        case (MatrixType(matrixType1, rows1, cols1), MatrixType(matrixType2, rows2, cols2)) =>
           val unifiedType = unify(matrixType1, matrixType2)
           val unifiedRows = unifyValue(rows1, rows2)
           val unifiedCols = unifyValue(cols1, cols2)
@@ -472,8 +455,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
             }
             case _ => None
           }
-        }
-        case (ConcreteCellArrayType(typesA), ConcreteCellArrayType(typesB)) => {
+        case (ConcreteCellArrayType(typesA), ConcreteCellArrayType(typesB)) =>
           if(typesA.length == typesB.length){
             val unifiedTypes = typesA zip typesB flatMap { case (a,b) => unify(a,b)}
             if(unifiedTypes.length == typesA.length){
@@ -482,7 +464,6 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
               None
           }else
             None
-        }
         case (ConcreteCellArrayType(typesA), b@InterimCellArrayType(typesB)) =>
           var tB = typesB
 
@@ -552,16 +533,14 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         case _: ASTNumericLiteral | _: ASTString | _: ASTBoolean => Set()
         case ASTUnaryExpression(exp, _) => helper(exp)
         case ASTBinaryExpression(a, _, b) => helper(a) ++ helper(b)
-        case ASTAnonymousFunction(parameters, body) => {
+        case ASTAnonymousFunction(parameters, body) =>
           helper(body) -- (parameters map { case ASTIdentifier(id) => id }).toSet
-        }
-        case ASTFunctionApplication(function, parameters) => {
+        case ASTFunctionApplication(function, parameters) =>
           helper(function) ++ (parameters flatMap { helper }).toSet
-        }
         case ASTFunctionReference(function) => helper(function)
         case ASTMatrix(rows) => rows flatMap { helper } toSet
         case ASTMatrixRow(exps) => exps flatMap { helper } toSet
-        case ASTCellArray(elements) => elements flatMap {helper} toSet
+        case ASTCellArray(elements) => elements flatMap helper toSet
         case ASTCellArrayIndexing(cellArray, index) => helper(cellArray) ++ helper(index)
       }
     }
@@ -641,7 +620,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
 
   def intermediateRepresentationStmtWithResult(stmt: ASTStatementWithResult): TypedStatementWithResult = stmt
   match {
-    case ASTAssignment(lhs, rhs) => {
+    case ASTAssignment(lhs, rhs) =>
       val typedRHS = intermediateRepresentationExpression(rhs)
       updateValueEnvironment(lhs, typedRHS)
       typedRHS match {
@@ -651,7 +630,6 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         case _ => updateEnvironment(lhs, extractType(typedRHS))
       }
       TypedAssignment(intermediateRepresentationIdentifier(lhs), typedRHS)
-    }
     case exp: ASTExpression => intermediateRepresentationExpression(exp)
   }
 
@@ -660,7 +638,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     case ASTNumericLiteral(value) => TypedNumericLiteral(value)
     case ASTString(value) => TypedString(value)
     case ASTBoolean(value) => TypedBoolean(value)
-    case ASTUnaryExpression(exp, op) => {
+    case ASTUnaryExpression(exp, op) =>
       val typedExpression = intermediateRepresentationExpression(exp)
       val operatorType = typeOperator(op)
       val unificationResult = resolvePolymorphicType(operatorType, FunctionType(extractType(typedExpression), newTV()))
@@ -670,8 +648,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
           TypedUnaryExpression(typeConversion(typedExpression,tpe), op, resultType)
         case _ => throw new TypeNotFoundError("Unary expression: " + ASTUnaryExpression(exp, op))
       }
-    }
-    case ASTBinaryExpression(a, op, b) => {
+    case ASTBinaryExpression(a, op, b) =>
       val typedExpressionA = intermediateRepresentationExpression(a)
       val typedExpressionB = intermediateRepresentationExpression(b)
       val operatorType = typeOperator(op)
@@ -679,15 +656,13 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
         extractType(typedExpressionB)), newTV()))
 
       unificationResult match {
-        case Some((FunctionType(List(typeA, typeB), resultType), _)) => {
+        case Some((FunctionType(List(typeA, typeB), resultType), _)) =>
 
           TypedBinaryExpression(typeConversion(typedExpressionA,typeA), op, typeConversion(typedExpressionB, typeB),
             resultType)
-        }
         case _ => throw new TypeNotFoundError("Binary expression: " + ASTBinaryExpression(a, op, b))
       }
-    }
-    case ASTFunctionApplication(func, arguments) => {
+    case ASTFunctionApplication(func, arguments) =>
       val typedFunc = intermediateRepresentationIdentifier(func)
       val functionType = extractType(typedFunc)
       val typedArguments = arguments map { intermediateRepresentationExpression }
@@ -703,8 +678,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
             resolveValueReferences(resultType, typedArguments))
         case _ => throw new TypeNotFoundError("Function application could not be typed: " + exp)
       }
-    }
-    case ASTAnonymousFunction(parameters, body) => {
+    case ASTAnonymousFunction(parameters, body) =>
       val oldMappings = parameters map { case ASTIdentifier(id) => (id, typeEnvironment.get(id)) }
       parameters foreach { case ASTIdentifier(id) => updateEnvironment(id, newTV()) }
 
@@ -726,22 +700,19 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       val functionType = FunctionType(typedParameters map { extractType(_) }, extractType(typedBody))
 
       TypedAnonymousFunction(typedParameters, typedBody, closure, functionType)
-    }
-    case ASTFunctionReference(func) => {
+    case ASTFunctionReference(func) =>
       val typedIdentifier = intermediateRepresentationIdentifier(func)
 
       typedIdentifier.datatype match {
         case x: FunctionType => TypedFunctionReference(typedIdentifier, typedIdentifier.datatype)
         case _ => throw new TypingError("Identifier " + func.value + " has to be a function type")
       }
-    }
 
-    case ASTCellArray(elements) => {
-      val typedElements = elements map {intermediateRepresentationExpression}
+    case ASTCellArray(elements) =>
+      val typedElements = elements map intermediateRepresentationExpression
       TypedCellArray(typedElements, ConcreteCellArrayType(typedElements map { extractType }))
-    }
 
-    case ASTCellArrayIndexing(cellArray, index) => {
+    case ASTCellArrayIndexing(cellArray, index) =>
       val typedExp = intermediateRepresentationExpression(cellArray)
 
       extractType(typedExp) match {
@@ -774,7 +745,6 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
           }
         case _ => throw new TypingError(s"Object $typedExp has to be a cell array in order to be indexed.")
       }
-    }
 
     case _ => throw new NotImplementedError("")
   }
@@ -787,13 +757,12 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   }
 
   def intermediateRepresentationIdentifier(id: ASTIdentifier) = id match {
-    case ASTIdentifier(id) => {
+    case ASTIdentifier(id) =>
       val idType = getType(id) match {
         case Some(t) => t
         case _ => throw new TypeNotFoundError("Identifier " + id + " is unbound")
       }
       TypedIdentifier(id, idType)
-    }
   }
 
   def typeFunction(func: ASTFunction): TypedFunction = {

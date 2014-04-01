@@ -34,32 +34,29 @@ class VolatileExpressionDetector extends DagWalker {
 
   override def onArrival(transformation: Executable) {
     transformation match {
-      case _: FixpointIteration => {
+      case _: FixpointIteration =>
         fixpointEnvironment = true
         stack.push(false)
-      }
-      case IterationStatePlaceholder => {}
+      case IterationStatePlaceholder =>
       case _ => stack.push(false)
     }
   }
 
   override def onLeave(transformation: Executable) {
     transformation match {
-      case _: FixpointIteration => {
+      case _: FixpointIteration =>
         fixpointEnvironment = false
         val volatile = stack.pop()
         if (volatile) {
           volatileExpressions.add(transformation.id)
         }
-      }
-      case IterationStatePlaceholder => {
+      case IterationStatePlaceholder =>
         if (fixpointEnvironment) {
           volatileExpressions.add(IterationStatePlaceholder.id)
           stack.pop()
           stack.push(true)
         }
-      }
-      case _ => {
+      case _ =>
         val volatile = stack.pop()
 
         if (volatile) {
@@ -67,7 +64,6 @@ class VolatileExpressionDetector extends DagWalker {
           stack.pop()
           stack.push(true)
         }
-      }
     }
   }
 }

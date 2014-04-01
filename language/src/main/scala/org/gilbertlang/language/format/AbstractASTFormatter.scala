@@ -18,15 +18,12 @@ abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
   
   def prettyString(stmtOrFunction: ASTStatementOrFunction, indentation: Int): String = {
     stmtOrFunction match{
-      case statement: ASTStatement => {
+      case statement: ASTStatement =>
         prettyString(statement, indentation)
-      }
-      case function: ASTFunction => {
+      case function: ASTFunction =>
         prettyString(function,indentation)
-      }
-      case annotation: ASTTypeAnnotation => {
+      case annotation: ASTTypeAnnotation =>
         indentStr(indentation) + "TypeAnnotation[" + annotation.annotation + "]"
-      }
     }
   }
   
@@ -40,56 +37,44 @@ abstract class AbstractASTFormatter extends Formatter[ASTProgram] {
   
   def prettyString(statement: ASTStatement, indentation: Int): String = {
     statement match {
-      case ASTAssignment(lhs, rhs) => {
+      case ASTAssignment(lhs, rhs) =>
         indentStr(indentation) + "Assignment[" + prettyString(lhs,0) + "]" + nl +
         prettyString(rhs,indentation+1)
-      }
-      case x: ASTExpression => {
+      case x: ASTExpression =>
         prettyString(x,indentation)
-      }
-      case ASTOutputResultStatement(stmt) => {
+      case ASTOutputResultStatement(stmt) =>
         indentStr(indentation) + "Output" + nl +
         prettyString(stmt,indentation+1)
-      }
       case ASTNOP => indentStr(indentation) + "NOP"
     }
   }
   
   def prettyString(expression: ASTExpression, indentation: Int): String ={
     expression match{
-      case ASTString(value) => {
+      case ASTString(value) =>
         indentStr(indentation) + "String(\"" + value + "\")"
-      }
-      case ASTNumericLiteral(value) => {
+      case ASTNumericLiteral(value) =>
         indentStr(indentation) + "FloatingPoint(" + value + ")"
-      }
-      case ASTIdentifier(id) => {
+      case ASTIdentifier(id) =>
         indentStr(indentation) + "Identifier(" + id + ")"
-      }
-      case ASTFunctionReference(function) => {
+      case ASTFunctionReference(function) =>
         indentStr(indentation) + "FunctionReference(" + function + ")"
-      }
-      case ASTAnonymousFunction(arguments, body) => {
+      case ASTAnonymousFunction(arguments, body) =>
         indentStr(indentation) + "AnonymousFunction[(" +
         (arguments map { prettyString(_,0) } mkString(",")) + ")]" + nl +
         prettyString(body,indentation+1)
-      }
-      case ASTUnaryExpression(operand, TransposeOp | CellwiseTransposeOp) =>{
+      case ASTUnaryExpression(operand, TransposeOp | CellwiseTransposeOp) =>
         indentStr(indentation) + prettyString(operand,0) + "'"
-      }
-      case ASTUnaryExpression(operand, operator) => {
+      case ASTUnaryExpression(operand, operator) =>
         indentStr(indentation) + "UnaryExpression[" + op2Str(operator) + "]" + nl +
         prettyString(operand,indentation+1)
-      }
-      case ASTBinaryExpression(operandA, operator, operandB) => {
+      case ASTBinaryExpression(operandA, operator, operandB) =>
         indentStr(indentation) + "BinaryExpression["+ op2Str(operator) + "]" + nl +
         prettyString(operandA, indentation+1) + nl +
         prettyString(operandB, indentation+1)
-      }
-      case ASTFunctionApplication(function, arguments) => {
-        indentStr(indentation) + "FunctionApplication[" + prettyString(function,0) + 
+      case ASTFunctionApplication(function, arguments) =>
+        indentStr(indentation) + "FunctionApplication[" + prettyString(function,0) +
         "(" + ( arguments map { prettyString(_, 0) } mkString(",")) + ")"
-      }
     }
   }
 }

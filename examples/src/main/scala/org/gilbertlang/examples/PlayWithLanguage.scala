@@ -42,20 +42,18 @@ object PlayWithLanguage {
       val ast = parser.parse(reader)
 
       ast match {
-        case Some(parsedProgram) => {
+        case Some(parsedProgram) =>
 
           val typedAST = typer.typeProgram(parsedProgram)
           val compiledProgram = compiler.compile(typedAST)
 
           println(compiledProgram)
-        }
         case _ => println("Could not parse program")
       }
     } catch{
-      case exception: IOException => {
+      case exception: IOException =>
         sys.error(exception.getMessage)
         exception.printStackTrace()
-      }
     } finally{
       IOUtils.closeQuietly(isReader)
     }

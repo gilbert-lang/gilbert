@@ -70,13 +70,12 @@ trait Scanners extends Parsers with SelectTokens {
 
     private def getNextToken(in: EOFReader[Char]): (Token, EOFReader[Elem], EOFReader[Elem]) = {
       token(previousToken)(in) match {
-        case Success(token, in1:EOFReader[Elem]) => {
+        case Success(token, in1:EOFReader[Elem]) =>
           if (accept(token)) {
             (token, in, in1)
           } else {
             getNextToken(in1)
           }
-        }
         case NoSuccess(msg, in1: EOFReader[Elem]) => (errorToken(msg), in1, skip(in1))
       }
     }

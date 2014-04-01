@@ -39,17 +39,16 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
   protected def execute(executable: Executable): Any = {
 
     executable match {
-      case (compound: CompoundExecutable) => {
+      case (compound: CompoundExecutable) =>
         compound.executables foreach { execute }
-      }
       case VoidExecutable => ()
-      case transformation: LoadMatrix => {
+      case transformation: LoadMatrix =>
 
         handle[LoadMatrix, (String, Int, Int)](transformation,
           { transformation => {
             (evaluate[String](transformation.path), evaluate[Double](transformation.numRows).toInt,
                 evaluate[Double](transformation.numColumns).toInt) }},
-          { case (transformation, (path, numRows, numColumns)) => {
+          { case (transformation, (path, numRows, numColumns)) =>
             val itEntries = for(line <- Source.fromFile(path).getLines()) yield {
               val splits = line.split(" ");
               (splits(0).toInt, splits(1).toInt, splits(2).toDouble)
@@ -59,12 +58,9 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
 
             val factory = implicitly[MatrixFactory[Double]]
             factory.create(numRows, numColumns, entries, dense)
-
-            }
           })
-      }
 
-      case (transformation: FixpointIteration) => {
+      case (transformation: FixpointIteration) =>
 
         iterationState = handle[FixpointIteration, Matrix[Double]](transformation,
           { transformation => evaluate[Matrix[Double]](transformation.initialState) },
@@ -77,11 +73,10 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
         }
 
         iterationState
-      }
 
       case IterationStatePlaceholder => iterationState
 
-      case (transformation: CellwiseMatrixTransformation) => {
+      case (transformation: CellwiseMatrixTransformation) =>
 
         handle[CellwiseMatrixTransformation, Matrix[Double]](transformation,
           { transformation => evaluate[Matrix[Double]](transformation.matrix) },
@@ -92,32 +87,27 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               }
             }
           })
-      }
 
-      case transformation: CellwiseMatrixMatrixTransformation => {
+      case transformation: CellwiseMatrixMatrixTransformation =>
         transformation.operation match {
-          case logicOperation: LogicOperation => {
+          case logicOperation: LogicOperation =>
             handle[CellwiseMatrixMatrixTransformation, (Matrix[Boolean], Matrix[Boolean])](
             transformation,
             { input => (evaluate[Matrix[Boolean]](input.left), evaluate[Matrix[Boolean]](input.right))},
-            { case (_, (left, right)) => {
+            { case (_, (left, right)) =>
               logicOperation match {
-                case And => {
+                case And =>
                   left :& right
-                }
-                case Or => {
+                case Or =>
                   left :| right
-                }
               }
             }
-            }
             )
-          }
-          case operation: ComparisonOperation => {
+          case operation: ComparisonOperation =>
             handle[CellwiseMatrixMatrixTransformation, (Matrix[Double], Matrix[Double])](
             transformation,
             {input => (evaluate[Matrix[Double]](input.left), evaluate[Matrix[Double]](input.right))},
-            { case (_, (left, right)) => {
+            { case (_, (left, right)) =>
               operation match {
                 case GreaterThan => left :> right
                 case GreaterEqualThan => left :>= right
@@ -127,13 +117,12 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                 case NotEquals => left :!= right
               }
             }
-            }
-            )}
-          case operation => {
+            )
+          case operation =>
             handle[CellwiseMatrixMatrixTransformation, (Matrix[Double], Matrix[Double])](
             transformation,
             {input => (evaluate[Matrix[Double]](input.left), evaluate[Matrix[Double]](input.right))},
-            { case (_, (left, right)) => {
+            { case (_, (left, right)) =>
               operation match {
                 case Addition => left + right
                 case Subtraction => left - right
@@ -143,28 +132,23 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                 case Minimum => numerics.min(left,right)
               }
             }
-            }
             )
-          }
         }
-      }
 
-      case (transformation: Transpose) => {
+      case (transformation: Transpose) =>
 
         handle[Transpose, Matrix[Double]](transformation,
           { transformation => evaluate[Matrix[Double]](transformation.matrix) },
           { (transformation, matrix) => matrix.t })
-      }
 
-      case (transformation: MatrixMult) => {
+      case (transformation: MatrixMult) =>
 
         handle[MatrixMult, (Matrix[Double], Matrix[Double])](transformation,
           { transformation => {
               (evaluate[Matrix[Double]](transformation.left), evaluate[Matrix[Double]](transformation.right)) }},
           { case (_, (leftMatrix, rightMatrix)) => leftMatrix * rightMatrix })
-      }
 
-      case (transformation: AggregateMatrixTransformation) => {
+      case (transformation: AggregateMatrixTransformation) =>
 
         handle[AggregateMatrixTransformation, Matrix[Double]](transformation,
           { transformation => evaluate[Matrix[Double]](transformation.matrix) },
@@ -172,148 +156,112 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               transformation.operation match {
                 case Maximum => matrix.max
                 case Minimum => matrix.min
-                case Norm2 => {
+                case Norm2 =>
                   val sumOfSquares = breeze.linalg.sum(matrix :* matrix)
                   math.sqrt(sumOfSquares)
-                }
               }
             }
           })
-      }
 
-      case executable: ScalarMatrixTransformation => {
+      case executable: ScalarMatrixTransformation =>
         executable.operation match {
-          case logicOperation: LogicOperation => {
+          case logicOperation: LogicOperation =>
             handle[ScalarMatrixTransformation, (Boolean, Matrix[Boolean])](
             executable,
             { exec => (evaluate[Boolean](exec.scalar), evaluate[Matrix[Boolean]](exec.matrix))},
-            { case (_, (scalar, matrix)) =>{
+            { case (_, (scalar, matrix)) =>
               logicOperation match {
-                case And => {
+                case And =>
                   matrix :& scalar
-                }
-                case Or => {
+                case Or =>
                   matrix :| scalar
-                }
               }
-            }})
-          }
-          case operation => {
+            })
+          case operation =>
             handle[ScalarMatrixTransformation, (Double, Matrix[Double])](
             executable,
             { exec => (evaluate[Double](exec.scalar), evaluate[Matrix[Double]](exec.matrix)) },
             {
-              case (_, (scalar, matrix)) => {
+              case (_, (scalar, matrix)) =>
                 operation match {
-                  case Addition => {
+                  case Addition =>
                     matrix + scalar
-                  }
-                  case Subtraction => {
+                  case Subtraction =>
                     matrix + -scalar
-                  }
-                  case Multiplication => {
+                  case Multiplication =>
                     matrix * scalar
-                  }
-                  case Division => {
+                  case Division =>
                     val factory = implicitly[MatrixFactory[Double]]
                     val dividend = factory.init(matrix.rows, matrix.cols, scalar, dense = true)
                     dividend / matrix
-                  }
-                  case GreaterThan => {
+                  case GreaterThan =>
                     matrix :< scalar
-                  }
-                  case GreaterEqualThan => {
+                  case GreaterEqualThan =>
                     matrix :<= scalar
-                  }
-                  case LessThan => {
+                  case LessThan =>
                     matrix :> scalar
-                  }
-                  case LessEqualThan => {
+                  case LessEqualThan =>
                     matrix :>= scalar
-                  }
-                  case Equals => {
+                  case Equals =>
                     matrix :== scalar
-                  }
-                  case NotEquals => {
+                  case NotEquals =>
                     matrix :!= scalar
-                  }
                 }
-              }
             })
-          }
         }
-      }
 
-      case executable: MatrixScalarTransformation => {
+      case executable: MatrixScalarTransformation =>
         executable.operation match {
-          case logicOperation: LogicOperation => {
+          case logicOperation: LogicOperation =>
             handle[MatrixScalarTransformation, (Matrix[Boolean], Boolean)](
             executable,
             {exec => (evaluate[Matrix[Boolean]](exec.matrix), evaluate[Boolean](exec.scalar))},
-            { case (_, (matrix, scalar)) => {
+            { case (_, (matrix, scalar)) =>
               logicOperation match {
-                case And => {
+                case And =>
                   matrix :& scalar
-                }
-                case Or => {
+                case Or =>
                   matrix :| scalar
-                }
               }
-            }
             })
-          }
-          case operation => {
+          case operation =>
             handle[MatrixScalarTransformation, (Matrix[Double],Double)](
             executable,
             { exec => (evaluate[Matrix[Double]](exec.matrix), evaluate[Double](exec.scalar)) },
             {
-              case (_, (matrix, scalar)) => {
+              case (_, (matrix, scalar)) =>
                 operation match {
-                  case Addition => {
+                  case Addition =>
                     matrix + scalar
-                  }
-                  case Subtraction => {
+                  case Subtraction =>
                     matrix - scalar
-                  }
-                  case Multiplication => {
+                  case Multiplication =>
                     matrix * scalar
-                  }
-                  case Division => {
+                  case Division =>
                     matrix / scalar
-                  }
-                  case GreaterThan => {
+                  case GreaterThan =>
                     matrix :> scalar
-                  }
-                  case GreaterEqualThan => {
+                  case GreaterEqualThan =>
                     matrix :>= scalar
-                  }
-                  case LessThan => {
+                  case LessThan =>
                     matrix :< scalar
-                  }
-                  case LessEqualThan => {
+                  case LessEqualThan =>
                     matrix :<= scalar
-                  }
-                  case Equals => {
+                  case Equals =>
                     matrix :== scalar
-                  }
-                  case NotEquals => {
+                  case NotEquals =>
                     matrix :!= scalar
-                  }
                 }
-              }
             })
-          }
         }
 
-      }
-
-      case (transformation: VectorwiseMatrixTransformation) => {
+      case (transformation: VectorwiseMatrixTransformation) =>
 
         handle[VectorwiseMatrixTransformation, Matrix[Double]](transformation,
           { transformation => evaluate[Matrix[Double]](transformation.matrix) },
           { (transformation, matrix) => {
               transformation.operation match {
-                case NormalizeL1 => {
+                case NormalizeL1 =>
                   val l1norm = norm(matrix( * , ::),1)
                   val result = matrix.copy
                   for(col <- 0 until matrix.cols){
@@ -321,109 +269,94 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                   }
 
                   result
-                }
-                case Maximum => {
+                case Maximum =>
                   numerics.max(matrix(*, ::))
-                }
-                case Minimum => {
+                case Minimum =>
                   numerics.min(matrix(*, ::))
-                }
-                case Norm2 => {
+                case Norm2 =>
                   val squaredEntries = matrix :^ 2.0
                   val sumSquaredEntries = breeze.linalg.sum(squaredEntries(*, ::))
                   val result = sumSquaredEntries map { value => math.sqrt(value)}
                   result
-                }
               }
             }
           })
-      }
 
-      case (transformation: ones) => {
+      case (transformation: ones) =>
 
         handle[ones, (Int, Int)](transformation,
-          { transformation => (evaluate[Double](transformation.numRows).toInt, 
+          { transformation => (evaluate[Double](transformation.numRows).toInt,
               evaluate[Double](transformation.numColumns).toInt) },
-          { case (_, (numRows, numColumns)) =>{
+          { case (_, (numRows, numColumns)) =>
             val factory = implicitly[MatrixFactory[Double]]
             factory.init(numRows, numColumns, 1.0, dense = true)
-          }})
-      }
-      
-      case (transformation: eye) => {
+          })
+
+      case (transformation: eye) =>
         handle[eye, (Int, Int)](
           transformation,
           { trans => (evaluate[Double](trans.numRows).toInt, evaluate[Double](trans.numCols).toInt)},
-          { case (_, (rows, cols)) => 
+          { case (_, (rows, cols)) =>
             val factory = implicitly[MatrixFactory[Double]]
             factory.eye(rows, cols, math.min(rows, cols).toDouble/(rows*cols) > Configuration.DENSITYTHRESHOLD)
           }
         )
-      }
-      
-      case (transformation: zeros) => {
+
+      case (transformation: zeros) =>
         handle[zeros, (Int, Int)](
             transformation,
-            {transformation => (evaluate[Double](transformation.numRows).toInt, 
+            {transformation => (evaluate[Double](transformation.numRows).toInt,
                 evaluate[Double](transformation.numCols).toInt)},
-            { case (_, (rows, cols)) => 
+            { case (_, (rows, cols)) =>
               val factory = implicitly[MatrixFactory[Double]]
               factory.create(rows, cols, dense = false)
             })
-      }
 
-      case (transformation: randn) => {
+      case (transformation: randn) =>
 
         handle[randn, (Int, Int, Double, Double)](transformation,
           { transformation =>
               (evaluate[Double](transformation.numRows).toInt, evaluate[Double](transformation.numColumns).toInt,
                   evaluate[Double](transformation.mean), evaluate[Double](transformation.std)) },
-          { case (_, (numRows, numColumns, mean, std)) => {
+          { case (_, (numRows, numColumns, mean, std)) =>
             val random = new GaussianRandom(mean, std)
             DenseMatrix.rand(numRows, numColumns, random)
-          }
           })
-      }
 
-      case transformation: spones => {
+      case transformation: spones =>
         handle[spones, Matrix[Double]](transformation,
             { transformation => evaluate[Matrix[Double]](transformation.matrix) },
             { (_, matrix) => matrix mapActiveValues { value => CellwiseFunctions.binarize(value) } })
-      }
 
       //TODO remove this
-      case transformation: sum => {
+      case transformation: sum =>
         handle[sum, (Matrix[Double], Int)](transformation,
             { transformation => (evaluate[Matrix[Double]](transformation.matrix),
                 evaluate[Double](transformation.dimension).toInt) },
-            { case (_, (matrix, dimension)) => {
+            { case (_, (matrix, dimension)) =>
               if(dimension == 1){
                 breeze.linalg.sum(matrix(::, *))
               }else{
                 breeze.linalg.sum(matrix(*, ::)).asMatrix
               }
-            }
             })
-      }
-      
-      case transformation: sumRow => {
+
+      case transformation: sumRow =>
         handle[sumRow, Matrix[Double]](transformation,
             { transformation => evaluate[Matrix[Double]](transformation.matrix) },
             { (_, matrix) => {
               breeze.linalg.sum(matrix(*, ::)).asMatrix
             }})
-      }
-      
-      case transformation: sumCol => {
+
+      case transformation: sumCol =>
         handle[sumCol, Matrix[Double]](transformation,
             { transformation => evaluate[Matrix[Double]](transformation.matrix) },
             { (_, matrix) => {
               breeze.linalg.sum(matrix(::, *))
             }})
-      }
 
       //TODO substitute with specialized operators
-      case transformation: diag => {
+      case transformation: diag =>
         handle[diag, Matrix[Double]](transformation,
             {transformation => evaluate[Matrix[Double]](transformation.matrix)},
             { (_, matrix) => {
@@ -438,57 +371,49 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                     value)}).toArray[(Int, Int, Double)]
                   val factory = implicitly[MatrixFactory[Double]]
                   factory.create(x,x, entries, entries.length.toDouble/(x*x) > Configuration.DENSITYTHRESHOLD)
-                case (x:Int,y:Int) => {
+                case (x:Int,y:Int) =>
                   val minimum = math.min(x,y)
                   val factory = implicitly[MatrixFactory[Double]]
                   val itEntries = for(idx <- 0 until minimum) yield (0,idx,matrix(idx,idx))
                   val entries = itEntries.toSeq
                   factory.create(minimum, 1, entries, dense = true)
-                }
               }
             }})
-      }
 
-      case (transformation: WriteMatrix) => {
+      case (transformation: WriteMatrix) =>
 
         handle[WriteMatrix, Matrix[Double]](transformation,
           { transformation => evaluate[Matrix[Double]](transformation.matrix) },
           { (_, matrix) => println(matrix) })
-      }
-      
-      case transformation: WriteString => {
+
+      case transformation: WriteString =>
 
         handle[WriteString, String](transformation,
             { transformation => evaluate[String](transformation.string) },
             { (_, string) => println(string) })
-      }
-      
-      case transformation: WriteFunction => {
+
+      case transformation: WriteFunction =>
         handle[WriteFunction, Unit](transformation,
             { _ => },
             { (transformation, _) => PlanPrinter.print(transformation.function) })
-      }
-      
 
-      case (transformation: scalar) => {
+
+      case (transformation: scalar) =>
 
         handle[scalar, Unit](transformation,
           { _ => },
           { (transformation, _) => transformation.value })
-      }
 
-      case transformation: string => {
+      case transformation: string =>
         handle[string, Unit](transformation,
           { _ => },
           { (transformation, _) => transformation.value })
-      }
 
-      case (transformation: WriteScalar) => {
+      case (transformation: WriteScalar) =>
 
         handle[WriteScalar, Double](transformation,
           { transformation => evaluate[Double](transformation.scalar) },
           { (_, scalar) => println(scalar) })
-      }
 
       case transformation: UnaryScalarTransformation =>
         handle[UnaryScalarTransformation, Double](transformation,
@@ -500,11 +425,11 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             }
           })
 
-      case transformation: ScalarScalarTransformation => {
+      case transformation: ScalarScalarTransformation =>
         handle[ScalarScalarTransformation, (Double, Double)](transformation,
           { transformation => (evaluate[Double](transformation.left), evaluate[Double](transformation.right)) },
           {
-            case (transformation, (left, right)) => 
+            case (transformation, (left, right)) =>
               val result: Double = transformation.operation match {
               case Addition => left + right
               case Subtraction => left - right
@@ -523,15 +448,12 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               }
               result
           })
-      }
-      
-      case transformation: Parameter => {
+
+      case transformation: Parameter =>
         throw new ExecutionRuntimeError("Parameters cannot be executed")
-      }
-      
-      case transformation: function => {
+
+      case transformation: function =>
         throw new ExecutionRuntimeError("Functions cannot be executed")
-      }
     }
 
   }

@@ -70,10 +70,9 @@ object withStratosphere{
     result match {
       case x:ScalaPlan => x
       case x:ScalaSink[_] => new ScalaPlan(Seq(x))
-      case x:List[_] => {
+      case x:List[_] =>
         val sinks = for(dataset <- x) yield dataset.asInstanceOf[ScalaSink[_]]
         new ScalaPlan(sinks)
-      }
     }
   }
 }

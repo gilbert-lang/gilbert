@@ -50,25 +50,24 @@ class SparkExecutor extends Executor {
 
     executable match {
 
-      case (transformation: LoadMatrix) => {
+      case (transformation: LoadMatrix) =>
 
         handle[LoadMatrix, (String, Int, Int)](transformation,
             { x => (evaluate[String](x.path), evaluate[Double](x.numRows).toInt, evaluate[Double](x.numColumns).toInt)},
-            { case (transformation, (path, rows, cols)) => {
+            { case (transformation, (path, rows, cols)) =>
               sc.textFile(path, degreeOfParallelism).map({ line => {
                 val fields = line.split(" ")
                 (fields(0).toInt, fields(1).toInt, fields(2).toDouble)
-              }}).groupBy(_._1).flatMap({ case (index, elements) => {
+              }}).groupBy(_._1).flatMap({ case (index, elements) =>
                 val vector = new RandomAccessSparseVector(cols)
                 for ((_, column, value) <- elements) {
                   vector.setQuick(column, value)
                 }
                 Seq((index, new SequentialAccessSparseVector(vector)))
-              }})
-            }})
-      }
+              })
+            })
 
-      case (transformation: FixpointIteration) => {
+      case (transformation: FixpointIteration) =>
 
         iterationState = handle[FixpointIteration, Vector](transformation,
         { transformation => evaluate[Vector](transformation.initialState) },
@@ -81,17 +80,16 @@ class SparkExecutor extends Executor {
         }
 
         iterationState
-      }
 
-      case IterationStatePlaceholder => { iterationState }
+      case IterationStatePlaceholder => iterationState
 
       //TODO cannot call clone method on Vector instances, even though it should be part of the interface
-      case transformation: CellwiseMatrixMatrixTransformation => {
+      case transformation: CellwiseMatrixMatrixTransformation =>
         handle[CellwiseMatrixMatrixTransformation, (RowPartitionedMatrix, RowPartitionedMatrix)](transformation,
             { transformation => {
               (evaluate[RowPartitionedMatrix](transformation.left),
                   evaluate[RowPartitionedMatrix](transformation.right)) }},
-            { case (transformation, (leftMatrix, rightMatrix)) => {
+            { case (transformation, (leftMatrix, rightMatrix)) =>
               transformation.operation match {
                 case Addition => leftMatrix zip rightMatrix map {
                   case((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.plus(rightRow))
@@ -100,118 +98,100 @@ class SparkExecutor extends Executor {
                   case((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.times(rightRow))
                 }
                 case Division => leftMatrix zip rightMatrix map {
-                  case((rowIndex, leftRow: Vector), (_, rightRow: Vector)) => {
+                  case((rowIndex, leftRow: Vector), (_, rightRow: Vector)) =>
                     val clonedLeftRow = new RandomAccessSparseVector(leftRow)
                     (rowIndex, clonedLeftRow.assign(rightRow, Functions.DIV))
-                  }
                 }
                 case Subtraction => leftMatrix zip rightMatrix map {
                   case ((rowIndex, leftRow), (_, rightRow)) => (rowIndex, leftRow.minus(rightRow))
                 }
                 //TODO do we need this?
-                case Maximum => {
+                case Maximum =>
                   leftMatrix zip rightMatrix map {
-                    case ((rowIndex, leftRow), (_, rightRow)) => {
+                    case ((rowIndex, leftRow), (_, rightRow)) =>
                       val clonedLeftRow = new RandomAccessSparseVector(leftRow)
                       (rowIndex, clonedLeftRow.assign(rightRow, Functions.MAX))
-                    }
                   }
-                }
                 //TODO do we need this?
-                case Minimum => {
+                case Minimum =>
                   leftMatrix zip rightMatrix map {
-                    case ((rowIndex, leftRow), (_, rightRow)) => {
+                    case ((rowIndex, leftRow), (_, rightRow)) =>
                       val clonedLeftRow = new RandomAccessSparseVector(leftRow)
                       (rowIndex, clonedLeftRow.assign(rightRow, Functions.MIN))
-                    }
                   }
-                }
               }
-            }})
-      }
+            })
 
 
-      case (transformation: CellwiseMatrixTransformation) => {
+      case (transformation: CellwiseMatrixTransformation) =>
 
         handle[CellwiseMatrixTransformation, RowPartitionedMatrix](transformation,
             { transformation => evaluate[RowPartitionedMatrix](transformation.matrix) },
             { (transformation, matrix) => {
               transformation.operation match {
-                case Binarize => {
+                case Binarize =>
                   //TODO add binarize to mahout to only apply it to non zeros!
-                  matrix.map({ case (index, row) => {
+                  matrix.map({ case (index, row) =>
                     val clonedRow = new RandomAccessSparseVector(row)
                     (index, clonedRow.assign(VectorFunctions.binarize))
-                  }})
-                }
+                  })
                 case Minus => matrix.map({ case (index,row) => (index, row.times(-1)) })
               }
             }})
-      }
-      
-      case transformation: VectorwiseMatrixTransformation => {
+
+      case transformation: VectorwiseMatrixTransformation =>
         handle[VectorwiseMatrixTransformation, RowPartitionedMatrix](transformation,
             {transformation => evaluate[RowPartitionedMatrix](transformation.matrix)},
             {(transformation, matrix) => {
               transformation.operation match {
-                case Maximum => {
+                case Maximum =>
                   matrix.map( { case (index, row) => (index, new DenseVector(Array(row.maxValue()))) })
-                }
-                case Minimum => {
+                case Minimum =>
                   matrix.map( {case (index, row) => (index, new DenseVector(Array(row.minValue())))})
-                }
-                case Norm2 => {
+                case Norm2 =>
                   matrix.map( {case (index, row) => (index, new DenseVector(Array(row.norm(2))))})
-                }
-                case NormalizeL1 => {
+                case NormalizeL1 =>
                   matrix.map( {case (index, row) => (index, row.normalize(1))})
-                }
               }
             }
              })
-      }
 
-      case (transformation: AggregateMatrixTransformation) => {
+      case (transformation: AggregateMatrixTransformation) =>
 
         handle[AggregateMatrixTransformation, RowPartitionedMatrix](transformation,
             { transformation => evaluate[RowPartitionedMatrix](transformation.matrix) },
             { (transformation, matrix) => {
               transformation.operation match {
-                case Maximum => {
+                case Maximum =>
                   matrix.map({ case (_, row) => row.maxValue() }).aggregate(Double.MinValue)(math.max, math.max)
-                }
-                case Minimum => {
+                case Minimum =>
                   matrix.map({ case (_, row) => row.minValue()} ).aggregate(Double.MaxValue)(math.min, math.min)
-                }
-                case Norm2 => {
+                case Norm2 =>
                   val sumOfEntriesSquared =
                     matrix.map({ case (_, row) => row.getLengthSquared }).aggregate(0.0)({ _ + _ }, { _ + _ })
                   math.sqrt(sumOfEntriesSquared)
-                }
               }
             }})
-      }
 
-      case (transformation: Transpose) => {
+      case (transformation: Transpose) =>
 
         handle[Transpose, RowPartitionedMatrix](transformation,
             { transformation => evaluate[RowPartitionedMatrix](transformation.matrix)},
             { (transformation, matrix) => {
               //TODO make reduce combinable
-              matrix.flatMap({ case (index, row) => {
+              matrix.flatMap({ case (index, row) =>
                 for (elem <- row.nonZeroes())
                   yield { (elem.index(), index, elem.get()) }
-              }})
-                .groupBy(_._1).map({ case (index, entries) => {
+              })
+                .groupBy(_._1).map({ case (index, entries) =>
                 val row = new RandomAccessSparseVector(Integer.MAX_VALUE)
                 entries.foreach({ case (_, columnIndex, value) => row.setQuick(columnIndex, value) })
                 (index, new SequentialAccessSparseVector(row))
-              }})
+              })
             }})
-      }
 
-       //TODO we should eliminate transpose before
-      case (transformation: MatrixMult) => {
+      //TODO we should eliminate transpose before
+      case (transformation: MatrixMult) =>
 
         handle[MatrixMult, (RowPartitionedMatrix, RowPartitionedMatrix)](transformation,
             { transformation => {
@@ -219,99 +199,87 @@ class SparkExecutor extends Executor {
               val rightMatrix = evaluate[RowPartitionedMatrix](transformation.right)
               (leftMatrix, rightMatrix)
             }},
-            { case (_, (leftMatrix, rightMatrix)) => {
+            { case (_, (leftMatrix, rightMatrix)) =>
 
               //TODO make reduce combinable
               /* row outer product formulation of matrix multiplication */
-              val transposedLeftMatrix = leftMatrix.flatMap({ case (index, row) => {
-                  for (elem <- row.nonZeroes())
+              val transposedLeftMatrix = leftMatrix.flatMap({ case (index, row) =>
+                for (elem <- row.nonZeroes())
                     yield { (elem.index(), index, elem.get()) }
-                }})
-                .groupBy(_._1).map({ case (index, entries) => {
-                  val row = new RandomAccessSparseVector(Integer.MAX_VALUE)
-                  entries.foreach({ case (_, columnIndex, value) => row.setQuick(columnIndex, value) })
-                  (index, new SequentialAccessSparseVector(row))
-                }})
+              })
+                .groupBy(_._1).map({ case (index, entries) =>
+                val row = new RandomAccessSparseVector(Integer.MAX_VALUE)
+                entries.foreach({ case (_, columnIndex, value) => row.setQuick(columnIndex, value) })
+                (index, new SequentialAccessSparseVector(row))
+              })
 
-              transposedLeftMatrix.join(rightMatrix).flatMap({ case (_, (column, row)) => {
+              transposedLeftMatrix.join(rightMatrix).flatMap({ case (_, (column, row)) =>
                 for (elem <- column.nonZeroes())
                   yield { (elem.index(), row.times(elem.get())) }
-              }})
+              })
               .reduceByKey(_.assign(_, Functions.PLUS))
+            })
 
-            }})
-      }
-
-      case (transformation: ScalarMatrixTransformation) => {
+      case (transformation: ScalarMatrixTransformation) =>
 
         handle[ScalarMatrixTransformation, (Double, RowPartitionedMatrix)](transformation,
           { transformation => {
             (evaluate[Double](transformation.scalar), evaluate[RowPartitionedMatrix](transformation.matrix))
           }},
-          { case (transformation, (value, matrix)) => {
+          { case (transformation, (value, matrix)) =>
             transformation.operation match {
-              case (Division) => {
-                matrix.map({ case (index, row) => {
+              case (Division) =>
+                matrix.map({ case (index, row) =>
                   val newVector = new DenseVector(row.size()).assign(value)
                   (index, newVector.assign(row, Functions.DIV))
-                  }
                 })
-              }
-              case Addition => {
-                matrix.map({ case(index, row) => {
-                  (index, row.plus(value)) } })
-              }
-              case Multiplication => {
-                matrix.map({ case(index, row) => {
-                  (index, row.times(value)) } })
-              }
-              case Subtraction => {
-                matrix.map({ case(index, row) => {
-                	(index, row.assign(Functions.NEGATE).plus(value))
-                }
+              case Addition =>
+                matrix.map({ case(index, row) =>
+                  (index, row.plus(value))
                 })
-              }
+              case Multiplication =>
+                matrix.map({ case(index, row) =>
+                  (index, row.times(value))
+                })
+              case Subtraction =>
+                matrix.map({ case(index, row) =>
+                  (index, row.assign(Functions.NEGATE).plus(value))
+                })
             }
-          }})
-      }
-            
-      case transformation: MatrixScalarTransformation => {
-        handle[MatrixScalarTransformation, (RowPartitionedMatrix, Double)](transformation, 
+          })
+
+      case transformation: MatrixScalarTransformation =>
+        handle[MatrixScalarTransformation, (RowPartitionedMatrix, Double)](transformation,
             {transformation => {
               (evaluate[RowPartitionedMatrix](transformation.matrix), evaluate[Double](transformation.scalar))
             }},
-            { case (transformation, (matrix, scalar)) => {
+            { case (transformation, (matrix, scalar)) =>
               transformation.operation match{
-                case Addition => {
+                case Addition =>
                   matrix map {
                     case (index, row) => (index, row.plus(scalar))
                   }
-                }
-                case Subtraction => {
+                case Subtraction =>
                   matrix map {
                     case (index, row) => (index, row.assign(Functions.MINUS,scalar))
                   }
-                }
-                case Multiplication => {
+                case Multiplication =>
                   matrix map {
                     case (index, row) => (index, row.times(scalar))
                   }
-                }
-                case Division => {
+                case Division =>
                   matrix map {
                     case (index, row) => (index, row.divide(scalar))
                   }
-                }
               }
-            }})
-      }
-      
-      case transformation: ScalarScalarTransformation => {
+            })
+
+      case transformation: ScalarScalarTransformation =>
         handle[ScalarScalarTransformation, (Double, Double)](transformation,
             {transformation => {
               (evaluate[Double](transformation.left), evaluate[Double](transformation.right))
             }},
-            {case (transformation, (a,b)) => {
+            {case (transformation, (a,b)) =>
               transformation.operation match {
                 case Addition => a+b
                 case Subtraction => a-b
@@ -320,10 +288,9 @@ class SparkExecutor extends Executor {
                 case Maximum => math.max(a,b)
                 case Minimum => math.min(a,b)
               }
-            }})
-      }
-      
-      case transformation: UnaryScalarTransformation => {
+            })
+
+      case transformation: UnaryScalarTransformation =>
         handle[UnaryScalarTransformation, Double](transformation,
             {transformation => evaluate[Double](transformation.scalar)},
             { (transformation, scalar) => {
@@ -332,31 +299,29 @@ class SparkExecutor extends Executor {
             	  case Minus => -scalar
             	}
             }})
-      }
-     
+
 
       //TODO rework
-      case (transformation: ones) => {
+      case (transformation: ones) =>
 
         handle[ones, (Int,Int)](transformation,
             { x =>  (evaluate[Double](x.numRows).toInt, evaluate[Double](x.numColumns).toInt)},
-            { case (transformation, (numRows, numColumns)) => {
+            { case (transformation, (numRows, numColumns)) =>
               var rows = Seq[(Int, Vector)]()
 
               for (index <- 1 to numRows) {
                 rows = rows ++ Seq((index, new DenseVector(numColumns).assign(1)))
               }
               sc.parallelize(rows, degreeOfParallelism)
-            }})
-      }
+            })
 
       //TODO rework
-      case (transformation: randn) => {
+      case (transformation: randn) =>
 
         handle[randn, (Int,Int,Double,Double)](transformation,
             { x => (evaluate[Double](x.numRows).toInt, evaluate[Double](x.numColumns).toInt, evaluate[Double](x.mean),
                 evaluate[Double](x.std))},
-            { case (transformation, (numRows, numColumns, mean, std)) => {
+            { case (transformation, (numRows, numColumns, mean, std)) =>
 
               val gaussian = new Normal(mean, std)
               var rows = Seq[(Int, Vector)]()
@@ -365,107 +330,98 @@ class SparkExecutor extends Executor {
                 rows = rows ++ Seq((index, new DenseVector(numColumns).assign(gaussian)))
               }
               sc.parallelize(rows, degreeOfParallelism)
-            }})
-      }
-      
-      case (transformation: eye) => {
+            })
+
+      case (transformation: eye) =>
         handle[eye, (Int, Int)](
           transformation,
-          { transformation => (evaluate[Double](transformation.numRows).toInt, 
+          { transformation => (evaluate[Double](transformation.numRows).toInt,
               evaluate[Double](transformation.numCols).toInt)},
-          { case (_, (numRows, numCols)) => 
+          { case (_, (numRows, numCols)) =>
             var rows = Seq[(Int, Vector)]()
-            
+
             for(index <- 1 to numRows) {
               val row = new RandomAccessSparseVector(numCols);
               row.setQuick(index, 1);
               rows = rows ++ Seq((index, row));
             }
-            
+
             sc.parallelize(rows, degreeOfParallelism)
           }
         )
-      }
-      
-      case (transformation: zeros) => {
+
+      case (transformation: zeros) =>
         handle[zeros, (Int, Int)](
           transformation,
           { transformation => (evaluate[Double](transformation.numRows).toInt,
               evaluate[Double](transformation.numCols).toInt)},
           { case (_, (numRows, numCols)) =>
             var rows = Seq[(Int, Vector)]()
-            
+
             for(index <- 1 to numRows) {
               rows = rows ++ Seq((index, new RandomAccessSparseVector(numCols)))
             }
-            
+
             sc.parallelize(rows, degreeOfParallelism)
           }
         )
-      }
-      
-      case transformation: spones => {
+
+      case transformation: spones =>
         handle[spones, RowPartitionedMatrix](transformation,
             {transformation => evaluate[RowPartitionedMatrix](transformation.matrix)},
             {(_,matrix) => {
-              matrix map { case (index, row) => {
+              matrix map { case (index, row) =>
                 (index, row.assign(CellwiseFunctions.binarize))
-              }}
+              }
             }})
-      }
-      
-      case transformation: sumRow => {
+
+      case transformation: sumRow =>
         handle[sumRow, RowPartitionedMatrix](transformation,
             { transformation => evaluate[RowPartitionedMatrix](transformation.matrix)},
             { (_, matrix) => {
               matrix map {
-                case (index, row) => 
+                case (index, row) =>
                   val newRow = new RandomAccessSparseVector(1)
                   newRow.setQuick(0,row.zSum())
                   (index,  newRow)
               }
             }})
-      }
-      
-      case transformation: sumCol => {
+
+      case transformation: sumCol =>
         handle[sumCol, RowPartitionedMatrix](transformation,
             {transforamtion => evaluate[RowPartitionedMatrix](transformation.matrix)},
             { (_, matrix) => {
-              matrix.reduce({ case ((_,a),(_,b)) => {
+              matrix.reduce({ case ((_,a),(_,b)) =>
                 (0,a.plus(b))
-              }})
+              })
             }})
-      }
-      
-      case transformation: sum => {
+
+      case transformation: sum =>
         handle[sum, (RowPartitionedMatrix, Int)](transformation,
             { transformation => (evaluate[RowPartitionedMatrix](transformation.matrix),
                 evaluate[Double](transformation.dimension).toInt)},
-            { case (_, (matrix, 2)) => {
+            { case (_, (matrix, 2)) =>
               matrix map {
-                case (index, row) => 
+                case (index, row) =>
                   val newRow = new RandomAccessSparseVector(1)
                   newRow.setQuick(0,row.zSum())
                   (index,  newRow)
               }
-            }
-            case (_, (matrix, 1)) => {
-              matrix.reduce({ case ((_,a),(_,b)) => {
+            case (_, (matrix, 1)) =>
+              matrix.reduce({ case ((_,a),(_,b)) =>
                 (0,a.plus(b))
-              }})
-              }
+              })
             })
-      }
-      
-      case transformation: diag => {
+
+      case transformation: diag =>
         handle[diag, RowPartitionedMatrix](transformation,
             { transformation => evaluate[RowPartitionedMatrix](transformation.matrix)},
             { (transformation, matrix) => {
             	(transformation.rows, transformation.cols) match{
-            	  case (None,_) | (_, None) => {
-            	    val numRows = matrix.count()
-            	    matrix flatMap { case(index, row) =>{
-            	      if(row.size() ==1){
+            	  case (None,_) | (_, None) =>
+                  val numRows = matrix.count()
+                  matrix flatMap { case(index, row) =>
+                    if(row.size() ==1){
             	        val newRow = new RandomAccessSparseVector(numRows.toInt,1)
             	        newRow.setQuick(index,row.get(0))
             	        Some((index,newRow))
@@ -479,44 +435,39 @@ class SparkExecutor extends Executor {
             	        }else{
             	          None
             	        }
-            	      } 
-            	    }}
-            	  }
-            	  
-            	  case (Some(1), Some(y)) => {
-            	    require(matrix.count == 1)
-            	    matrix flatMap { case (index, row) => {
-            	      for(elem <- row.nonZeroes())
+            	      }
+                  }
+
+                case (Some(1), Some(y)) =>
+                  require(matrix.count == 1)
+                  matrix flatMap { case (index, row) =>
+                    for(elem <- row.nonZeroes())
             	        yield({
             	          val newRow = new RandomAccessSparseVector(y,1)
             	          newRow.setQuick(elem.index(),elem.get())
             	          (elem.index(),newRow)
             	        })
-            	    }}
-            	  }
-            	  
-            	  case (Some(x), Some(1)) => {
-            	    matrix map { case (index, row) => {
-            	      require(row.size() == 1)
-            	      val newRow = new RandomAccessSparseVector(x,1)
-            	      newRow.setQuick(index, row.get(0))
-            	      (index, newRow)
-            	    }}
-            	  }
-            	  
-            	  case (Some(x), Some(y)) => {
-            	    val maxIdx = math.min(x,y)
-            	    matrix map { case (index, row) => {
-            	      val newRow = new RandomAccessSparseVector(1)
-            	      newRow.setQuick(0,row.get(math.min(index,maxIdx)))
-            	      (index, newRow)
-            	    }} take maxIdx
-            	  }
-            	}
-            }})
-      }
+                  }
 
-      case (transformation: WriteMatrix) => {
+                case (Some(x), Some(1)) =>
+                  matrix map { case (index, row) =>
+                    require(row.size() == 1)
+                    val newRow = new RandomAccessSparseVector(x,1)
+                    newRow.setQuick(index, row.get(0))
+                    (index, newRow)
+                  }
+
+                case (Some(x), Some(y)) =>
+                  val maxIdx = math.min(x,y)
+                  matrix map { case (index, row) =>
+                    val newRow = new RandomAccessSparseVector(1)
+                    newRow.setQuick(0,row.get(math.min(index,maxIdx)))
+                    (index, newRow)
+                  } take maxIdx
+              }
+            }})
+
+      case (transformation: WriteMatrix) =>
 
         handle[WriteMatrix, RowPartitionedMatrix](transformation,
             { transformation => evaluate[RowPartitionedMatrix](transformation.matrix) },
@@ -525,53 +476,44 @@ class SparkExecutor extends Executor {
                 println(index + " " + row)
               })
             }})
-      }
-      
-      case transformation: WriteString => {
+
+      case transformation: WriteString =>
         handle[WriteString, Unit](transformation,
             { _ => },
             { (transformation, _) => println(transformation.string)})
-      }
-      
-      case transformation: WriteFunction => {
+
+      case transformation: WriteFunction =>
         handle[WriteFunction, Unit](transformation,
             { _ => },
             {(transformation, _) => PlanPrinter.print(transformation.function) })
-      }
-      
-      case (transformation: scalar) => {
+
+      case (transformation: scalar) =>
 
         handle[scalar, Unit](transformation,
             { _ => },
             { (transformation, _) => transformation.value })
-      }
-      
-      
-      case transformation: string => {
+
+
+      case transformation: string =>
         handle[string, Unit](transformation,
             { _ => },
             {(transformation, _) => transformation.value })
-      }
-      
-      case transformation: function => {
-        throw new ExecutionRuntimeError("Functions cannot be executed")
-      }
-      
-      case transformation: Parameter => {
-        throw new ExecutionRuntimeError("Parameters cannot be executed")
-      }
 
-      case (transformation: WriteScalar) => {
+      case transformation: function =>
+        throw new ExecutionRuntimeError("Functions cannot be executed")
+
+      case transformation: Parameter =>
+        throw new ExecutionRuntimeError("Parameters cannot be executed")
+
+      case (transformation: WriteScalar) =>
 
         handle[WriteScalar, Double](transformation,
             { transformation => evaluate[Double](transformation.scalar) },
             { (transformation, value) => println(value) })
-      }
-      
-      case transformation: CompoundExecutable => {
-       transformation.executables foreach { execute }
-      }
-      
+
+      case transformation: CompoundExecutable =>
+        transformation.executables foreach { execute }
+
       case VoidExecutable => ()
     }
   }

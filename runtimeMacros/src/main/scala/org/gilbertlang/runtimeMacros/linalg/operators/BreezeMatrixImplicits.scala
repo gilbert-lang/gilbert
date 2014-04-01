@@ -16,18 +16,15 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     new CanZipMapValues[Matrix[T], T, T, Matrix[T]]{
       override def map(a: Matrix[T], b:Matrix[T], fn: (T, T) => T) = {
         (a,b) match {
-          case (x: DenseMatrix[T], y: DenseMatrix[T]) => {
+          case (x: DenseMatrix[T], y: DenseMatrix[T]) =>
             val zipMapValues = implicitly[CanZipMapValues[DenseMatrix[T], T, T, DenseMatrix[T]]]
             zipMapValues.map(x,y, fn)
-          }
-          case (x: CSCMatrix[T], y: CSCMatrix[T]) => {
+          case (x: CSCMatrix[T], y: CSCMatrix[T]) =>
             val zipMapValues = implicitly[CanZipMapValues[CSCMatrix[T], T, T, CSCMatrix[T]]]
             zipMapValues.map(x,y,fn)
-          }
-          case (x,y) => {
+          case (x,y) =>
             val data = ((x.valuesIterator zip (y.valuesIterator)) map { case (x,y) => fn(x,y) }).toArray[T]
             new DenseMatrix[T](x.rows, y.cols, data)
-          }
         }
       }
     }
@@ -42,10 +39,9 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
         from match{
           case x: DenseMatrix[T] => x.map(fn)
           case x: CSCMatrix[T] => x.map(fn)
-          case x => {
+          case x =>
             val data = (x.valuesIterator map { value => fn(value) }).toArray[T]
             new DenseMatrix[T](x.rows, x.cols, data)
-          }
         }
       }
 
@@ -54,10 +50,9 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
         from match{
           case x: DenseMatrix[T] => x.map(fn)
           case x: CSCMatrix[T] => x.map(fn)
-          case x => {
+          case x =>
             val data = (x.valuesIterator map { value => fn(value) }).toArray[T]
             new DenseMatrix[T](x.rows, x.cols, data)
-          }
         }
       }
     }
@@ -69,11 +64,10 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
         from match {
           case x: DenseMatrix[T] => x.t
           case x: CSCMatrix[T] => x.t
-          case x => {
+          case x =>
             val data = (x.valuesIterator).toArray[T]
             val result = new DenseMatrix[T](x.rows, x.cols, data)
             result.t
-          }
         }
       }
     }
@@ -85,19 +79,16 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
 
       override def traverse(matrix: Matrix[T], fn: ValuesVisitor[T]){
         matrix match {
-          case x: DenseMatrix[T] => {
+          case x: DenseMatrix[T] =>
             val traversal = implicitly[CanTraverseValues[DenseMatrix[T], T]]
             traversal.traverse(x, fn)
-          }
-          case x: CSCMatrix[T] => {
+          case x: CSCMatrix[T] =>
             val traversal = implicitly[CanTraverseValues[CSCMatrix[T], T]]
             traversal.traverse(x, fn)
-          }
-          case x => {
+          case x =>
             for(row <- 0 until x.rows; col <- 0 until x.cols){
               fn.visit(x(row,col))
             }
-          }
         }
       }
     }
@@ -109,10 +100,9 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
         matrix match {
           case x: DenseMatrix[T] => x(row, ::)
           case x: CSCMatrix[T] => x(row, ::)
-          case x => {
+          case x =>
             val data = (for(col <- 0 until x.cols) yield x(row,col)).toArray[T]
             new DenseMatrix[T](1,x.cols, data);
-          }
         }
       }
     }
@@ -124,10 +114,9 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
         matrix match {
           case x: DenseMatrix[T] => x(rows, ::)
           case x: CSCMatrix[T] => x(rows, ::)
-          case x => {
+          case x =>
             val data = (for(row <- rows; col <- 0 until x.cols) yield x(row,col)).toArray[T]
             new DenseMatrix[T](rows.length, x.cols, data)
-          }
         }
       }
     }
@@ -139,10 +128,9 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
         matrix match {
           case x: DenseMatrix[T] => x(::, col)
           case x: CSCMatrix[T] => x(::, col)
-          case x => {
+          case x =>
             val data = (for(row <- 0 until x.rows) yield x(row, col)).toArray[T]
             new DenseVector[T](data)
-          }
         }
       }
     }
@@ -154,10 +142,9 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
         matrix match {
           case x: DenseMatrix[T] => x(::, cols)
           case x: CSCMatrix[T] => x(::, cols)
-          case x => {
+          case x =>
             val data = (for(row <- 0 until x.rows; col <- cols) yield x(row, col)).toArray[T]
             new DenseMatrix(x.rows, cols.length, data)
-          }
         }
       }
     }
@@ -167,23 +154,20 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     new CanCollapseAxis[Matrix[T], Axis._0.type, Vector[T], T, Matrix[T]]{
       override def apply(matrix: Matrix[T], axis: Axis._0.type)(fn: Vector[T] => T) = {
         matrix match {
-          case x: DenseMatrix[T] => {
+          case x: DenseMatrix[T] =>
             val collapser = implicitly[CanCollapseAxis[DenseMatrix[T], Axis._0.type, DenseVector[T], T,
               DenseMatrix[T]]]
             collapser(x, axis)(fn)
-          }
-          case x: CSCMatrix[T] => {
+          case x: CSCMatrix[T] =>
             val collapser = implicitly[CanCollapseAxis[CSCMatrix[T], Axis._0.type, SparseVector[T], T, CSCMatrix[T]]]
             collapser(x, axis)(fn)
-          }
-          case x => {
+          case x =>
             val data = new Array[T](x.cols)
 
             for(col <- 0 until x.cols){
               data(col) = fn(x(::, col))
             }
             new DenseMatrix(1, x.cols, data)
-          }
         }
       }
     }
@@ -193,15 +177,13 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     Vector[T]] = new CanCollapseAxis[Matrix[T], Axis._1.type, Vector[T], T, Vector[T]]{
     override def apply(matrix: Matrix[T], axis: Axis._1.type)(fn: Vector[T] => T) = {
       matrix match {
-        case x: DenseMatrix[T] => {
+        case x: DenseMatrix[T] =>
           val collapser = implicitly[CanCollapseAxis[DenseMatrix[T], Axis._1.type, DenseVector[T], T, DenseVector[T]]]
           collapser(x, axis)(fn)
-        }
-        case x: CSCMatrix[T] =>{
+        case x: CSCMatrix[T] =>
           val collapser = implicitly[CanCollapseAxis[CSCMatrix[T], Axis._1.type, SparseVector[T], T, SparseVector[T]]]
           collapser(x, axis)(fn)
-        }
-        case x =>{
+        case x =>
           val data = new Array[T](x.rows)
           val t = x.t
 
@@ -209,7 +191,6 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
             data(col) = fn(t(::, col))
           }
           new DenseVector(data)
-        }
       }
     }
   }
@@ -229,10 +210,9 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
       vector match {
         case x: DenseVector[T] => x.asDenseMatrix
         case x: SparseVector[T] => x.asSparseMatrix
-        case x => {
+        case x =>
           val data = vector.valuesIterator.toArray[T]
           new DenseMatrix(vector.length, 1, data)
-        }
       }
     }
   }

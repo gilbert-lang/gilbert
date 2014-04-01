@@ -64,9 +64,8 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
   def prettyString(stmtWithResult: TypedStatementWithResult, indentation: Int): String = {
     stmtWithResult match {
       case x: TypedExpression => prettyString(x, indentation) + nonVerboseType(x.datatype)
-      case TypedAssignment(rhs, lhs) => {
+      case TypedAssignment(rhs, lhs) =>
         prettyString(rhs, indentation) + str(" = ") + prettyString(lhs, 0) + nonVerboseType(lhs.datatype)
-      }
     }
   }
 
@@ -82,9 +81,8 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
       case TypedUnaryExpression(exp, op, _) => str("(", indentation) + str(op2Str(op)) + prettyString(exp, 0) + str(")")
       case TypedBinaryExpression(a, op, b, _) => str("(", indentation) + prettyString(a, 0) + str(" ") + op2Str(op) +
         str(" ") + prettyString(b, 0) + str(")")
-      case TypedFunctionApplication(func, args, _) => {
+      case TypedFunctionApplication(func, args, _) =>
         prettyString(func, indentation) + str("(") + (args map { prettyString(_, 0) } mkString (", ")) + str(")")
-      }
       case TypedFunctionReference(func, _) => str("@", indentation) + prettyString(func, 0)
       case TypedAnonymousFunction(params, body, closure, _) => str("@(", indentation) +
         (params map { prettyString(_, 0) } mkString (", ")) + str(")") + str("(") + (closure mkString (", ")) +
@@ -98,9 +96,8 @@ abstract class AbstractTypedASTFormatter extends Formatter[TypedProgram] {
 
   def prettyString(statement: TypedStatement, indentation: Int): String = {
     statement match {
-      case TypedOutputResultStatement(stmt: TypedStatementWithResult) => {
+      case TypedOutputResultStatement(stmt: TypedStatementWithResult) =>
         prettyString(stmt, indentation)
-      }
       case TypedNOP => strnl("NOP", indentation)
       case x: TypedStatementWithResult => prettyString(x, indentation)
     }

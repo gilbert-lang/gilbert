@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.gilbertlang.shell
+package org.gilbertlang.runtime.shell
 
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interpreter.ILoop

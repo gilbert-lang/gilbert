@@ -38,9 +38,8 @@ class ParserTest extends Parser with Assertions {
     val expected = List(ASTIdentifier("X"), ASTIdentifier("Y"), ASTIdentifier("Z"))
 
     functionParams(input) match {
-      case Success(result, in) => {
+      case Success(result, in) =>
         expectResult(expected)(result)
-      }
       case _ => fail()
     }
   }
@@ -50,10 +49,9 @@ class ParserTest extends Parser with Assertions {
     val expected = List(ASTIdentifier("X"), ASTIdentifier("Y"), ASTIdentifier("Z"))
 
     identifierList(input) match {
-      case Success(result, in) => {
+      case Success(result, in) =>
         assert(in.first == EOF)
         expectResult(expected)(result)
-      }
       case _ => fail()
     }
 

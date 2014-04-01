@@ -30,29 +30,24 @@ class TypeFormatter extends Formatter[Type] {
       case StringType => "String"
       case VoidType => "Void"
       case BooleanType => "Boolean"
-      case ConcreteCellArrayType(types) => {
-        "ConcreteCellArrayType(" + (types map {prettyString} mkString(", ")) + ")"
-      }
-      case InterimCellArrayType(types) => {
-        "InterimCellArrayType(" + (types map {prettyString} mkString(", ")) + ")"
-      }
+      case ConcreteCellArrayType(types) =>
+        "ConcreteCellArrayType(" + (types map prettyString mkString(", ")) + ")"
+      case InterimCellArrayType(types) =>
+        "InterimCellArrayType(" + (types map prettyString mkString(", ")) + ")"
       case UndefinedType => "Undefined"
-      case PolymorphicType(types) => {
+      case PolymorphicType(types) =>
         val concatenatedTypes = types map { prettyString } mkString (", ")
         "(" + concatenatedTypes + ")"
-      }
-      case FunctionType(args, result) => {
+      case FunctionType(args, result) =>
         val concatenatedArgs = args map { prettyString } mkString(", ")
         val resultType = prettyString(result)
         "(" + concatenatedArgs + ") => " + resultType
-      }
-      case MatrixType(elementType, rows, cols) => {
+      case MatrixType(elementType, rows, cols) =>
         val elementTypeStr = prettyString(elementType)
         val rowsStr = valueFormatter.prettyString(rows)
         val colsStr = valueFormatter.prettyString(cols)
-        
+
         "Matrix[" + elementTypeStr + ", " + rowsStr + ", " + colsStr + "]"
-      }
       case NumericTypeVar(id) => "ω(" + id + ")"
       case TypeVar(id) => "𝛕("+id+ ")"
       case UniversalType(valueVar) => "∀" + prettyString(valueVar)

@@ -329,13 +329,12 @@ object Executables {
     def getMatrixSize: (Option[Int], Option[Int]) = {
       operation match {
         case NormalizeL1 => (matrix.rows, matrix.cols)
-        case Minimum | Maximum | Norm2 => {
+        case Minimum | Maximum | Norm2 =>
           if (matrix.cols == Some(1)) {
             (Some(1), Some(1))
           } else {
             (matrix.rows, Some(1))
           }
-        }
       }
 
     }
@@ -520,10 +519,9 @@ object Executables {
         case (_, None) => (None, None)
         case (Some(1), y) => (y, y)
         case (x, Some(1)) => (x, x)
-        case (Some(x), Some(y)) => {
+        case (Some(x), Some(y)) =>
           val result = Some(math.min(x, y))
           (result, Some(1))
-        }
       }
     }
 

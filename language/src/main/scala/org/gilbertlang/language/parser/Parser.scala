@@ -266,10 +266,9 @@ trait Parser extends Parsers {
   def parse(input: Reader[Char]) = {
     phrase(program)(input) match {
       case Success(result, _) => Some(result)
-      case NoSuccess(msg, _) => {
+      case NoSuccess(msg, _) =>
         println(msg)
         None
-      }
       case _ => None
     }
   }

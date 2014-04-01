@@ -33,20 +33,18 @@ abstract class DagWalker {
 
     transformation match {
 
-      case x: Parameter => {
+      case x: Parameter =>
         onArrival(x)
         onLeave(x)
-      }
 
-      case (transformation: LoadMatrix) => {
+      case (transformation: LoadMatrix) =>
         onArrival(transformation)
         visit(transformation.path)
         visit(transformation.numRows)
         visit(transformation.numColumns)
         onLeave(transformation)
-      }
 
-      case (transformation: FixpointIteration) => {
+      case (transformation: FixpointIteration) =>
         iteration += 1
 
         onArrival(transformation)
@@ -58,9 +56,8 @@ abstract class DagWalker {
         onLeave(transformation)
 
         iteration -= 1
-      }
 
-      case (transformation: FixpointIterationCellArray) => {
+      case (transformation: FixpointIterationCellArray) =>
         iteration += 1
 
         onArrival(transformation)
@@ -72,286 +69,240 @@ abstract class DagWalker {
         onLeave(transformation)
 
         iteration -= 1
-      }
 
-      case IterationStatePlaceholder => {
+      case IterationStatePlaceholder =>
         onArrival(IterationStatePlaceholder)
         onLeave(IterationStatePlaceholder)
-      }
 
-      case transformation: IterationStatePlaceholderCellArray => {
+      case transformation: IterationStatePlaceholderCellArray =>
         onArrival(transformation)
         onLeave(transformation)
-      }
 
-      case ConvergenceCurrentStatePlaceholder => {
+      case ConvergenceCurrentStatePlaceholder =>
         onArrival(ConvergenceCurrentStatePlaceholder)
         onLeave(ConvergenceCurrentStatePlaceholder)
-      }
 
-      case ConvergencePreviousStatePlaceholder => {
+      case ConvergencePreviousStatePlaceholder =>
         onArrival(ConvergencePreviousStatePlaceholder)
         onLeave(ConvergencePreviousStatePlaceholder)
-      }
 
-      case placeholder: ConvergenceCurrentStateCellArrayPlaceholder => {
+      case placeholder: ConvergenceCurrentStateCellArrayPlaceholder =>
         onArrival(placeholder)
         onLeave(placeholder)
-      }
 
-      case placeholder: ConvergencePreviousStateCellArrayPlaceholder => {
+      case placeholder: ConvergencePreviousStateCellArrayPlaceholder =>
         onArrival(placeholder)
         onLeave(placeholder)
-      }
 
-      case (transformation: CellwiseMatrixTransformation) => {
+      case (transformation: CellwiseMatrixTransformation) =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
 
-      case (transformation: CellwiseMatrixMatrixTransformation) => {
+      case (transformation: CellwiseMatrixMatrixTransformation) =>
         onArrival(transformation)
         visit(transformation.left)
         visit(transformation.right)
         onLeave(transformation)
-      }
 
-      case (transformation: Transpose) => {
+      case (transformation: Transpose) =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
 
-      case (transformation: MatrixMult) => {
+      case (transformation: MatrixMult) =>
         onArrival(transformation)
         visit(transformation.left)
         visit(transformation.right)
         onLeave(transformation)
-      }
 
-      case (transformation: AggregateMatrixTransformation) => {
+      case (transformation: AggregateMatrixTransformation) =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
 
-      case (transformation: ScalarMatrixTransformation) => {
-        onArrival(transformation)
-        visit(transformation.matrix)
-        visit(transformation.scalar)
-        onLeave(transformation)
-      }
-
-      case transformation: MatrixScalarTransformation => {
+      case (transformation: ScalarMatrixTransformation) =>
         onArrival(transformation)
         visit(transformation.matrix)
         visit(transformation.scalar)
         onLeave(transformation)
-      }
 
-      case (transformation: VectorwiseMatrixTransformation) => {
+      case transformation: MatrixScalarTransformation =>
+        onArrival(transformation)
+        visit(transformation.matrix)
+        visit(transformation.scalar)
+        onLeave(transformation)
+
+      case (transformation: VectorwiseMatrixTransformation) =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
 
-      case (transformation: ones) => {
+      case (transformation: ones) =>
         onArrival(transformation)
         visit(transformation.numRows)
         visit(transformation.numColumns)
         onLeave(transformation)
-      }
 
-      case (transformation: randn) => {
+      case (transformation: randn) =>
         onArrival(transformation)
         visit(transformation.numRows)
         visit(transformation.numColumns)
         visit(transformation.mean)
         visit(transformation.std)
         onLeave(transformation)
-      }
-      
-      case transformation: spones => {
+
+      case transformation: spones =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
-      
-      case transformation: sum => {
+
+      case transformation: sum =>
         onArrival(transformation)
         visit(transformation.matrix)
         visit(transformation.dimension)
         onLeave(transformation)
-      }
-      
-      case transformation: sumRow => {
+
+      case transformation: sumRow =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
-      
-      case transformation: sumCol => {
+
+      case transformation: sumCol =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
-      
-      case transformation: diag => {
+
+      case transformation: diag =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
 
-      case (transformation: WriteMatrix) => {
+      case (transformation: WriteMatrix) =>
         onArrival(transformation)
         visit(transformation.matrix)
         onLeave(transformation)
-      }
 
-      case (transformation: scalar) => {
+      case (transformation: scalar) =>
         onArrival(transformation)
         onLeave(transformation)
-      }
 
-      case transformation: string => {
+      case transformation: string =>
         onArrival(transformation)
         onLeave(transformation)
-      }
 
-      case transformation: boolean =>{
+      case transformation: boolean =>
         onArrival(transformation)
         onLeave(transformation)
-      }
 
-      case (transformation: WriteScalar) => {
+      case (transformation: WriteScalar) =>
         onArrival(transformation)
         visit(transformation.scalar)
         onLeave(transformation)
-      }
 
-      case transformation: WriteString => {
+      case transformation: WriteString =>
         onArrival(transformation)
         visit(transformation.string)
         onLeave(transformation)
-      }
 
-      case transformation: WriteFunction => {
+      case transformation: WriteFunction =>
         onArrival(transformation)
         visit(transformation.function)
         onLeave(transformation)
-      }
 
-      case transformation: WriteCellArray => {
+      case transformation: WriteCellArray =>
         onArrival(transformation)
         visit(transformation.cellArray)
         onLeave(transformation)
-      }
 
-      case transformation: CompoundExecutable => {
+      case transformation: CompoundExecutable =>
         onArrival(transformation)
         transformation.executables foreach { visit }
         onLeave(transformation)
-      }
 
-      case transformation: ScalarScalarTransformation => {
+      case transformation: ScalarScalarTransformation =>
         onArrival(transformation)
         visit(transformation.left)
         visit(transformation.right)
         onLeave(transformation)
-      }
 
-      case transformation: UnaryScalarTransformation => {
+      case transformation: UnaryScalarTransformation =>
         onArrival(transformation)
         visit(transformation.scalar)
         onLeave(transformation)
-      }
 
-      case func: function => {
+      case func: function =>
         onArrival(func)
         visit(func.body)
         onLeave(func)
-      }
 
-      case VoidExecutable => {
+      case VoidExecutable =>
         onArrival(VoidExecutable)
         onLeave(VoidExecutable)
-      }
-      
-      case transformation: zeros => {
-        onArrival(transformation)
-        visit(transformation.numRows)
-        visit(transformation.numCols)
-        onLeave(transformation)
-      }
-      
-      case transformation: eye => {
-        onArrival(transformation)
-        visit(transformation.numRows)
-        visit(transformation.numCols)
-        onLeave(transformation)
-      }
 
-      case transformation: norm => {
+      case transformation: zeros =>
+        onArrival(transformation)
+        visit(transformation.numRows)
+        visit(transformation.numCols)
+        onLeave(transformation)
+
+      case transformation: eye =>
+        onArrival(transformation)
+        visit(transformation.numRows)
+        visit(transformation.numCols)
+        onLeave(transformation)
+
+      case transformation: norm =>
         onArrival(transformation)
         visit(transformation.matrix)
         visit(transformation.p)
         onLeave(transformation)
-      }
 
-      case transformation: CellArrayReference => {
+      case transformation: CellArrayReference =>
         onArrival(transformation)
         visit(transformation.parent)
         onLeave(transformation)
-      }
 
-      case transformation: CellArrayExecutable => {
+      case transformation: CellArrayExecutable =>
         onArrival(transformation)
         transformation.elements foreach { visit(_) }
         onLeave(transformation)
-      }
 
-      case typeConversion: TypeConversionScalar => {
+      case typeConversion: TypeConversionScalar =>
         onArrival(typeConversion)
         visit(typeConversion.scalar)
         onLeave(typeConversion)
-      }
 
-      case typeConversion: TypeConversionMatrix => {
+      case typeConversion: TypeConversionMatrix =>
         onArrival(typeConversion)
         visit(typeConversion.matrix)
         onLeave(typeConversion)
-      }
 
-      case repmat: repmat => {
+      case repmat: repmat =>
         onArrival(repmat)
         visit(repmat.matrix)
         visit(repmat.numRows)
         visit(repmat.numCols)
         onLeave(repmat)
-      }
 
-      case linspace: linspace => {
+      case linspace: linspace =>
         onArrival(linspace)
         visit(linspace.start)
         visit(linspace.end)
         visit(linspace.numPoints)
         onLeave(linspace)
-      }
 
-      case pdist2: pdist2 => {
+      case pdist2: pdist2 =>
         onArrival(pdist2)
         visit(pdist2.matrixA)
         visit(pdist2.matrixB)
         onLeave(pdist2)
-      }
 
-      case minWithIndex: minWithIndex => {
+      case minWithIndex: minWithIndex =>
         onArrival(minWithIndex)
         visit(minWithIndex.matrix)
         visit(minWithIndex.dimension)
         onLeave(minWithIndex)
-      }
     }
   }
 
