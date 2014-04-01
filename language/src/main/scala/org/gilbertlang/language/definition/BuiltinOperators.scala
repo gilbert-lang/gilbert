@@ -35,7 +35,7 @@ object BuiltinOperators extends AbstractBuiltinSymbols[Operator] {
 
   def transposeType = {
     val (t,a,b) = newUTVV()
-    val nt = utv
+    val nt = utv()
     PolymorphicType(List(FunctionType(MatrixType(t,a,b), MatrixType(t,b,a)),
     FunctionType(CharacterType, CharacterType),
     FunctionType(nt, nt),
@@ -53,7 +53,7 @@ object BuiltinOperators extends AbstractBuiltinSymbols[Operator] {
   def preMinusType = prePlusType
 
   def expType = {
-    val a = uvv
+    val a = uvv()
     val t = untv
     PolymorphicType(List(FunctionType((MatrixType(t,a,a), DoubleType), MatrixType(t, a, a)),
     FunctionType((DoubleType, DoubleType), DoubleType)))

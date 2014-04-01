@@ -138,7 +138,7 @@ class CompilerTest extends Assertions {
   }
 
   @Test def testCellArrayCompilation(){
-    val expected = CompoundExecutable(List(WriteCellArray(CellArrayExecutable(List(boolean(true),
+    val expected = CompoundExecutable(List(WriteCellArray(CellArrayExecutable(List(boolean(value = true),
       zeros(scalar(10.0),scalar(10.0))))), WriteMatrix(zeros(scalar(10.0),scalar(10.0)))))
     val filename = "testCellArrayCompilation.gb"
 
@@ -647,16 +647,16 @@ class CompilerTest extends Assertions {
     expectResult(expected)(result)
   }
 
-  @Test def testGeneralization{
+  @Test def testGeneralization(){
     val filename = "testGeneralization.gb"
-    val expected = CompoundExecutable(List(WriteMatrix(zeros(scalar(10.0),scalar(10.0))), WriteScalar(boolean(true))))
+    val expected = CompoundExecutable(List(WriteMatrix(zeros(scalar(10.0),scalar(10.0))), WriteScalar(boolean(value = true))))
 
     val result = Gilbert.compileRessource(filename)
 
     expectResult(expected)(result)
   }
 
-  @Test def testTypeWidening{
+  @Test def testTypeWidening(){
     val filename = "testTypeWidening.gb"
     val expected = CompoundExecutable(
       List(
@@ -664,7 +664,7 @@ class CompilerTest extends Assertions {
           ScalarScalarTransformation(
             scalar(1.0),
             TypeConversionScalar(
-              boolean(true),
+              boolean(value = true),
               BooleanType,
               DoubleType
             ),
@@ -675,7 +675,7 @@ class CompilerTest extends Assertions {
           ScalarScalarTransformation(
             scalar(1.0),
             TypeConversionScalar(
-              boolean(false),
+              boolean(value = false),
               BooleanType,
               DoubleType
             ),
@@ -686,7 +686,7 @@ class CompilerTest extends Assertions {
           ScalarScalarTransformation(
             scalar(1.0),
             TypeConversionScalar(
-              boolean(false),
+              boolean(value = false),
               BooleanType,
               DoubleType
             ),

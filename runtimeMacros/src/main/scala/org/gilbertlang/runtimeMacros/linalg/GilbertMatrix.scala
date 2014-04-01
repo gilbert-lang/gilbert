@@ -47,8 +47,8 @@ final class GilbertMatrix(var matrix: BreezeMatrix[Double]) extends BreezeMatrix
     matrix = MatrixSerialization.read(in)
   }
   
-  override def toString = {
-    matrix.toString
+  override def toString() = {
+    matrix.toString()
   }
 }
 
@@ -73,7 +73,7 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps with BreezeMa
   
   def init(rows: Int, cols: Int, initialValue: Double) = {
     val factory = implicitly[MatrixFactory[Double]]
-    GilbertMatrix(factory.init(rows, cols, initialValue, true))
+    GilbertMatrix(factory.init(rows, cols, initialValue, dense = true))
   }
   
   def eye(rows: Int, cols: Int) = {

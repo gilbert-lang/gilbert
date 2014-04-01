@@ -93,8 +93,8 @@ trait Lexer extends Scanners with LanguageTokens {
     if (keywords contains identifier) {
       val keyword = Keywords.withName(identifier)
       keyword match {
-        case Keywords.TRUE => BooleanLiteral(true)
-        case Keywords.FALSE => BooleanLiteral(false)
+        case Keywords.TRUE => BooleanLiteral(value = true)
+        case Keywords.FALSE => BooleanLiteral(value = false)
         case _ => Keyword(identifier)
       }
     } else {

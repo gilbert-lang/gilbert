@@ -207,8 +207,8 @@ trait BreezeSparseMatrixImplicits {
             indexBuilder += col
           }
         }
-        val index = indexBuilder.result
-        val data = dataBuilder.result
+        val index = indexBuilder.result()
+        val data = dataBuilder.result()
         new SparseVector(index, data, index.length, t.cols)
       }
     }

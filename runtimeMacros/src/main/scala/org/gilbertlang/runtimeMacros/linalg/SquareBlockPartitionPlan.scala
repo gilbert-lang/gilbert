@@ -1,6 +1,6 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-case class SquareBlockPartitionPlan(val blockSize: Int, val totalRows: Int, val totalColumns: Int)
+case class SquareBlockPartitionPlan(blockSize: Int, totalRows: Int, totalColumns: Int)
   extends PartitionPlan{
   
   val maxRowIndex = math.ceil(totalRows.toDouble/blockSize).toInt

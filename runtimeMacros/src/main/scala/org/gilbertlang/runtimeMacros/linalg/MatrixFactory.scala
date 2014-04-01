@@ -84,7 +84,7 @@ object MatrixFactory{
     def eye(rows: Int, cols: Int, dense: Boolean): Bitmatrix = {
       val result = Bitmatrix.zeros(rows, cols)
       for (idx <- 0 until math.min(rows, cols)) {
-        result.update(idx, idx, true)
+        result.update(idx, idx, value = true)
       }
       result
     }

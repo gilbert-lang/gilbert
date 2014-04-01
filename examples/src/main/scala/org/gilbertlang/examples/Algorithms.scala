@@ -58,7 +58,7 @@ object Algorithms {
     val d = sum(A, 2)
 
     /* create the column-stochastic transition matrix */
-    val T = (diag(1 / d) * A).t
+    val T = (diag(1 / d) * A).t()
 
     /*  initialize the ranks */
     val r_0 = ones(numVertices, 1) / numVertices

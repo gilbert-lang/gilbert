@@ -29,7 +29,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
     var fileReader: FileReader = null
 
     try {
-      fileReader = new FileReader(inputFileURL.toURI.getPath())
+      fileReader = new FileReader(inputFileURL.toURI.getPath)
 
       val streamReader = StreamReader(fileReader)
 
@@ -58,7 +58,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
     var fileReader: FileReader = null
     
     try{
-      fileReader = new FileReader(inputFileURL.toURI.getPath())
+      fileReader = new FileReader(inputFileURL.toURI.getPath)
       val streamReader = StreamReader(fileReader)
       val result = lex(streamReader)
       
@@ -69,7 +69,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
   }
 
   @Test def testBooleanLexing() {
-    val expected = List(BooleanLiteral(true), Keyword("&"), BooleanLiteral(false), EOF)
+    val expected = List(BooleanLiteral(value = true), Keyword("&"), BooleanLiteral(value = false), EOF)
     val input = ClassLoader.getSystemResourceAsStream("booleanLexing.gb")
     var inputReader: InputStreamReader = null
     try{

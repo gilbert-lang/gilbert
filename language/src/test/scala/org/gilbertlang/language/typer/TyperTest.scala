@@ -10,7 +10,7 @@ import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
 
 class TyperTest extends Comparisons {
 
-  @Test def testProgram {
+  @Test def testProgram() {
     val ast = ASTProgram(List(ASTAssignment(ASTIdentifier("x"), ASTNumericLiteral(12))))
     val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x", DoubleType), TypedNumericLiteral(12))))
     val typer = new Typer()
@@ -19,13 +19,13 @@ class TyperTest extends Comparisons {
     expectResult(expected)(result)
   }
 
-  @Test def testCharacterIntegerUnification {
+  @Test def testCharacterIntegerUnification() {
     val typer = new Typer()
 
     expectResult(Some(DoubleType))(typer.unify(CharacterType, DoubleType))
   }
 
-  @Test def testMatrixMatrixUnification1 {
+  @Test def testMatrixMatrixUnification1() {
     import definition.Values.Helper._
     import definition.Types.Helper._
     
@@ -35,7 +35,7 @@ class TyperTest extends Comparisons {
       MatrixType(DoubleType, IntValue(10), newVV())))
   }
 
-  @Test def testFunctionTyping {
+  @Test def testFunctionTyping() {
     val expected = TypedProgram(
       List(
         TypedFunction(
@@ -125,7 +125,7 @@ class TyperTest extends Comparisons {
     TestUtils.testTypingRessource(filename, expected)
   }
 
-  @Test def testTypeWideningNumeric {
+  @Test def testTypeWideningNumeric() {
     val input = ASTBinaryExpression(ASTNumericLiteral(1), DivOp, ASTNumericLiteral(0.1))
     val expected = TypedBinaryExpression(TypedNumericLiteral(1), DivOp, TypedNumericLiteral(0.1),DoubleType)
     val typer = new Typer()
@@ -135,9 +135,9 @@ class TyperTest extends Comparisons {
     checkTypeEquality(expected,result)
   }
 
-  @Test def testCellArrayTyping {
+  @Test def testCellArrayTyping() {
     val filename = "testCellArrayTyping.gb"
-    val expected = TypedProgram(List(TypedCellArray(List(TypedBoolean(true), TypedBinaryExpression(TypedNumericLiteral(2),
+    val expected = TypedProgram(List(TypedCellArray(List(TypedBoolean(value = true), TypedBinaryExpression(TypedNumericLiteral(2),
       PlusOp,TypedNumericLiteral(2.0),DoubleType), TypedFunctionApplication(TypedIdentifier("zeros",
       FunctionType(List(DoubleType, DoubleType),MatrixType(DoubleType,ReferenceValue(0),ReferenceValue(1)))),
       List(TypedNumericLiteral(10), TypedNumericLiteral(10)),MatrixType(DoubleType,IntValue(10),IntValue(10)))),
@@ -145,10 +145,10 @@ class TyperTest extends Comparisons {
     TestUtils.testTypingRessource(filename, expected)
   }
 
-  @Test def testCellArrayIndexingTyping{
+  @Test def testCellArrayIndexingTyping(){
     val filename = "testCellArrayIndexingTyping.gb"
     val expected = TypedProgram(List(TypedAssignment(TypedIdentifier("x",ConcreteCellArrayType(List(BooleanType,
-      DoubleType))),TypedCellArray(List(TypedBoolean(true), TypedNumericLiteral(2.0)),
+      DoubleType))),TypedCellArray(List(TypedBoolean(value = true), TypedNumericLiteral(2.0)),
       ConcreteCellArrayType(List(BooleanType,
       DoubleType)))), TypedCellArrayIndexing(TypedIdentifier("x",ConcreteCellArrayType(List(BooleanType,
       DoubleType))),0,BooleanType)))
@@ -156,7 +156,7 @@ class TyperTest extends Comparisons {
     TestUtils.testTypingRessource(filename, expected)
   }
 
-  @Test def testAnonymousCellArrayFunctionTyping{
+  @Test def testAnonymousCellArrayFunctionTyping(){
     val filename = "anonymousCellArrayFunctionTyping.gb"
     val expected = TypedProgram(
       List(
@@ -269,7 +269,7 @@ class TyperTest extends Comparisons {
     TestUtils.testTypingRessource(filename, expected)
   }
 
-  @Test def testGeneralization {
+  @Test def testGeneralization() {
     val filename = "testGeneralization.gb"
     val expected = TypedProgram(
       List(
@@ -384,7 +384,7 @@ class TyperTest extends Comparisons {
               ),
               List(
                 TypedBoolean(
-                  true
+                  value = true
                 )
               ),
               BooleanType
@@ -397,7 +397,7 @@ class TyperTest extends Comparisons {
     TestUtils.testTypingRessource(filename, expected)
   }
 
-  @Test def testFunctionDefinitionCodeTyping{
+  @Test def testFunctionDefinitionCodeTyping(){
     val filename = "testFunctionDefinitionCodeTyping.gb"
     val expected = TypedProgram(
       List(
@@ -556,7 +556,7 @@ class TyperTest extends Comparisons {
     TestUtils.testTypingRessource(filename, expected)
   }
 
-  @Test def testTypeWidening{
+  @Test def testTypeWidening(){
     val filename = "testTypeWidening.gb"
     val expected = TypedProgram(
       List(
@@ -565,7 +565,7 @@ class TyperTest extends Comparisons {
             TypedNumericLiteral(1),
             PlusOp,
             TypeConversion(
-              TypedBoolean(true),
+              TypedBoolean(value = true),
               DoubleType
             ),
             DoubleType
@@ -576,7 +576,7 @@ class TyperTest extends Comparisons {
             TypedNumericLiteral(1),
             PlusOp,
             TypeConversion(
-              TypedBoolean(false),
+              TypedBoolean(value = false),
               DoubleType
             ),
             DoubleType
@@ -587,7 +587,7 @@ class TyperTest extends Comparisons {
             "x",
             BooleanType
           ),
-          TypedBoolean(false)
+          TypedBoolean(value = false)
         ),
         TypedOutputResultStatement(
           TypedBinaryExpression(

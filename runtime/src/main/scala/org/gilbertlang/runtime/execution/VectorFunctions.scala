@@ -32,7 +32,7 @@ object VectorFunctions {
   }
 
   def lengthSquared = new VectorFunction {
-    def apply(v: Vector) = v.getLengthSquared()
+    def apply(v: Vector) = v.getLengthSquared
   }
 
   def max = new DoubleDoubleFunction {

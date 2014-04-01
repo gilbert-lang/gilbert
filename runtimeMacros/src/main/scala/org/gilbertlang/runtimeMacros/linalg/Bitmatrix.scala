@@ -87,7 +87,7 @@ class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
   def activeIterator: Iterator[((Int, Int), Boolean)] = activeKeysIterator.map(_ -> true)
   def activeValuesIterator: Iterator[Boolean] = activeKeysIterator.map(_ => true)
   
-  override def toString = {
+  override def toString() = {
     activeKeysIterator.mkString("Bitmatrix(", ", ", ")")
   }
 }

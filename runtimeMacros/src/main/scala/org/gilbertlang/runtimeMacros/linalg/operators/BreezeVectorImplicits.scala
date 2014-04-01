@@ -34,7 +34,7 @@ trait BreezeVectorImplicits {
       val result = new Bitmatrix(bitvector.size, 1)
       
       for(index <- bitvector.activeKeysIterator){
-        result.update(index, 1, true)
+        result.update(index, 1, value = true)
       }
       
       result

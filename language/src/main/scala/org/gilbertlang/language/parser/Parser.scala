@@ -222,7 +222,7 @@ trait Parser extends Parsers {
       case id ~ accesses =>
         //accommodate for the matlab index base => subtract 1
         val shiftedAccesses = accesses map { case ASTNumericLiteral(value) => ASTNumericLiteral(value-1)}
-        shiftedAccesses.foldLeft[ASTExpression](id)(ASTCellArrayIndexing(_, _))
+        shiftedAccesses.foldLeft[ASTExpression](id)(ASTCellArrayIndexing)
     }
   }
 

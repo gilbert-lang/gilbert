@@ -115,7 +115,7 @@ object MatrixSerialization {
       val row = in.readInt()
       val col = in.readInt()
       
-      result.update(row, col, true)
+      result.update(row, col, value = true)
     }
     
     result

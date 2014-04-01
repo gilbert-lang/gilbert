@@ -733,7 +733,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 { element => (element.rowIndex, element.columnIndex) } combinableReduceGroup
                 { elements =>
                   {
-                    val element = elements.next.copy
+                    val element = elements.next().copy
                     elements.foldLeft(element)({ _ + _ })
                   }
                 }
@@ -769,7 +769,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   } groupBy (subvector => subvector.index) combinableReduceGroup {
                     subvectors =>
                       {
-                        val firstElement = subvectors.next.copy
+                        val firstElement = subvectors.next().copy
                         subvectors.foldLeft(firstElement)(_ + _)
                       }
                   } join
@@ -785,14 +785,14 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 case Maximum => {
                   matrix map { submatrix => numerics.max(submatrix(*, ::)) } groupBy
                     { subvector => subvector.index } combinableReduceGroup { subvectors =>
-                      val firstElement = subvectors.next.copy
+                      val firstElement = subvectors.next().copy
                       subvectors.foldLeft(firstElement) { numerics.max(_, _) }
                     } map { subvector => subvector.asMatrix }
                 }
                 case Minimum => {
                   matrix map { submatrix => numerics.min(submatrix(*, ::)) } groupBy
                     { subvector => subvector.index } combinableReduceGroup { subvectors =>
-                      val firstElement = subvectors.next.copy
+                      val firstElement = subvectors.next().copy
                       subvectors.foldLeft(firstElement) { numerics.min(_, _) }
                     } map { subvector => subvector.asMatrix }
                 }
@@ -803,7 +803,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   val sumSquaredValues = squaredValues map { submatrix => breeze.linalg.sum(submatrix(*, ::)) } groupBy
                     { subvector => subvector.index } combinableReduceGroup
                     { subvectors =>
-                      val firstSubvector = subvectors.next.copy
+                      val firstSubvector = subvectors.next().copy
                       subvectors.foldLeft(firstSubvector)(_ + _)
                     }
                   sumSquaredValues.setName("VWM: Norm2 sum squared values")
@@ -855,7 +855,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
                 }
                 
-                val partition = blocks.next._2
+                val partition = blocks.next()._2
                 
                 if (blocks.hasNext) {
                   throw new IllegalArgumentError("LoadMatrix coGroup phase must have at most one block")
@@ -869,7 +869,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
       }
 
       case compound: CompoundExecutable => {
-        val executables = compound.executables flatMap { evaluate[List[ScalaSink[_]]](_) }
+        val executables = compound.executables flatMap { evaluate[List[ScalaSink[_]]] }
         new ScalaPlan(executables)
       }
 
@@ -988,7 +988,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               matrix map { submatrix => breeze.linalg.sum(submatrix(*, ::)) } groupBy
                 { subvector => subvector.index } combinableReduceGroup
                 { subvectors =>
-                  val firstSubvector = subvectors.next.copy
+                  val firstSubvector = subvectors.next().copy
                   subvectors.foldLeft(firstSubvector)(_ + _)
                 } map
                 { subvector => subvector.asMatrix }
@@ -1005,7 +1005,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               matrix map { submatrix => breeze.linalg.sum(submatrix(::, *)) } groupBy
                 { submatrix => submatrix.columnIndex } combinableReduceGroup
                 { subvectors =>
-                  val firstSubvector = subvectors.next.copy
+                  val firstSubvector = subvectors.next().copy
                   subvectors.foldLeft(firstSubvector)(_ + _)
                 }
             }
@@ -1100,7 +1100,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
                   partialDiagResults groupBy { partialResult => partialResult.rowIndex } combinableReduceGroup {
                     results =>
-                      val result = results.next.copy
+                      val result = results.next().copy
                       results.foldLeft(result)(_ + _)
                   }
                 }
@@ -1233,7 +1233,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   (submatrix.rowIndex, breeze.linalg.sum(submatrix(*, ::)).asMatrix)
                 }
               } groupBy { case (group, subvector) => group } combinableReduceGroup { submatrices =>
-                val firstSubvector = submatrices.next
+                val firstSubvector = submatrices.next()
                 (firstSubvector._1, submatrices.foldLeft(firstSubvector._2.copy)(_ + _._2))
               } map { case (_, submatrix) => submatrix}
           })
@@ -1501,7 +1501,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                         throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
                       }
 
-                      val partition = blocks.next._2
+                      val partition = blocks.next()._2
 
                       if (blocks.hasNext) {
                         throw new IllegalArgumentError("LoadMatrix coGroup phase must have at most one block")
@@ -1563,7 +1563,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                       throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
                     }
 
-                    val partition = blocks.next._2
+                    val partition = blocks.next()._2
 
                     if (blocks.hasNext) {
                       throw new IllegalArgumentError("LoadMatrix coGroup phase must have at most one block")
@@ -1694,7 +1694,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     throw new IllegalArgumentError("MinWithIndex coGroup phase must have at least one block")
                   }
 
-                  val partition = blocks.next._2
+                  val partition = blocks.next()._2
 
                   if (blocks.hasNext) {
                     throw new IllegalArgumentError("MinWithIndex coGroup phase must have at most one block")
@@ -1713,7 +1713,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     throw new IllegalArgumentError("MinWithIndex coGroup phase must have at least one block")
                   }
 
-                  val partition = blocks.next._2
+                  val partition = blocks.next()._2
 
                   if (blocks.hasNext) {
                     throw new IllegalArgumentError("MinWithIndex coGroup phase must have at most one block")
@@ -1759,7 +1759,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     throw new StratosphereExecutionError("Diffs is empty")
                   }
 
-                  val first = diffs.next
+                  val first = diffs.next()
 
                   val summedDiffs = diffs.foldLeft(first)(_ + _)
                   summedDiffs :^ (0.5)

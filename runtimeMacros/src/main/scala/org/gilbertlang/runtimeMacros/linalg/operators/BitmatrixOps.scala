@@ -32,7 +32,7 @@ trait BitmatrixOps {
       
       for((row, col) <- a.activeKeysIterator){
         if(!b(row,col)){
-          a.update(row, col, false)
+          a.update(row, col, value = false)
         }
       }
     }
@@ -55,7 +55,7 @@ trait BitmatrixOps {
       
       for(col <- 0 until a.cols; row <- 0 until a.rows){
         if(b(row,col)){
-          a.update(row, col, true)
+          a.update(row, col, value = true)
         }
       }
     }

@@ -37,7 +37,7 @@ trait Scanners extends Parsers with SelectTokens {
 
   def voidToken: Token
 
-  def lex(in: String): List[Token] = lex(new CharArrayReader(in.toCharArray()))
+  def lex(in: String): List[Token] = lex(new CharArrayReader(in.toCharArray))
 
   def lex(in: Reader[Char]): List[Token] = {
     var scanner = Scanners.this(in)
@@ -62,7 +62,7 @@ trait Scanners extends Parsers with SelectTokens {
   }
 
   class GScanner(in: EOFReader[Elem], previousToken: Token) extends Reader[Token] {
-    def this(in: String) = this(EOFReader(new CharArrayReader(in.toCharArray())), voidToken)
+    def this(in: String) = this(EOFReader(new CharArrayReader(in.toCharArray)), voidToken)
 
     def this(in: EOFReader[Char]) = this(in, voidToken)
 

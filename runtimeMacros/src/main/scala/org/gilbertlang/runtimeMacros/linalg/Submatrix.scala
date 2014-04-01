@@ -42,7 +42,7 @@ case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnInd
 
   def this() = this(null, -1, -1, -1, -1, -1, -1)
 
-  override def toString: String = {
+  override def toString(): String = {
     val index = s"Index: ($rowIndex, $columnIndex)"
     val offset = s"Offset: ($rowOffset, $columnOffset)"
     val totalSize = s"Total size: ($totalRows, $totalColumns)"

@@ -89,7 +89,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case TypedFunctionReference(func, datatype) =>
         TypedFunctionReference(finalizeTyping(func), resolveType(datatype))
       case TypedAnonymousFunction(args, body, closure, datatype) =>
-        TypedAnonymousFunction(args map {finalizeTyping(_)}, finalizeTyping(body),
+        TypedAnonymousFunction(args map {finalizeTyping}, finalizeTyping(body),
           closure, resolveType(datatype))
     }
   }
@@ -102,13 +102,13 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case TypedString(value) => TypedString(value)
       case TypedBoolean(value) => TypedBoolean(value)
       case TypedMatrix(rows, datatype) =>
-        val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {finalizeTyping(_) })}
+        val resolvedRows = rows map { elements => TypedMatrixRow(elements.value map {finalizeTyping })}
         TypedMatrix(resolvedRows, resolveType(datatype).asInstanceOf[MatrixType])
       case TypedBinaryExpression(a, op, b, datatype) => TypedBinaryExpression(finalizeTyping(a), op,
         finalizeTyping(b),resolveType(datatype))
       case TypedUnaryExpression(a, op, datatype) => TypedUnaryExpression(finalizeTyping(a), op, resolveType(datatype))
       case TypedFunctionApplication(fun, args, datatype) =>
-        val resolvedArgs = args map { finalizeTyping(_) }
+        val resolvedArgs = args map { finalizeTyping }
         TypedFunctionApplication(finalizeTyping(fun), resolvedArgs, resolveType(datatype))
       case TypedCellArray(elements, datatype) => TypedCellArray(elements map {finalizeTyping},
         resolveType(datatype))
@@ -310,9 +310,9 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
       case ASTAnonymousFunction(params, body) => {
         freeVariables(body) -- (params map { case ASTIdentifier(id) => id }).toSet
       }
-      case ASTFunctionApplication(func, args) => freeVariables(func) ++ (args flatMap { freeVariables(_) }).toSet
+      case ASTFunctionApplication(func, args) => freeVariables(func) ++ (args flatMap { freeVariables }).toSet
       case ASTMatrix(rows) => (rows flatMap { freeVariables(_) }).toSet
-      case ASTMatrixRow(exps) => (exps flatMap { freeVariables(_) }).toSet
+      case ASTMatrixRow(exps) => (exps flatMap { freeVariables }).toSet
       case ASTCellArray(cells) => (cells flatMap { freeVariables}).toSet
       case ASTCellArrayIndexing(cellArray, index) =>
         freeVariables(cellArray) ++ freeVariables(index)
@@ -690,10 +690,10 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
     case ASTFunctionApplication(func, arguments) => {
       val typedFunc = intermediateRepresentationIdentifier(func)
       val functionType = extractType(typedFunc)
-      val typedArguments = arguments map { intermediateRepresentationExpression(_) }
+      val typedArguments = arguments map { intermediateRepresentationExpression }
 
       val unificationResult = resolvePolymorphicType(functionType, FunctionType(typedArguments map
-        { extractType(_) }, newTV()))
+        { extractType }, newTV()))
 
       unificationResult match {
         case Some((appliedFunType @ FunctionType(parameterTypes, resultType), _)) =>
@@ -797,7 +797,7 @@ class Typer(private val typeEnvironment: scala.collection.mutable.Map[String, Ty
   }
 
   def typeFunction(func: ASTFunction): TypedFunction = {
-    val typer = new Typer(typeEnvironment.clone, valueEnvironment.clone(), typeVarMapping.clone(),
+    val typer = new Typer(typeEnvironment.clone(), valueEnvironment.clone(), typeVarMapping.clone(),
     valueVarMapping.clone())
 
     func.values foreach { typer.updateEnvironment(_, newTV()) }

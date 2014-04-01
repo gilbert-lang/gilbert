@@ -10,7 +10,7 @@ import org.gilbertlang.language.definition.TypedAbstractSyntaxTree._
 
 class LogicalOperationsTest extends Assertions {
 
-  @Test def testGreaterThan {
+  @Test def testGreaterThan() {
     val ast = ASTProgram(List(
         ASTBinaryExpression(ASTNumericLiteral(2.5), GTOp,
             ASTNumericLiteral(3.1))))
@@ -24,7 +24,7 @@ class LogicalOperationsTest extends Assertions {
     expectResult(expected)(result)
   }
   
-  @Test def testLogicalAnd {
+  @Test def testLogicalAnd() {
     val ast = ASTProgram(List(
         ASTBinaryExpression(
             ASTBinaryExpression(ASTNumericLiteral(4.2),DEQOp,ASTNumericLiteral(4.2))

@@ -32,10 +32,10 @@ object ConvenienceMethods {
   }
   
   def newUNTVV() = {
-    (untv, uvv, uvv)
+    (untv, uvv(), uvv())
   }
   
   def newUTVV() = {
-    (utv,uvv,uvv)
+    (utv(),uvv(),uvv())
   }
 }

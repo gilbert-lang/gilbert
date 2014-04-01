@@ -185,7 +185,7 @@ class SparkExecutor extends Executor {
                 }
                 case Norm2 => {
                   val sumOfEntriesSquared =
-                    matrix.map({ case (_, row) => row.getLengthSquared() }).aggregate(0.0)({ _ + _ }, { _ + _ })
+                    matrix.map({ case (_, row) => row.getLengthSquared }).aggregate(0.0)({ _ + _ }, { _ + _ })
                   math.sqrt(sumOfEntriesSquared)
                 }
               }
@@ -463,7 +463,7 @@ class SparkExecutor extends Executor {
             { (transformation, matrix) => {
             	(transformation.rows, transformation.cols) match{
             	  case (None,_) | (_, None) => {
-            	    val numRows = matrix.count
+            	    val numRows = matrix.count()
             	    matrix flatMap { case(index, row) =>{
             	      if(row.size() ==1){
             	        val newRow = new RandomAccessSparseVector(numRows.toInt,1)
@@ -569,7 +569,7 @@ class SparkExecutor extends Executor {
       }
       
       case transformation: CompoundExecutable => {
-       transformation.executables foreach { execute(_) }
+       transformation.executables foreach { execute }
       }
       
       case VoidExecutable => ()

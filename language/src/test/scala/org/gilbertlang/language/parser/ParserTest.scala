@@ -11,7 +11,7 @@ class ParserTest extends Parser with Assertions {
   import definition.AbstractSyntaxTree._
   import lexer.EOF
 
-  @Test def testParser {
+  @Test def testParser(){
     val expected = ASTProgram(List(ASTAssignment(ASTIdentifier("A"), ASTFunctionApplication(ASTIdentifier("load"),
       List(ASTString("inputfile"), ASTNumericLiteral(10), ASTNumericLiteral(10)))), ASTAssignment(ASTIdentifier("B"),
       ASTFunctionApplication(ASTIdentifier("bin"), List(ASTIdentifier("A")))), ASTAssignment(ASTIdentifier("C"),
@@ -23,7 +23,7 @@ class ParserTest extends Parser with Assertions {
     TestUtils.testParsingRessource(filename, expected)
   }
 
-  @Test def testFunctionDefinitions {
+  @Test def testFunctionDefinitions() {
     val filename = "parserFunction.gb"
     val expected = ASTProgram(List(ASTFunction(List(ASTIdentifier("X")), ASTIdentifier("foobar"),
       List(ASTIdentifier("Y"), ASTIdentifier("Z")), ASTProgram(List(ASTAssignment(ASTIdentifier("A"),
@@ -33,7 +33,7 @@ class ParserTest extends Parser with Assertions {
     TestUtils.testParsingRessource(filename, expected)
   }
 
-  @Test def testFunctionParameters {
+  @Test def testFunctionParameters() {
     val input = """(X,Y,Z)""";
     val expected = List(ASTIdentifier("X"), ASTIdentifier("Y"), ASTIdentifier("Z"))
 
@@ -45,7 +45,7 @@ class ParserTest extends Parser with Assertions {
     }
   }
 
-  @Test def testIdentifierList {
+  @Test def testIdentifierList() {
     val input = """X,Y,Z""";
     val expected = List(ASTIdentifier("X"), ASTIdentifier("Y"), ASTIdentifier("Z"))
 
@@ -59,7 +59,7 @@ class ParserTest extends Parser with Assertions {
 
   }
 
-  @Test def testAnonymousFunction {
+  @Test def testAnonymousFunction() {
     val filename = "parserAnonymousFunction.gb"
     val expected = ASTProgram(List(
       ASTOutputResultStatement(
@@ -76,7 +76,7 @@ class ParserTest extends Parser with Assertions {
     TestUtils.testParsingRessource(filename, expected)
   }
 
-  @Test def testFunctionReference {
+  @Test def testFunctionReference() {
     val filename = "parserFunctionReference.gb"
     val expected = ASTProgram(List(
       ASTAssignment(
@@ -87,24 +87,24 @@ class ParserTest extends Parser with Assertions {
     TestUtils.testParsingRessource(filename, expected)
   }
 
-  @Test def testBooleanOperationParsing {
+  @Test def testBooleanOperationParsing() {
     val expected = ASTProgram(List(
     ASTAssignment(ASTIdentifier("x"), ASTBinaryExpression(
     ASTBinaryExpression(ASTNumericLiteral(10.2), GTEOp, ASTNumericLiteral(3.2)),
     LogicalAndOp,
-    ASTBoolean(true)
+    ASTBoolean(value = true)
     ))
     ))
     val filename = "booleanOperationParsing.gb"
     TestUtils.testParsingRessource(filename, expected)
   }
 
-  @Test def testCellArrayDefinitionParsing {
+  @Test def testCellArrayDefinitionParsing() {
     val expected = ASTProgram(List(
     ASTAssignment(
       ASTIdentifier("cell"),
       ASTCellArray(List(
-        ASTBoolean(true),
+        ASTBoolean(value = true),
         ASTBinaryExpression(
           ASTNumericLiteral(5),
           MultOp,
@@ -125,7 +125,7 @@ class ParserTest extends Parser with Assertions {
     TestUtils.testParsingRessource(filename, expected)
   }
 
-  @Test def testCellArrayIndexingParsing {
+  @Test def testCellArrayIndexingParsing() {
     val expected = ASTProgram(List(
       ASTCellArrayIndexing(
         ASTCellArrayIndexing(ASTIdentifier("a"),ASTNumericLiteral(0)),
@@ -138,7 +138,7 @@ class ParserTest extends Parser with Assertions {
   }
 
 
-  @Test def testFunctionDefinitionCodeParsing {
+  @Test def testFunctionDefinitionCodeParsing() {
     val expected = ASTProgram(
       List(
         ASTAssignment(

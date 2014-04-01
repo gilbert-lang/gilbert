@@ -48,7 +48,7 @@ BreezeVectorLike[Boolean, GilbertVectorBoolean] with Value with BreezeVectorImpl
     GilbertMatrixBoolean(vector.asMatrix)
   }
   
-  override def toString: String = vector.toString
+  override def toString: String = vector.toString()
 }
 
 object GilbertVectorBoolean {

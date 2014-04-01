@@ -216,7 +216,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                   }
                   case Division => {
                     val factory = implicitly[MatrixFactory[Double]]
-                    val dividend = factory.init(matrix.rows, matrix.cols, scalar, true)
+                    val dividend = factory.init(matrix.rows, matrix.cols, scalar, dense = true)
                     dividend / matrix
                   }
                   case GreaterThan => {
@@ -346,7 +346,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               evaluate[Double](transformation.numColumns).toInt) },
           { case (_, (numRows, numColumns)) =>{
             val factory = implicitly[MatrixFactory[Double]]
-            factory.init(numRows, numColumns, 1.0, true)
+            factory.init(numRows, numColumns, 1.0, dense = true)
           }})
       }
       
@@ -368,7 +368,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                 evaluate[Double](transformation.numCols).toInt)},
             { case (_, (rows, cols)) => 
               val factory = implicitly[MatrixFactory[Double]]
-              factory.create(rows, cols, false)
+              factory.create(rows, cols, dense = false)
             })
       }
 
@@ -443,7 +443,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                   val factory = implicitly[MatrixFactory[Double]]
                   val itEntries = for(idx <- 0 until minimum) yield (0,idx,matrix(idx,idx))
                   val entries = itEntries.toSeq
-                  factory.create(minimum, 1, entries, true)
+                  factory.create(minimum, 1, entries, dense = true)
                 }
               }
             }})

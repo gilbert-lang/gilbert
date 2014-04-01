@@ -55,7 +55,7 @@ final class GilbertMatrixBoolean(var matrix: Bitmatrix) extends BreezeMatrix[Boo
     matrix = MatrixSerialization.readBitMatrix(in)
   }
   
-  override def toString = {
+  override def toString() = {
     matrix.toString
   }
 }
@@ -65,22 +65,22 @@ object GilbertMatrixBoolean extends GilbertMatrixBooleanOps{
   
   def apply(rows: Int, cols: Int, entries: Seq[(Int, Int, Boolean)]): GilbertMatrixBoolean= {
     val factory = MatrixFactory.BooleanFactory
-    GilbertMatrixBoolean(factory.create(rows, cols, entries, false))
+    GilbertMatrixBoolean(factory.create(rows, cols, entries, dense = false))
   }
   
   def apply(rows: Int, cols: Int, numNonZeroElements: Int = 0): GilbertMatrixBoolean = {
     val factory = MatrixFactory.BooleanFactory
-    GilbertMatrixBoolean(factory.create(rows, cols, false))
+    GilbertMatrixBoolean(factory.create(rows, cols, dense = false))
   }
   
   def init(rows: Int, cols: Int, initialValue: Boolean) = {
     val factory = MatrixFactory.BooleanFactory
-    GilbertMatrixBoolean(factory.init(rows, cols, initialValue, false))
+    GilbertMatrixBoolean(factory.init(rows, cols, initialValue, dense = false))
   }
   
   def eye(rows: Int, cols: Int) = {
     val factory = MatrixFactory.BooleanFactory
-    GilbertMatrixBoolean(factory.eye(rows, cols,false))
+    GilbertMatrixBoolean(factory.eye(rows, cols,dense = false))
   }
   
   implicit def canCopy: CanCopy[GilbertMatrixBoolean] =

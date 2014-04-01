@@ -166,7 +166,7 @@ object Executables {
       }
     }
 
-    def t() = transpose
+    def t() = transpose()
 
     def *(other: Matrix) = times(other)
 

@@ -53,7 +53,7 @@ object PlayWithLanguage {
       }
     } catch{
       case exception: IOException => {
-        sys.error(exception.getMessage())
+        sys.error(exception.getMessage)
         exception.printStackTrace()
       }
     } finally{
