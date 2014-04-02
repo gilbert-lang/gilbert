@@ -1112,22 +1112,17 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
             var iteration: Matrix = null
 
-            if(exec.convergence != null){
+            if(exec.convergencePlan != null){
               val terminationFunction = (prev: Matrix, cur: Matrix) => {
                 val oldPreviousState = convergencePreviousStateValue
                 val oldCurrentState = convergenceCurrentStateValue
                 convergencePreviousStateValue = Some(prev)
                 convergenceCurrentStateValue = Some(cur)
-                val appliedConvergence = exec.convergence.apply(ConvergencePreviousStatePlaceholder,
-                  ConvergenceCurrentStatePlaceholder)
-                val result = evaluate[Scalar[Boolean]](appliedConvergence)
+                val result = evaluate[Scalar[Boolean]](exec.convergencePlan)
 
                 convergencePreviousStateValue = oldPreviousState
                 convergenceCurrentStateValue = oldCurrentState
-                result filter {
-                  boolean =>
-                    !boolean
-                }
+                result filter { b => !b}
               }
 
               iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
@@ -1166,21 +1161,19 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
           var iteration: CellArray = null
 
-          if(exec.convergence != null){
+          if(exec.convergencePlan != null){
             val terminationFunction = (prev: CellArray, cur: CellArray) => {
               val oldPreviousState = convergencePreviousStateCellArrayValue
               val oldCurrentState = convergenceCurrentStateCellArrayValue
               convergencePreviousStateCellArrayValue = Some(prev)
               convergenceCurrentStateCellArrayValue = Some(cur)
 
-              val appliedConvergence = exec.convergence.apply(ConvergencePreviousStateCellArrayPlaceholder(exec.getType),
-                ConvergenceCurrentStateCellArrayPlaceholder(exec.getType))
-              val result = evaluate[Scalar[Boolean]](appliedConvergence)
+              val result = evaluate[Scalar[Boolean]](exec.convergencePlan)
 
               convergencePreviousStateCellArrayValue = oldPreviousState
               convergenceCurrentStateCellArrayValue = oldCurrentState
 
-              result filter { boolean => !boolean }
+              result filter { b => !b }
             }
 
             iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)

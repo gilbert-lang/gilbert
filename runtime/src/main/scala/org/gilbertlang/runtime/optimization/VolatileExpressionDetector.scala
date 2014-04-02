@@ -24,7 +24,6 @@ import scala.collection.mutable
 
 class VolatileExpressionDetector extends DagWalker {
 
-  private var fixpointEnvironment = false
   private val volatileExpressions = scala.collection.mutable.Set[Int]()
   private val stack = mutable.Stack[Boolean]()
 
@@ -35,9 +34,6 @@ class VolatileExpressionDetector extends DagWalker {
 
   override def onArrival(transformation: Executable) {
     transformation match {
-      case _: FixpointBase =>
-        fixpointEnvironment = true
-        stack.push(false)
       case _: Placeholder =>
       case _ => stack.push(false)
     }
@@ -46,17 +42,14 @@ class VolatileExpressionDetector extends DagWalker {
   override def onLeave(transformation: Executable) {
     transformation match {
       case _: FixpointBase =>
-        fixpointEnvironment = false
         val volatile = stack.pop()
         if (volatile) {
           volatileExpressions.add(transformation.id)
         }
       case placeholder: Placeholder =>
-        if (fixpointEnvironment) {
-          volatileExpressions.add(placeholder.id)
-          stack.pop()
-          stack.push(true)
-        }
+        volatileExpressions.add(placeholder.id)
+        stack.pop()
+        stack.push(true)
       case _ =>
         val volatile = stack.pop()
 

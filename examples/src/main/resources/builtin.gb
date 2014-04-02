@@ -1,0 +1,7 @@
+A = eye(2,2)
+B = repmat(A,3,2)
+C = linspace(1,10,10)
+D = rand(10,2,0,1)
+E = rand(10,2,0,1)
+pdist2(D,E)
+minWithIndex(D,1)

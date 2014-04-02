@@ -574,9 +574,10 @@ object Executables {
   }
 
   case class FixpointIterationMatrix(initialState: Matrix, updateFunction: FunctionRef,
-                               maxIterations: ScalarRef, convergence: FunctionRef) extends Matrix with FixpointBase {
+                               maxIterations: ScalarRef, convergenceFunction: FunctionRef) extends Matrix with FixpointBase {
     val updatePlan = updateFunction.apply(IterationStatePlaceholder)
-
+    val convergencePlan = if(convergenceFunction != null) convergenceFunction.apply(
+      ConvergencePreviousStatePlaceholder, ConvergenceCurrentStatePlaceholder) else null
 
     def instantiate(args: Executable*): FixpointIterationMatrix = {
       var anyInstantiated = false
@@ -588,8 +589,8 @@ object Executables {
       anyInstantiated |= Executable.instantiated
 
       var instantiatedConvergence:FunctionRef = null
-      if(convergence != null){
-        instantiatedConvergence = convergence.instantiate(args: _*)
+      if(convergenceFunction != null){
+        instantiatedConvergence = convergenceFunction.instantiate(args: _*)
         anyInstantiated |= Executable.instantiated
       }
 
@@ -607,9 +608,12 @@ object Executables {
   }
 
   case class FixpointIterationCellArray(initialState: CellArrayBase, updateFunction: FunctionRef,
-                               maxIterations: ScalarRef, convergence: FunctionRef) extends CellArrayBase with
+                               maxIterations: ScalarRef, convergenceFunction: FunctionRef) extends CellArrayBase with
   FixpointBase {
     val updatePlan = updateFunction.apply(IterationStatePlaceholderCellArray(initialState.getType))
+    val convergencePlan = if(convergenceFunction != null) convergenceFunction.apply(
+      ConvergencePreviousStateCellArrayPlaceholder(initialState.getType),
+        ConvergenceCurrentStateCellArrayPlaceholder(initialState.getType)) else null
 
     def instantiate(args: Executable*): FixpointIterationCellArray = {
       var anyInstantiated = false
@@ -621,8 +625,8 @@ object Executables {
       anyInstantiated |= Executable.instantiated
 
       var instantiatedConvergence: FunctionRef = null
-      if(convergence != null){
-        instantiatedConvergence = convergence.instantiate(args: _*)
+      if(convergenceFunction != null){
+        instantiatedConvergence = convergenceFunction.instantiate(args: _*)
         anyInstantiated |= Executable.instantiated
       }
 

@@ -45,7 +45,7 @@ BreezeVectorLike[Double, GilbertVector] with Value with BreezeVectorImplicits {
   
   def asMatrix: GilbertMatrix = {
     val result = vector match {
-      case x: BreezeDenseVector[Double] => x.asDenseMatrix
+      case x: BreezeDenseVector[Double] => x.asDenseMatrix.t
       case x: BreezeSparseVector[Double] => x.asSparseMatrix
     }
     GilbertMatrix(result)

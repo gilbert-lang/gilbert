@@ -50,8 +50,8 @@ abstract class DagWalker {
         onArrival(transformation)
         visit(transformation.initialState)
         visit(transformation.updatePlan)
-        if(transformation.convergence != null){
-          visit(transformation.convergence)
+        if(transformation.convergencePlan != null){
+          visit(transformation.convergencePlan)
         }
         onLeave(transformation)
 
@@ -63,8 +63,8 @@ abstract class DagWalker {
         onArrival(transformation)
         visit(transformation.initialState)
         visit(transformation.updatePlan)
-        if(transformation.convergence != null){
-          visit(transformation.convergence)
+        if(transformation.convergencePlan != null){
+          visit(transformation.convergencePlan)
         }
         onLeave(transformation)
 

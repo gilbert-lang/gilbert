@@ -1,6 +1,6 @@
 package org.gilbertlang.examples
 
-import org.gilbertlang.runtime.withStratosphere
+import org.gilbertlang.runtime.{local, withStratosphere}
 import eu.stratosphere.client.LocalExecutor
 import org.gilbertlang.language.Gilbert
 
@@ -11,5 +11,6 @@ object StratosphereExecutor {
 
     val plan = withStratosphere(executable)
     LocalExecutor.execute(plan)
+//    local(executable)
   }
 }

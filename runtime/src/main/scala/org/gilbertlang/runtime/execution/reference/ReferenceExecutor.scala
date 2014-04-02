@@ -28,7 +28,7 @@ import org.gilbertlang.runtimeMacros.linalg.{numerics, Configuration, MatrixFact
 import breeze.linalg.{DenseMatrix, norm, *}
 import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
 import org.gilbertlang.runtimeMacros.linalg.operators.{BreezeMatrixImplicits, BreezeMatrixRegistries, BreezeMatrixOps}
-import util.control.Breaks.break
+import util.control.Breaks.{break, breakable}
 import org.gilbertlang.runtime.RuntimeTypes.{MatrixType, DoubleType, BooleanType}
 import scala.language.postfixOps
 
@@ -60,7 +60,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           { case (_, (path, numRows, numColumns)) =>
             val itEntries = for(line <- Source.fromFile(path).getLines()) yield {
               val splits = line.split(" ")
-              (splits(0).toInt, splits(1).toInt, splits(2).toDouble)
+              (splits(0).toInt-1, splits(1).toInt-1, splits(2).toDouble)
             }
             val entries = itEntries.toSeq
             val dense = entries.length.toDouble/(numRows* numColumns) > Configuration.DENSITYTHRESHOLD
@@ -76,12 +76,10 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             evaluate[Double](transformation.maxIterations).toInt) },
           { (_, result) => result })).asInstanceOf[(Matrix[Double], Int)]
 
-        val convergence = if(transformation.convergence != null) transformation.convergence.apply(
-          ConvergencePreviousStatePlaceholder, ConvergenceCurrentStatePlaceholder) else null
 
         iterationState = initialIterationState
-        for (counter <- 1 to maxIterations) {
-          if(convergence != null){
+        breakable {for (counter <- 1 to maxIterations) {
+          if(transformation.convergencePlan != null){
             convergencePreviousStateMatrix = iterationState
           }
 
@@ -89,15 +87,15 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             { transformation => evaluate[Matrix[Double]](transformation.updatePlan) },
             { (_, nextIterationState) => nextIterationState }).asInstanceOf[Matrix[Double]]
 
-          if(convergence != null){
+          if(transformation.convergencePlan != null){
             convergenceCurrentStateMatrix = iterationState
-            val converged = evaluate[Boolean](convergence)
+            val converged = evaluate[Boolean](transformation.convergencePlan)
 
             if(converged){
               break
             }
           }
-        }
+        }}
 
         iterationState
 
@@ -113,12 +111,9 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
         ).asInstanceOf[(CellArray, Int)]
 
         iterationStateCellArray = initialIterationState
-        val convergence = if(fixpoint.convergence != null) fixpoint.convergence.apply(
-          ConvergencePreviousStateCellArrayPlaceholder(fixpoint.getType),
-          ConvergenceCurrentStateCellArrayPlaceholder(fixpoint.getType)) else null
 
-        for(iteration <- 0 until maxIterations){
-          if(convergence != null){
+        breakable { for(iteration <- 0 until maxIterations){
+          if(fixpoint.convergencePlan != null){
             convergencePreviousStateCellArray = iterationStateCellArray
           }
 
@@ -128,15 +123,15 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           {(_, nextIterationState) => nextIterationState}
           ).asInstanceOf[CellArray]
 
-          if(convergence != null){
+          if(fixpoint.convergencePlan != null){
             convergenceCurrentStateCellArray = iterationStateCellArray
-            val converged = evaluate[Boolean](convergence)
+            val converged = evaluate[Boolean](fixpoint.convergencePlan)
 
             if(converged){
               break
             }
           }
-        }
+        }}
 
         iterationStateCellArray
 
@@ -233,7 +228,9 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
         handle[MatrixMult, (Matrix[Double], Matrix[Double])](transformation,
           { transformation => {
               (evaluate[Matrix[Double]](transformation.left), evaluate[Matrix[Double]](transformation.right)) }},
-          { case (_, (leftMatrix, rightMatrix)) => leftMatrix * rightMatrix })
+          { case (_, (leftMatrix, rightMatrix)) =>
+            leftMatrix * rightMatrix
+          })
 
       case (transformation: AggregateMatrixTransformation) =>
 
@@ -570,7 +567,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           { transformation => (evaluate[Double](transformation.left), evaluate[Double](transformation.right)) },
           {
             case (exec, (left, right)) =>
-              val result: Double = exec.operation match {
+              exec.operation match {
               case Addition => left + right
               case Subtraction => left - right
               case Division => left / right
@@ -589,7 +586,6 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               case Minimum => math.min(left, right)
               case Exponentiation => math.pow(left, right)
               }
-              result
           })
 
       case transformation: Parameter =>
@@ -646,7 +642,9 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             handle[TypeConversionMatrix, Matrix[Boolean]](
             typeConversion,
             {input => evaluate[Matrix[Boolean]](input.matrix)},
-            {(_, matrix) => matrix mapValues { value => if(value) 1.0 else 0.0}}
+            {(_, matrix) =>
+              matrix mapValues { value => if(value) 1.0 else 0.0}
+            }
             )
           case (srcType, targetType) => throw new LocalExecutionError(s"Cannot convert matrix value of type $srcType " +
             s"to type $targetType.")
@@ -682,22 +680,26 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
         minWithIdx,
         {input => (evaluate[Matrix[Double]](input.matrix), evaluate[Double](input.dimension).toInt)},
         {case (_, (matrix, dimension)) =>
+          val factory = implicitly[MatrixFactory[Double]]
           val (minimum, minIdx) = dimension match {
             case 1 =>
               val minValues = for(column <- 0 until matrix.cols) yield {
                 matrix(::, column).iterator.minBy{case (row, value) => value}
               }
               val(minIdx, minimum) = minValues.unzip
-              ((minimum zipWithIndex) map { case (value, idx) => (0, idx, value)},
-                (minIdx zipWithIndex) map { case (minIdx, idx) => (0, idx, minIdx)})
+
+              val (minEntries, minIdxEntries) = ((minimum zipWithIndex) map { case (value, idx) => (0, idx,value)},
+                (minIdx zipWithIndex) map { case (value, idx) => (0, idx, (value+1).toDouble)})
+              (factory.create(1, matrix.cols, minEntries, true), factory.create(1, matrix.cols, minIdxEntries, true))
             case 2 =>
               val minValues = for(row <- 0 until matrix.rows) yield {
-                matrix(row, ::).iterator.minBy{case (col, value) => value }
+                matrix(row, ::).iterator.minBy{case (_, value) => value }
               }
 
               val(minIdx, minimum) = minValues.unzip
-              ((minimum zipWithIndex) map { case (value, idx) => (idx, 0, value)},
-                (minIdx zipWithIndex) map { case (minIdx, idx) => (idx, 0, minIdx)})
+              val (minEntries, minIdxEntries) = ((minimum zipWithIndex) map { case (value, idx) => (idx, 0, value)},
+                (minIdx zipWithIndex) map { case ((_, value), idx) => (idx, 0, (value+1).toDouble)})
+              (factory.create(matrix.rows, 1, minEntries, true), factory.create(matrix.rows, 1, minIdxEntries,true))
             case dim => throw new LocalExecutionError(s"Cannot execute minWithIndex for dimension $dim.")
           }
           List(minimum, minIdx)
@@ -714,6 +716,8 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             val value = math.sqrt(((matrixA(rowA, ::) - matrixB(rowB, ::)):^2.0).sum)
             (rowA, rowB, value)
           }
+
+          val temp = entries.toArray[(Int,Int,Double)]
 
           factory.create(matrixA.rows, matrixB.rows, entries, true)
         }
@@ -738,7 +742,8 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           val newRows = matrix.rows*rowsMult
           val newCols = matrix.cols*colsMult
           val newSize = newRows* newCols
-          factory.create(newRows, newCols, entries.toSeq, entries.length.toDouble/(newSize) > Configuration.
+          val seqEntries = entries.toSeq
+          factory.create(newRows, newCols, seqEntries, seqEntries.length.toDouble/(newSize) > Configuration.
             DENSITYTHRESHOLD)
         }
         )

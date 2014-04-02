@@ -40,16 +40,16 @@ object PlanPrinter {
         printIndented(depth, op, "FixpointIteration")
         print(op.initialState, depth + 1)
         print(op.updatePlan, depth + 1)
-        if(op.convergence != null){
-          print(op.convergence, depth+1)
+        if(op.convergencePlan != null){
+          print(op.convergencePlan, depth+1)
         }
 
       case op: FixpointIterationCellArray =>
         printIndented(depth, op, "FixpointIterationCellArray")
         print(op.initialState, depth + 1)
         print(op.updatePlan, depth + 1)
-        if(op.convergence != null){
-          print(op.convergence, depth+1)
+        if(op.convergencePlan != null){
+          print(op.convergencePlan, depth+1)
         }
 
       case IterationStatePlaceholder =>
