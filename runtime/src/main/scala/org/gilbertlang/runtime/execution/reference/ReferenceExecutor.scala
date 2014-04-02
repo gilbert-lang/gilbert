@@ -28,13 +28,22 @@ import org.gilbertlang.runtimeMacros.linalg.{numerics, Configuration, MatrixFact
 import breeze.linalg.{DenseMatrix, norm, *}
 import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
 import org.gilbertlang.runtimeMacros.linalg.operators.{BreezeMatrixImplicits, BreezeMatrixRegistries, BreezeMatrixOps}
+import util.control.Breaks.break
+import org.gilbertlang.runtime.RuntimeTypes.{MatrixType, DoubleType, BooleanType}
+import scala.language.postfixOps
 
 class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixRegistries with BreezeMatrixImplicits {
 
   type Matrix[T] = breeze.linalg.Matrix[T]
+  type CellArray = List[Any]
 
   //TODO fix this
   var iterationState: Matrix[Double] = null
+  var convergenceCurrentStateMatrix: Matrix[Double] = null
+  var convergencePreviousStateMatrix: Matrix[Double] = null
+  var iterationStateCellArray: CellArray = null
+  var convergenceCurrentStateCellArray: CellArray = null
+  var convergencePreviousStateCellArray: CellArray = null
 
   protected def execute(executable: Executable): Any = {
 
@@ -60,21 +69,88 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             factory.create(numRows, numColumns, entries, dense)
           })
 
-      case (transformation: FixpointIteration) =>
+      case (transformation: FixpointIterationMatrix) =>
+        val (initialIterationState, maxIterations) = (handle[FixpointIterationMatrix, (Matrix[Double],
+          Int)](transformation,
+          { transformation => (evaluate[Matrix[Double]](transformation.initialState),
+            evaluate[Double](transformation.maxIterations).toInt) },
+          { (_, result) => result })).asInstanceOf[(Matrix[Double], Int)]
 
-        iterationState = handle[FixpointIteration, Matrix[Double]](transformation,
-          { transformation => evaluate[Matrix[Double]](transformation.initialState) },
-          { (_, initialVector) => initialVector }).asInstanceOf[Matrix[Double]]
+        val convergence = if(transformation.convergence != null) transformation.convergence.apply(
+          ConvergencePreviousStatePlaceholder, ConvergenceCurrentStatePlaceholder) else null
 
-        for (counter <- 1 to 10) {
-          iterationState = handle[FixpointIteration, Matrix[Double]](transformation,
+        iterationState = initialIterationState
+        for (counter <- 1 to maxIterations) {
+          if(convergence != null){
+            convergencePreviousStateMatrix = iterationState
+          }
+
+          iterationState = handle[FixpointIterationMatrix, Matrix[Double]](transformation,
             { transformation => evaluate[Matrix[Double]](transformation.updatePlan) },
-            { (_, vector) => vector }).asInstanceOf[Matrix[Double]]
+            { (_, nextIterationState) => nextIterationState }).asInstanceOf[Matrix[Double]]
+
+          if(convergence != null){
+            convergenceCurrentStateMatrix = iterationState
+            val converged = evaluate[Boolean](convergence)
+
+            if(converged){
+              break
+            }
+          }
         }
 
         iterationState
 
+      case ConvergenceCurrentStatePlaceholder => convergenceCurrentStateMatrix
+      case ConvergencePreviousStatePlaceholder => convergencePreviousStateMatrix
       case IterationStatePlaceholder => iterationState
+
+      case fixpoint: FixpointIterationCellArray =>
+        val (initialIterationState, maxIterations) = handle[FixpointIterationCellArray,(CellArray, Int)](
+        fixpoint,
+        {input => (evaluate[CellArray](input.initialState), evaluate[Double](input.maxIterations).toInt)},
+        {(_, initialCellArray) => initialCellArray}
+        ).asInstanceOf[(CellArray, Int)]
+
+        iterationStateCellArray = initialIterationState
+        val convergence = if(fixpoint.convergence != null) fixpoint.convergence.apply(
+          ConvergencePreviousStateCellArrayPlaceholder(fixpoint.getType),
+          ConvergenceCurrentStateCellArrayPlaceholder(fixpoint.getType)) else null
+
+        for(iteration <- 0 until maxIterations){
+          if(convergence != null){
+            convergencePreviousStateCellArray = iterationStateCellArray
+          }
+
+          iterationStateCellArray = handle[FixpointIterationCellArray, CellArray](
+          fixpoint,
+          {input => evaluate[CellArray](input.updatePlan)},
+          {(_, nextIterationState) => nextIterationState}
+          ).asInstanceOf[CellArray]
+
+          if(convergence != null){
+            convergenceCurrentStateCellArray = iterationStateCellArray
+            val converged = evaluate[Boolean](convergence)
+
+            if(converged){
+              break
+            }
+          }
+        }
+
+        iterationStateCellArray
+
+      case placeholder: ConvergenceCurrentStateCellArrayPlaceholder => convergenceCurrentStateCellArray
+      case placeholder: ConvergencePreviousStateCellArrayPlaceholder => convergencePreviousStateCellArray
+      case iterationState: IterationStatePlaceholderCellArray => iterationStateCellArray
+
+      case cellArrayExec: CellArrayExecutable =>
+        handle[CellArrayExecutable, List[Any]](
+        cellArrayExec,
+        {input => input.elements map {evaluate[Any] } },
+        {(_, entries) => entries}
+        )
+
 
       case (transformation: CellwiseMatrixTransformation) =>
 
@@ -84,6 +160,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               transformation.operation match {
                 case Binarize => matrix.mapActiveValues(x => CellwiseFunctions.binarize(x))
                 case Minus => matrix * -1.0
+                case Abs => matrix mapActiveValues(math.abs)
               }
             }
           })
@@ -128,6 +205,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                 case Subtraction => left - right
                 case Multiplication => left :* right
                 case Division => left / right
+                case Exponentiation => left :^ right
               }
             }
             )
@@ -225,6 +303,10 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                     val factory = implicitly[MatrixFactory[Double]]
                     val dividend = factory.init(matrix.rows, matrix.cols, scalar, dense = true)
                     dividend / matrix
+                  case Exponentiation =>
+                    val factory = implicitly[MatrixFactory[Double]]
+                    val basis = factory.init(matrix.rows, matrix.cols, scalar,dense = true)
+                    basis :^ matrix
                 }
             })
         }
@@ -279,6 +361,8 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                     matrix * scalar
                   case Division =>
                     matrix / scalar
+                  case Exponentiation =>
+                    matrix :^ scalar
                 }
             })
         }
@@ -408,10 +492,17 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             }})
 
       case (transformation: WriteMatrix) =>
+        transformation.matrix.getType match {
+          case MatrixType(DoubleType, _, _) =>
+            handle[WriteMatrix, Matrix[Double]](transformation,
+            { transformation => evaluate[Matrix[Double]](transformation.matrix) },
+            { (_, matrix) => println(matrix) })
+          case MatrixType(BooleanType, _,_) =>
+            handle[WriteMatrix, Matrix[Boolean]](transformation,
+            { transformation => evaluate[Matrix[Boolean]](transformation.matrix) },
+            { (_, matrix) => println(matrix) })
+        }
 
-        handle[WriteMatrix, Matrix[Double]](transformation,
-          { transformation => evaluate[Matrix[Double]](transformation.matrix) },
-          { (_, matrix) => println(matrix) })
 
       case transformation: WriteString =>
 
@@ -431,16 +522,37 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           { _ => },
           { (transformation, _) => transformation.value })
 
+      case literal: boolean =>
+        handle[boolean, Unit](literal,
+        {_ => },
+        {(literal, _) => literal.value})
+
       case transformation: string =>
         handle[string, Unit](transformation,
           { _ => },
           { (transformation, _) => transformation.value })
 
       case (transformation: WriteScalar) =>
+        transformation.scalar.getType match {
+          case BooleanType =>
+            handle[WriteScalar, Boolean](transformation,
+            { transformation => evaluate[Boolean](transformation.scalar) },
+            { (_, scalar) => println(scalar)} )
+          case DoubleType =>
+            handle[WriteScalar, Double](transformation,
+            { transformation => evaluate[Double](transformation.scalar) },
+            { (_, scalar) => println(scalar) })
+          case tpe =>
+            throw new LocalExecutionError(s"Cannot print scalar of type $tpe.")
+        }
 
-        handle[WriteScalar, Double](transformation,
-          { transformation => evaluate[Double](transformation.scalar) },
-          { (_, scalar) => println(scalar) })
+      case writeCellArray: WriteCellArray =>
+        handle[WriteCellArray, CellArray](
+        writeCellArray,
+        {input => evaluate[CellArray](input.cellArray)},
+        {(_, cellArray) => for(entry <- cellArray) println(entry)}
+        )
+
 
       case transformation: UnaryScalarTransformation =>
         handle[UnaryScalarTransformation, Double](transformation,
@@ -449,6 +561,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
             transformation.operation match {
               case Minus => -value
               case Binarize => CellwiseFunctions.binarize(value)
+              case Abs => math.abs(value)
             }
           })
 
@@ -474,6 +587,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
               case Or => left | right
               case Maximum => math.max(left, right)
               case Minimum => math.min(left, right)
+              case Exponentiation => math.pow(left, right)
               }
               result
           })
@@ -483,6 +597,152 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
 
       case transformation: function =>
         throw new ExecutionRuntimeError("Functions cannot be executed")
+
+      case reference: CellArrayReferenceString =>
+        handle[CellArrayReferenceString, CellArray](
+        reference,
+        {input => evaluate[CellArray](input.parent)},
+        { (ref, cellArray) =>
+          cellArray(ref.reference).asInstanceOf[String]
+        }
+        )
+
+      case reference: CellArrayReferenceScalar =>
+        handle[CellArrayReferenceScalar, CellArray](
+        reference,
+        {input => evaluate[CellArray](input.parent)},
+        {(ref, cellArray) =>
+          ref.getType match {
+            case DoubleType => cellArray(ref.reference).asInstanceOf[Double]
+            case BooleanType => cellArray(ref.reference).asInstanceOf[Boolean]
+            case tpe => throw new LocalExecutionError(s"Cannot reference scalar value of type $tpe.")
+          }
+        }
+        )
+
+      case reference: CellArrayReferenceMatrix =>
+        handle[CellArrayReferenceMatrix, CellArray](
+        reference,
+        {input => evaluate[CellArray](input.parent)},
+        {(ref, cellArray) =>
+          ref.getType match {
+            case MatrixType(DoubleType, _, _) => cellArray(ref.reference).asInstanceOf[Matrix[Double]]
+            case MatrixType(BooleanType, _, _) => cellArray(ref.reference).asInstanceOf[Matrix[Boolean]]
+            case tpe => throw new LocalExecutionError(s"Cannot reference matrix of type $tpe.")
+          }
+        }
+        )
+
+      case reference: CellArrayReferenceCellArray =>
+        handle[CellArrayReferenceCellArray, CellArray](
+        reference,
+        {input => evaluate[CellArray](input.parent)},
+        {(ref, cellArray) => cellArray(ref.reference).asInstanceOf[List[Any]]}
+        )
+
+      case typeConversion: TypeConversionMatrix =>
+        (typeConversion.sourceType, typeConversion.targetType) match {
+          case (MatrixType(BooleanType, _, _), MatrixType(DoubleType, _, _)) =>
+            handle[TypeConversionMatrix, Matrix[Boolean]](
+            typeConversion,
+            {input => evaluate[Matrix[Boolean]](input.matrix)},
+            {(_, matrix) => matrix mapValues { value => if(value) 1.0 else 0.0}}
+            )
+          case (srcType, targetType) => throw new LocalExecutionError(s"Cannot convert matrix value of type $srcType " +
+            s"to type $targetType.")
+        }
+
+      case typeConversion: TypeConversionScalar =>
+        (typeConversion.sourceType, typeConversion.targetType) match {
+          case (BooleanType, DoubleType) =>
+            handle[TypeConversionScalar, Boolean](
+            typeConversion,
+            {input => evaluate[Boolean](input.scalar)},
+            {(_, scalar) => if(scalar) 1.0 else 0.0}
+            )
+          case (srcType, targetType) => throw new LocalExecutionError(s"Cannot convert scalar value of type $srcType " +
+            s"to type $targetType.")
+        }
+
+      case linearSpace: linspace =>
+        handle[linspace, (Double, Double, Int)](
+        linearSpace,
+        {input => (evaluate[Double](input.start), evaluate[Double](input.end), evaluate[Double](input.numPoints)
+          .toInt)},
+        {case (_, (start, end, numPoints)) =>
+          val factory = implicitly[MatrixFactory[Double]]
+          val spacing = (end-start)/(numPoints-1)
+          val entries = for(numPoint <- 0 until numPoints) yield(0, numPoint, start + numPoint*spacing)
+          factory.create(1,numPoints, entries, true)
+        }
+        )
+
+      case minWithIdx: minWithIndex =>
+        handle[minWithIndex, (Matrix[Double], Int)](
+        minWithIdx,
+        {input => (evaluate[Matrix[Double]](input.matrix), evaluate[Double](input.dimension).toInt)},
+        {case (_, (matrix, dimension)) =>
+          val (minimum, minIdx) = dimension match {
+            case 1 =>
+              val minValues = for(column <- 0 until matrix.cols) yield {
+                matrix(::, column).iterator.minBy{case (row, value) => value}
+              }
+              val(minIdx, minimum) = minValues.unzip
+              ((minimum zipWithIndex) map { case (value, idx) => (0, idx, value)},
+                (minIdx zipWithIndex) map { case (minIdx, idx) => (0, idx, minIdx)})
+            case 2 =>
+              val minValues = for(row <- 0 until matrix.rows) yield {
+                matrix(row, ::).iterator.minBy{case (col, value) => value }
+              }
+
+              val(minIdx, minimum) = minValues.unzip
+              ((minimum zipWithIndex) map { case (value, idx) => (idx, 0, value)},
+                (minIdx zipWithIndex) map { case (minIdx, idx) => (idx, 0, minIdx)})
+            case dim => throw new LocalExecutionError(s"Cannot execute minWithIndex for dimension $dim.")
+          }
+          List(minimum, minIdx)
+        }
+        )
+
+      case pairDistance: pdist2 =>
+        handle[pdist2, (Matrix[Double], Matrix[Double])](
+        pairDistance,
+        {input => (evaluate[Matrix[Double]](input.matrixA), evaluate[Matrix[Double]](input.matrixB))},
+        {case (_, (matrixA, matrixB)) =>
+          val factory = implicitly[MatrixFactory[Double]]
+          val entries = for(rowA <- 0 until matrixA.rows; rowB <- 0 until matrixB.rows) yield {
+            val value = math.sqrt(((matrixA(rowA, ::) - matrixB(rowB, ::)):^2.0).sum)
+            (rowA, rowB, value)
+          }
+
+          factory.create(matrixA.rows, matrixB.rows, entries, true)
+        }
+        )
+
+
+      case repeatMatrix: repmat =>
+        handle[repmat, (Matrix[Double], Int, Int)](
+        repeatMatrix,
+        {input => (evaluate[Matrix[Double]](input.matrix), evaluate[Double](input.numRows).toInt,
+          evaluate[Double](input.numCols).toInt)},
+        { case (_, (matrix, rowsMult, colsMult)) =>
+          val factory = implicitly[MatrixFactory[Double]]
+
+          val entries = matrix.activeIterator flatMap {
+            case ((row, col),value) =>
+              for(rowMult <- 0 until rowsMult; colMult <- 0 until colsMult) yield {
+                (row + rowMult*matrix.rows, col + colMult*matrix.cols, value)
+              }
+          }
+
+          val newRows = matrix.rows*rowsMult
+          val newCols = matrix.cols*colsMult
+          val newSize = newRows* newCols
+          factory.create(newRows, newCols, entries.toSeq, entries.length.toDouble/(newSize) > Configuration.
+            DENSITYTHRESHOLD)
+        }
+        )
+
     }
 
   }

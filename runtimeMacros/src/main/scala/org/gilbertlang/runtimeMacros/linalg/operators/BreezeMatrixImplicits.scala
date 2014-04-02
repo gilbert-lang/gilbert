@@ -30,29 +30,30 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canMapMatrixValues[@specialized(Double, Boolean) T: ClassTag:DefaultArrayValue:Semiring]: support
-  .CanMapValues[Matrix[T], T, T,
-    Matrix[T]] = {
-    new CanMapValues[Matrix[T], T, T, Matrix[T]]{
+  implicit def canMapMatrixValues[T, @specialized(Double,
+    Boolean) R: ClassTag:DefaultArrayValue:Semiring]: support
+  .CanMapValues[Matrix[T], T, R,
+    Matrix[R]] = {
+    new CanMapValues[Matrix[T], T, R, Matrix[R]]{
       /**Maps all key-value pairs from the given collection. */
-      def map(from: Matrix[T], fn: (T => T)): Matrix[T] = {
+      def map(from: Matrix[T], fn: (T => R)): Matrix[R] = {
         from match{
           case x: DenseMatrix[T] => x.map(fn)
           case x: CSCMatrix[T] => x.map(fn)
           case x =>
-            val data = (x.valuesIterator map { value => fn(value) }).toArray[T]
-            new DenseMatrix[T](x.rows, x.cols, data)
+            val data = (x.valuesIterator map { value => fn(value) }).toArray[R]
+            new DenseMatrix[R](x.rows, x.cols, data)
         }
       }
 
       /**Maps all active key-value pairs from the given collection. */
-      def mapActive(from: Matrix[T], fn: (T => T)): Matrix[T] = {
+      def mapActive(from: Matrix[T], fn: (T => R)): Matrix[R] = {
         from match{
           case x: DenseMatrix[T] => x.map(fn)
           case x: CSCMatrix[T] => x.map(fn)
           case x =>
-            val data = (x.valuesIterator map { value => fn(value) }).toArray[T]
-            new DenseMatrix[T](x.rows, x.cols, data)
+            val data = (x.valuesIterator map { value => fn(value) }).toArray[R]
+            new DenseMatrix[R](x.rows, x.cols, data)
         }
       }
     }

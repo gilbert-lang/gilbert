@@ -44,7 +44,7 @@ abstract class DagWalker {
         visit(transformation.numColumns)
         onLeave(transformation)
 
-      case (transformation: FixpointIteration) =>
+      case (transformation: FixpointIterationMatrix) =>
         iteration += 1
 
         onArrival(transformation)

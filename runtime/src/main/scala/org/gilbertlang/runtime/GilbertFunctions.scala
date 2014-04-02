@@ -19,7 +19,7 @@
 package org.gilbertlang.runtime
 
 import org.gilbertlang.runtime.Executables._
-import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.FixpointIterationMatrix
 import org.gilbertlang.runtime.Executables.LoadMatrix
 
 object GilbertFunctions {
@@ -31,7 +31,7 @@ object GilbertFunctions {
   object fixpoint {
     def apply(initialState: Matrix, updateFunction: Matrix => Matrix,
               maxIterations: ScalarRef, convergence: (Matrix,Matrix) => ScalarRef) = {
-      new FixpointIteration(initialState, updateFunction, maxIterations,
+      new FixpointIterationMatrix(initialState, updateFunction, maxIterations,
         convergence)
     }
   }

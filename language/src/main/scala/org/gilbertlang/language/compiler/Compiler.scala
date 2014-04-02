@@ -246,10 +246,10 @@ trait Compiler {
       case "maxValue$M" => function(1, AggregateMatrixTransformation(MatrixParameter(0), Maximum))
       case "maxValue$D" => function(2, ScalarScalarTransformation(ScalarParameter(0), ScalarParameter(1), Maximum))
 
-      case "fixpoint$MFDF" => function(4, FixpointIteration(MatrixParameter(0),
+      case "fixpoint$MFDF" => function(4, FixpointIterationMatrix(MatrixParameter(0),
         FunctionParameter(1), ScalarParameter(2), FunctionParameter(3)))
 
-      case "fixpoint$MFD" => function(3, FixpointIteration(MatrixParameter(0), FunctionParameter(1),
+      case "fixpoint$MFD" => function(3, FixpointIterationMatrix(MatrixParameter(0), FunctionParameter(1),
         ScalarParameter(2), null))
 
       case "fixpoint$CFDF" =>

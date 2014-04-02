@@ -37,7 +37,7 @@ import org.gilbertlang.runtime.Executables.ScalarMatrixTransformation
 import org.gilbertlang.runtime.Executables.StringParameter
 import org.gilbertlang.runtime.Executables.WriteScalar
 import org.gilbertlang.runtime.Executables.zeros
-import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.FixpointIterationMatrix
 import org.gilbertlang.runtime.Executables.TypeConversionScalar
 import org.gilbertlang.runtime.Executables.ScalarParameter
 import org.gilbertlang.runtime.Executables.CellwiseMatrixTransformation
@@ -1091,8 +1091,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
             }
           })
 
-      case executable: FixpointIteration =>
-        handle[FixpointIteration, (Matrix, Scalar[Double])](
+      case executable: FixpointIterationMatrix =>
+        handle[FixpointIterationMatrix, (Matrix, Scalar[Double])](
           executable,
           { exec => (evaluate[Matrix](exec.initialState), evaluate[Scalar[Double]](exec.maxIterations)) },
           { case (exec, (initialState, maxIterations)) =>

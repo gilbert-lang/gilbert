@@ -67,14 +67,14 @@ class SparkExecutor extends Executor {
               })
             })
 
-      case (transformation: FixpointIteration) =>
+      case (transformation: FixpointIterationMatrix) =>
 
-        iterationState = handle[FixpointIteration, Vector](transformation,
+        iterationState = handle[FixpointIterationMatrix, Vector](transformation,
         { transformation => evaluate[Vector](transformation.initialState) },
         { (_, initialVector) => initialVector }).asInstanceOf[Vector]
 
         for (_ <- 1 to 10) {
-          iterationState = handle[FixpointIteration, Vector](transformation,
+          iterationState = handle[FixpointIterationMatrix, Vector](transformation,
           { transformation => evaluate[Vector](transformation.updatePlan) },
           { (_, vector) => vector }).asInstanceOf[Vector]
         }

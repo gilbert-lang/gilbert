@@ -36,7 +36,7 @@ object PlanPrinter {
       case op: LoadMatrix =>
         printIndented(depth, op, "LoadMatrix [" + op.path + "]")
 
-      case op: FixpointIteration =>
+      case op: FixpointIterationMatrix =>
         printIndented(depth, op, "FixpointIteration")
         print(op.initialState, depth + 1)
         print(op.updatePlan, depth + 1)

@@ -13,6 +13,10 @@ object Executables {
     def getType: RuntimeType
   }
 
+  sealed trait FixpointBase extends Executable
+
+  sealed trait Placeholder extends Executable
+
   object Executable {
     var instantiated: Boolean = false
   }
@@ -569,12 +573,12 @@ object Executables {
     def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numCols))
   }
 
-  case class FixpointIteration(initialState: Matrix, updateFunction: FunctionRef,
-                               maxIterations: ScalarRef, convergence: FunctionRef) extends Matrix {
+  case class FixpointIterationMatrix(initialState: Matrix, updateFunction: FunctionRef,
+                               maxIterations: ScalarRef, convergence: FunctionRef) extends Matrix with FixpointBase {
     val updatePlan = updateFunction.apply(IterationStatePlaceholder)
 
 
-    def instantiate(args: Executable*): FixpointIteration = {
+    def instantiate(args: Executable*): FixpointIterationMatrix = {
       var anyInstantiated = false
       val instantiatedState = initialState.instantiate(args: _*)
       anyInstantiated |= Executable.instantiated
@@ -592,7 +596,7 @@ object Executables {
 
       if (anyInstantiated) {
         Executable.instantiated = true
-        FixpointIteration(instantiatedState, instantiatedUpdateFunction,
+        FixpointIterationMatrix(instantiatedState, instantiatedUpdateFunction,
           instantiatedMaxIterations, instantiatedConvergence)
       } else
         this
@@ -603,7 +607,8 @@ object Executables {
   }
 
   case class FixpointIterationCellArray(initialState: CellArrayBase, updateFunction: FunctionRef,
-                               maxIterations: ScalarRef, convergence: FunctionRef) extends CellArrayBase {
+                               maxIterations: ScalarRef, convergence: FunctionRef) extends CellArrayBase with
+  FixpointBase {
     val updatePlan = updateFunction.apply(IterationStatePlaceholderCellArray(initialState.getType))
 
     def instantiate(args: Executable*): FixpointIterationCellArray = {
@@ -632,7 +637,7 @@ object Executables {
     override def getType = initialState.getType
   }
 
-  case class IterationStatePlaceholderCellArray(getType: CellArrayType) extends CellArrayBase{
+  case class IterationStatePlaceholderCellArray(getType: CellArrayType) extends CellArrayBase with Placeholder{
 
     def instantiate(args: Executable*): CellArrayBase = {
       Executable.instantiated = false
@@ -640,7 +645,7 @@ object Executables {
     }
   }
 
-  case object IterationStatePlaceholder extends Matrix {
+  case object IterationStatePlaceholder extends Matrix with Placeholder{
 
     def instantiate(args: Executable*): Matrix = {
       Executable.instantiated = false
@@ -896,7 +901,7 @@ object Executables {
     def getType = Unknown
   }
 
-  case object ConvergencePreviousStatePlaceholder extends Matrix {
+  case object ConvergencePreviousStatePlaceholder extends Matrix with Placeholder {
     override def instantiate(args: Executable*) = {
       Executable.instantiated = false
       this
@@ -905,7 +910,7 @@ object Executables {
     def getType = MatrixType(Unknown, None, None)
   }
 
-  case object ConvergenceCurrentStatePlaceholder extends Matrix {
+  case object ConvergenceCurrentStatePlaceholder extends Matrix with Placeholder{
     override def instantiate(args: Executable*) = {
       Executable.instantiated = false
       this
@@ -1003,7 +1008,7 @@ object Executables {
   }
 
   case class ConvergenceCurrentStateCellArrayPlaceholder(getType: CellArrayType) extends
-  CellArrayBase{
+  CellArrayBase with Placeholder{
     def instantiate(args: Executable*): CellArrayBase = {
       Executable.instantiated = false
       this
@@ -1011,7 +1016,7 @@ object Executables {
   }
 
   case class ConvergencePreviousStateCellArrayPlaceholder(getType: CellArrayType) extends
-  CellArrayBase{
+  CellArrayBase with Placeholder{
     def instantiate(args: Executable*): CellArrayBase = {
       Executable.instantiated = false
       this

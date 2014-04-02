@@ -14,7 +14,7 @@ import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
 import org.gilbertlang.runtime.Executables.scalar
 import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
 import org.gilbertlang.runtime.Executables.CellArrayExecutable
-import org.gilbertlang.runtime.Executables.FixpointIteration
+import org.gilbertlang.runtime.Executables.FixpointIterationMatrix
 import org.gilbertlang.runtime.Executables.WriteMatrix
 import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
 import org.gilbertlang.runtime.Executables.Transpose
@@ -44,7 +44,7 @@ class CompilerTest extends Assertions {
           )
         ),
         WriteMatrix(
-          FixpointIteration(
+          FixpointIterationMatrix(
             randn(
               scalar(10.0),
               scalar(10.0),
