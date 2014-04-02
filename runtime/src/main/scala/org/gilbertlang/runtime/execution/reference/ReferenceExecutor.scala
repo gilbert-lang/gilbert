@@ -22,7 +22,6 @@ import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
 import scala.io.Source
-import org.gilbertlang.runtime.execution.CellwiseFunctions
 import org.gilbertlang.runtime.shell.PlanPrinter
 import org.gilbertlang.runtimeMacros.linalg.{numerics, Configuration, MatrixFactory}
 import breeze.linalg.{DenseMatrix, norm, *}
@@ -30,6 +29,7 @@ import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
 import org.gilbertlang.runtimeMacros.linalg.operators.{BreezeMatrixImplicits, BreezeMatrixRegistries, BreezeMatrixOps}
 import util.control.Breaks.{break, breakable}
 import org.gilbertlang.runtime.RuntimeTypes.{MatrixType, DoubleType, BooleanType}
+import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 import scala.language.postfixOps
 
 class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixRegistries with BreezeMatrixImplicits {
@@ -153,7 +153,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           { transformation => evaluate[Matrix[Double]](transformation.matrix) },
           { (transformation, matrix) => {
               transformation.operation match {
-                case Binarize => matrix.mapActiveValues(x => CellwiseFunctions.binarize(x))
+                case Binarize => matrix.mapActiveValues(binarize)
                 case Minus => matrix * -1.0
                 case Abs => matrix mapActiveValues(math.abs)
               }
@@ -434,7 +434,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
       case transformation: spones =>
         handle[spones, Matrix[Double]](transformation,
             { transformation => evaluate[Matrix[Double]](transformation.matrix) },
-            { (_, matrix) => matrix mapActiveValues { value => CellwiseFunctions.binarize(value) } })
+            { (_, matrix) => matrix mapActiveValues { binarize } })
 
       //TODO remove this
       case transformation: sum =>
@@ -557,7 +557,7 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
           { (transformation, value) =>
             transformation.operation match {
               case Minus => -value
-              case Binarize => CellwiseFunctions.binarize(value)
+              case Binarize => binarize(value)
               case Abs => math.abs(value)
             }
           })

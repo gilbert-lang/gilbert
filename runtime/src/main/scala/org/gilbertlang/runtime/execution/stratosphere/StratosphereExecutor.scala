@@ -7,7 +7,6 @@ import scala.collection.convert.WrapAsScala
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
-import org.gilbertlang.runtime.execution.CellwiseFunctions
 import breeze.linalg.norm
 import breeze.linalg.*
 import scala.language.implicitConversions
@@ -69,7 +68,7 @@ import org.gilbertlang.runtime.Executables.function
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 import scala.language.postfixOps
-
+import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 
 class StratosphereExecutor extends Executor with WrapAsScala {
   import ImplicitConversions._
@@ -545,7 +544,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 case Minus =>
                   scalarDS map { x => -x }
                 case Binarize =>
-                  scalarDS map { x => CellwiseFunctions.binarize(x) }
+                  scalarDS map { binarize }
                 case Abs =>
                   scalarDS map { value => math.abs(value) }
               }
@@ -582,7 +581,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 case Binarize =>
                   matrixDS map { submatrix =>
                     {
-                      submatrix.mapActiveValues(x => CellwiseFunctions.binarize(x))
+                      submatrix.mapActiveValues( binarize)
                     }
                   }
                 case Abs =>
@@ -962,7 +961,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
           { (_, matrix) =>
             {
               matrix map { submatrix =>
-                submatrix.mapActiveValues(x => CellwiseFunctions.binarize(x))
+                submatrix.mapActiveValues(binarize)
               }
             }
           })

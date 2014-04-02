@@ -22,7 +22,6 @@ import com.esotericsoftware.kryo.{Kryo, Serializer}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import org.apache.hadoop.io.{DataInputBuffer, DataOutputBuffer, Writable}
 import org.apache.spark.serializer.KryoRegistrator
-import org.apache.mahout.math.{MatrixWritable, VectorWritable, Matrix, DenseVector, Vector}
 import scala.reflect.ClassTag
 import scala.reflect.classTag
 
@@ -33,9 +32,9 @@ import scala.reflect.classTag
 class MahoutKryoRegistrator extends KryoRegistrator {
 
   override def registerClasses(kryo: Kryo) = {
-    kryo.addDefaultSerializer(classOf[Vector], new WritableKryoSerializer[Vector, VectorWritable])
-    kryo.addDefaultSerializer(classOf[DenseVector], new WritableKryoSerializer[Vector, VectorWritable])
-    kryo.addDefaultSerializer(classOf[Matrix], new WritableKryoSerializer[Matrix, MatrixWritable])
+//    kryo.addDefaultSerializer(classOf[Vector], new WritableKryoSerializer[Vector, VectorWritable])
+//    kryo.addDefaultSerializer(classOf[DenseVector], new WritableKryoSerializer[Vector, VectorWritable])
+//    kryo.addDefaultSerializer(classOf[Matrix], new WritableKryoSerializer[Matrix, MatrixWritable])
   }
 }
 

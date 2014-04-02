@@ -20,8 +20,6 @@ package org.gilbertlang
 
 import java.lang.String
 import scala.language.implicitConversions
-import org.apache.mahout.math.function.DoubleFunction
-import org.gilbertlang.runtime.Executables.boolean
 
 package object runtime {
   
@@ -46,18 +44,7 @@ package object runtime {
   implicit def double2Boolean(d: Double): Boolean = {
     if(d == 0) false else true
   }
-  
-  implicit def funcDouble2DoubleFunction(func: Double => Double): DoubleFunction = {
-    new DoubleFunction{
-      def apply(a: Double): Double = func(a)
-    }
-  }
-  
-  implicit def funcBoolean2DoubleFunction(func: Double => Boolean): DoubleFunction = {
-    new DoubleFunction {
-      def apply(a: Double): Double = func(a)
-    }
-  }
+
 
   def scalarRef2Int(scalarRef: ScalarRef) = {
     scalarRef match {
