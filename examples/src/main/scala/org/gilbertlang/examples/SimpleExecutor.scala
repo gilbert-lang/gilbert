@@ -7,7 +7,7 @@ import org.gilbertlang.runtime.withStratosphere
 object SimpleExecutor {
 
   def main(args:Array[String]){
-    val executable = Gilbert.compileRessource("test.gb")
+    val executable = Gilbert.compileRessource("norm.gb")
     
     val plan = withStratosphere(executable)
     LocalExecutor.execute(plan)

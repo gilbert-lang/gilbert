@@ -46,6 +46,12 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   val linspace = Symbol("linspace", linspaceType)
   val minWithIndex = Symbol("minWithIndex", minWithIndexType)
   val pdist2 = Symbol("pdist2", pdist2Type)
+  val abs = Symbol("abs", absType)
+
+  def absType = {
+    val nt = newNumericTV()
+    FunctionType(nt, nt)
+  }
 
   def repmatType = {
     val (t,a,b) = newUTVV()

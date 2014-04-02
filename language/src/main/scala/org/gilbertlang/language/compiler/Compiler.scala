@@ -289,7 +289,17 @@ trait Compiler {
       case "write$SS" => function(1, WriteString(StringParameter(0)))
 
       case "norm$MD" =>
-        function(2, norm(MatrixParameter(0), ScalarParameter(1)))
+        val pMatrix = MatrixScalarTransformation(MatrixParameter(0), ScalarParameter(1), Exponentiation)
+        val absoluteMatrix = CellwiseMatrixTransformation(pMatrix, Abs)
+        val sumMatrixElements = AggregateMatrixTransformation(absoluteMatrix, SumAll)
+        val inverseP = ScalarScalarTransformation(scalar(1.0), ScalarParameter(1), Division)
+        val rootedSum = ScalarScalarTransformation(sumMatrixElements, inverseP, Exponentiation)
+        function(2, rootedSum)
+
+      case "abs$M" =>
+        function(1, CellwiseMatrixTransformation(MatrixParameter(0), Abs))
+      case "abs$D" =>
+        function(1, UnaryScalarTransformation(ScalarParameter(0), Abs))
     }
   }
 

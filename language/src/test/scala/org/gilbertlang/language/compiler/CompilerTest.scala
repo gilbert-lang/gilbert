@@ -2,42 +2,10 @@ package org.gilbertlang.language.compiler
 
 import org.scalatest.Assertions
 import org.junit.Test
-import java.io.InputStreamReader
-import scala.util.parsing.input.StreamReader
-import org.gilbertlang.language.typer.Typer
-import org.gilbertlang.language.parser.Parser
-import java.io.IOException
-import org.apache.commons.io.IOUtils
 import org.gilbertlang.runtime.Executables._
-import org.gilbertlang.language.format.VerboseTypedASTFormatter
-import org.gilbertlang.runtime.shell.PlanPrinter
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.RuntimeTypes._
-import org.gilbertlang.runtime.Executables.MatrixMult
-import org.gilbertlang.runtime.Executables.WriteCellArray
-import org.gilbertlang.runtime.Executables.boolean
-import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
-import org.gilbertlang.runtime.Executables.scalar
-import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
-import org.gilbertlang.runtime.Executables.ScalarMatrixTransformation
-import org.gilbertlang.runtime.Executables.CellArrayExecutable
-import org.gilbertlang.runtime.Executables.WriteMatrix
-import org.gilbertlang.runtime.Executables.Transpose
-import org.gilbertlang.runtime.Executables.MatrixParameter
-import org.gilbertlang.runtime.Executables.CellArrayParameter
-import scala.Some
-import org.gilbertlang.runtime.Executables.WriteScalar
-import org.gilbertlang.runtime.Executables.function
-import org.gilbertlang.runtime.Executables.zeros
-import org.gilbertlang.runtime.Executables.eye
-import org.gilbertlang.runtime.Executables.FixpointIteration
-import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
-import org.gilbertlang.runtime.Executables.ones
-import org.gilbertlang.runtime.Executables.randn
-import org.gilbertlang.runtime.Executables.WriteFunction
-import org.gilbertlang.runtime.Executables.norm
-import org.gilbertlang.runtime.Executables.CompoundExecutable
 import org.gilbertlang.runtime.Executables.eye
 import org.gilbertlang.runtime.Executables.MatrixMult
 import org.gilbertlang.runtime.Executables.WriteCellArray
@@ -55,7 +23,6 @@ import org.gilbertlang.runtime.Executables.MatrixParameter
 import org.gilbertlang.runtime.Executables.randn
 import org.gilbertlang.runtime.Executables.WriteFunction
 import scala.Some
-import org.gilbertlang.runtime.Executables.norm
 import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.CompoundExecutable
 import org.gilbertlang.runtime.Executables.WriteScalar
@@ -92,13 +59,28 @@ class CompilerTest extends Assertions {
             function(
               2,
               ScalarScalarTransformation(
-                norm(
-                  CellwiseMatrixMatrixTransformation(
-                    MatrixParameter(0),
-                    MatrixParameter(1),
-                    Subtraction
+                ScalarScalarTransformation(
+                  AggregateMatrixTransformation(
+                    CellwiseMatrixTransformation(
+                      MatrixScalarTransformation(
+                        CellwiseMatrixMatrixTransformation(
+                          MatrixParameter(0),
+                          MatrixParameter(1),
+                          Subtraction
+                        ),
+                        scalar(2.0),
+                        Exponentiation
+                      ),
+                      Abs
+                    ),
+                    SumAll
                   ),
-                  scalar(2.0)
+                  ScalarScalarTransformation(
+                    scalar(1.0),
+                    scalar(2.0),
+                    Division
+                  ),
+                  Exponentiation
                 ),
                 scalar(0.1),
                 LessEqualThan
@@ -119,13 +101,28 @@ class CompilerTest extends Assertions {
     WriteMatrix(zeros(scalar(10.0), scalar(10.0))),
     WriteScalar(scalar(0.1)),
     WriteScalar(ScalarScalarTransformation(
-      norm(
-        CellwiseMatrixMatrixTransformation(
-          ones(scalar(10.0), scalar(10.0)),
-          zeros(scalar(10.0), scalar(10.0)),
-          Subtraction
+      ScalarScalarTransformation(
+        AggregateMatrixTransformation(
+          CellwiseMatrixTransformation(
+            MatrixScalarTransformation(
+              CellwiseMatrixMatrixTransformation(
+                ones(scalar(10.0), scalar(10.0)),
+                zeros(scalar(10.0), scalar(10.0)),
+                Subtraction
+              ),
+              scalar(2.0),
+              Exponentiation
+            ),
+            Abs
+          ),
+          SumAll
         ),
-        scalar(2.0)
+        ScalarScalarTransformation(
+          scalar(1.0),
+          scalar(2.0),
+          Division
+        ),
+        Exponentiation
       ),
       scalar(0.1),
       LessEqualThan

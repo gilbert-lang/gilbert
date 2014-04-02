@@ -203,11 +203,6 @@ object PlanPrinter {
         print(op.numRows, depth+1)
         print(op.numCols, depth+1)
 
-      case op: norm =>
-        printIndented(depth, op, "norm")
-        print(op.matrix, depth+1)
-        print(op.p, depth+1)
-
       case op: CellArrayReferenceMatrix =>
         printIndented(depth, op, "CellArrayReferenceMatrix")
         print(op.parent, depth+1)

@@ -252,12 +252,6 @@ abstract class DagWalker {
         visit(transformation.numCols)
         onLeave(transformation)
 
-      case transformation: norm =>
-        onArrival(transformation)
-        visit(transformation.matrix)
-        visit(transformation.p)
-        onLeave(transformation)
-
       case transformation: CellArrayReference =>
         onArrival(transformation)
         visit(transformation.parent)

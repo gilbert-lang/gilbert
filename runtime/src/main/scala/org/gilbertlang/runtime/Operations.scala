@@ -54,6 +54,7 @@ object Operations {
   //TODO remove
   case object Minus extends UnaryScalarOperation
   case object Binarize extends UnaryScalarOperation
+  case object Abs extends UnaryScalarOperation
 
   sealed trait VectorwiseOperation
   case object NormalizeL1 extends VectorwiseOperation

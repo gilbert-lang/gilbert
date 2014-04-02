@@ -764,26 +764,6 @@ object Executables {
     def getType = DoubleType
   }
 
-
-  case class norm(matrix: Matrix, p: ScalarRef) extends FunctionScalarTransformation {
-    override def instantiate(args: Executable*): norm = {
-      var anyInstantiated = false
-      val instantiatedMatrix = matrix.instantiate(args: _*)
-      anyInstantiated |= Executable.instantiated
-      val instantiatedP = p.instantiate(args: _*)
-      anyInstantiated |= Executable.instantiated
-
-      if (anyInstantiated){
-        Executable.instantiated =true
-        norm(instantiatedMatrix, instantiatedP)
-      }
-      else
-        this
-    }
-
-    def getType = DoubleType
-  }
-
   sealed trait FunctionRef extends ExpressionExecutable {
     def apply(args: ExpressionExecutable*): Executable
 

@@ -361,6 +361,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 case Exponentiation =>
                   val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix :^ scalar}
                   result.setName("MS: Exponentiation")
+                  result
               }
           })
           case operation : ComparisonOperation =>
@@ -452,6 +453,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     case Exponentiation =>
                       val result = left cross right map { (left, right) => math.pow(left,right)}
                       result.setName("SS: Exponentiation")
+                      result
                   }
               })
           case operation: MinMax =>
@@ -537,13 +539,15 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         handle[UnaryScalarTransformation, Scalar[Double]](
           executable,
           { exec => evaluate[Scalar[Double]](exec.scalar) },
-          { (exec, scalar) =>
+          { (exec, scalarDS) =>
             {
               exec.operation match {
                 case Minus =>
-                  scalar map { x => -x }
+                  scalarDS map { x => -x }
                 case Binarize =>
-                  scalar map { x => CellwiseFunctions.binarize(x) }
+                  scalarDS map { x => CellwiseFunctions.binarize(x) }
+                case Abs =>
+                  scalarDS map { value => math.abs(value) }
               }
             }
           })
@@ -570,17 +574,19 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         handle[CellwiseMatrixTransformation, Matrix](
           executable,
           { exec => evaluate[Matrix](exec.matrix) },
-          { (exec, matrix) =>
+          { (exec, matrixDS) =>
             {
               exec.operation match {
                 case Minus =>
-                  matrix map { submatrix => submatrix * -1.0}
+                  matrixDS map { submatrix => submatrix * -1.0}
                 case Binarize =>
-                  matrix map { submatrix =>
+                  matrixDS map { submatrix =>
                     {
                       submatrix.mapActiveValues(x => CellwiseFunctions.binarize(x))
                     }
                   }
+                case Abs =>
+                  matrixDS map { submatrix => submatrix.mapActiveValues( value => math.abs(value))}
               }
             }
           })
@@ -1209,34 +1215,6 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 (firstSubvector._1, submatrices.foldLeft(firstSubvector._2.copy)(_ + _._2))
               } map { case (_, submatrix) => submatrix}
           })
-
-      case executable: norm =>
-        handle[norm, (Matrix, Scalar[Double])](
-        executable,
-        { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.p))},
-        { case (_, (matrix, p)) =>
-          val exponentiation = matrix cross p map {
-            (matrix, p) =>
-              matrix :^ p
-          }
-          exponentiation.setName("Norm: Exponentiation")
-          val sums = exponentiation map {
-            (matrix) =>
-              matrix.activeValuesIterator.fold(0.0)( math.abs(_) + math.abs(_)
-          )}
-          sums.setName("Norm: Partial sums of submatrices")
-          val totalSum = sums.combinableReduceAll{
-            it =>
-              it.fold(0.0)(_ + _)
-          }
-          val result = totalSum cross p map {
-            (sum,p) =>
-              math.pow(sum,1/p)
-          }
-          result.setName("Norm: Sum of partial sums")
-          result
-        }
-        )
 
       case executable: CellArrayExecutable =>
         handle[CellArrayExecutable, (List[Any])](
