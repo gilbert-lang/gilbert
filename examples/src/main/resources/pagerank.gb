@@ -15,7 +15,7 @@ T = (diag(1 ./ d) * A)'
 r_0 = ones(numVertices, 1) / numVertices
 
 % compute PageRank
-e = ones(numVertices, 1)
+e = ones(numVertices, 1) / numVertices
 
 eps = 0.1;
 
