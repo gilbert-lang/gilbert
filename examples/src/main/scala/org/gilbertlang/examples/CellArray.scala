@@ -10,6 +10,6 @@ object CellArray {
     val executable = Gilbert.compileRessource("cellArray.gb")
 
     val plan = withStratosphere(executable)
-    LocalExecutor.execute(plan)
+    LocalExecutor.excecute(plan)
   }
 }

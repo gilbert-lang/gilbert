@@ -1,8 +1,8 @@
 package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
-import eu.stratosphere.client.LocalExecutor
 import org.gilbertlang.runtime.{local, withStratosphere}
+import eu.stratosphere.client.LocalExecutor
 
 object NNMF {
 
