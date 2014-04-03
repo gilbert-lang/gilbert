@@ -42,6 +42,7 @@ import org.gilbertlang.runtime.Executables.LoadMatrix
 import org.gilbertlang.runtime.Executables.AggregateMatrixTransformation
 import org.gilbertlang.runtime.Executables.CompoundExecutable
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
+import org.gilbertlang.runtime.shell.PlanPrinter
 
 
 class SparkExecutor extends Executor {
@@ -228,6 +229,15 @@ class SparkExecutor extends Executor {
         }
         )
 
+      case writeFunction: WriteFunction =>
+        handle[WriteFunction, Unit](
+        writeFunction,
+        {_ => () },
+        { (func, _) =>
+          PlanPrinter.print(func, 0)
+        }
+        )
+
       case scalarScalar: ScalarScalarTransformation =>
         scalarScalar.operation match {
           case operation: LogicOperation =>
@@ -298,6 +308,22 @@ class SparkExecutor extends Executor {
         }
         )
 
+      case matrixMult: MatrixMult =>
+        handle[MatrixMult, (Matrix, Matrix)](
+        matrixMult,
+        {input => (evaluate[Matrix](input.left), evaluate[Matrix](input.right))},
+        { case (_, (leftRDD, rightRDD)) =>
+          val leftColIDRDD = leftRDD map { matrix => (matrix.columnIndex, matrix)}
+          val rightRowIDRDD = rightRDD map { matrix => (matrix.rowIndex, matrix)}
+
+          val localMatrixMults = leftColIDRDD.join(rightRowIDRDD) map { case (_, (leftMatrix,
+        rightMatrix)) => ((leftMatrix.rowIndex,
+            rightMatrix.columnIndex), leftMatrix*rightMatrix) }
+
+          localMatrixMults reduceByKey( _ + _ ) map { case (key, value) => value }
+        }
+        )
+
       case aggregate: AggregateMatrixTransformation =>
         handle[AggregateMatrixTransformation, Matrix](
         aggregate,
@@ -319,6 +345,53 @@ class SparkExecutor extends Executor {
           }
         }
         )
+
+      case matrixScalar: MatrixScalarTransformation =>
+        matrixScalar.operation match {
+          case operation: LogicOperation =>
+            handle[MatrixScalarTransformation, (BooleanMatrix, Boolean)](
+            matrixScalar,
+            { input => (evaluate[BooleanMatrix](input.matrix), evaluate[Boolean](input.scalar))},
+            { case (_, (matrixRDD, scalar)) =>
+              val bcScalar = sc.broadcast(scalar)
+              operation match {
+                case And | SCAnd => matrixRDD map { matrix => matrix :& bcScalar.value }
+                case Or | SCOr => matrixRDD map { matrix => matrix :| bcScalar.value }
+              }
+            }
+            )
+          case operation: ComparisonOperation =>
+            handle[MatrixScalarTransformation, (Matrix, Double)](
+            matrixScalar,
+            {input => (evaluate[Matrix](input.matrix), evaluate[Double](input.scalar))},
+            { case (_, (matrixRDD, scalar)) =>
+              val bcScalar = sc.broadcast(scalar)
+              operation match {
+                case GreaterThan => matrixRDD map { matrix => matrix :> bcScalar.value }
+                case GreaterEqualThan => matrixRDD map { matrix => matrix :>= bcScalar.value }
+                case LessThan => matrixRDD map { matrix => matrix :< bcScalar.value }
+                case LessEqualThan => matrixRDD map { matrix => matrix :<= bcScalar.value }
+                case Equals => matrixRDD map { matrix => matrix :== bcScalar.value }
+                case NotEquals => matrixRDD map { matrix => matrix :!= bcScalar.value }
+              }
+            }
+            )
+          case operation: ArithmeticOperation =>
+            handle[MatrixScalarTransformation, (Matrix, Double)](
+            matrixScalar,
+            { input => (evaluate[Matrix](input.matrix), evaluate[Double](input.scalar))},
+            { case (_, (matrixRDD, scalar)) =>
+              val bcScalar = sc.broadcast(scalar)
+              operation match {
+                case Addition => matrixRDD map { matrix => matrix + bcScalar.value }
+                case Subtraction => matrixRDD map { matrix => matrix - bcScalar.value }
+                case Multiplication => matrixRDD map { matrix => matrix * bcScalar.value }
+                case Division => matrixRDD map { matrix => matrix / bcScalar.value }
+                case Exponentiation => matrixRDD map { matrix => matrix :^ bcScalar.value }
+              }
+            }
+            )
+        }
 
       case _ : Parameter => throw new SparkExecutionError("Cannot execute parameters.")
       case _ : FunctionRef => throw new SparkExecutionError("Cannot execute functions.")

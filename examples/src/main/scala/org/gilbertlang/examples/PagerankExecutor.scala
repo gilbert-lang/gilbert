@@ -8,8 +8,8 @@ object PagerankExecutor {
   def main(args: Array[String]) {
     val executable = Gilbert.compileRessource("pagerank.gb")
     
-//    val plan = withStratosphere(executable)
-//    LocalExecutor.execute(plan)
-    local(executable)
+    val plan = withStratosphere(executable)
+    LocalExecutor.execute(plan)
+//    local(executable)
   }
 }
