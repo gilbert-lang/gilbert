@@ -748,14 +748,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
         handle[Transpose, Matrix](
           executable,
           { exec => evaluate[Matrix](exec.matrix) },
-          { (_, matrix) =>
-            {
-              matrix map {
-                case Submatrix(gilbertMatrix, rowIdx, columnIdx, rowOffset, columnOffset, numTotalRows, numTotalColumns) =>
-                  Submatrix(gilbertMatrix.t, columnIdx, rowIdx, columnOffset, rowOffset, numTotalColumns,
-                    numTotalRows)
-              }
-            }
+          { (_, matrixDS) =>
+            matrixDS map { matrix => matrix.t }
           })
 
       case executable: VectorwiseMatrixTransformation =>

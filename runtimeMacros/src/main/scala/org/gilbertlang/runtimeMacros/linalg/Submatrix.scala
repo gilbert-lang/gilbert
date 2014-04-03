@@ -1,19 +1,11 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, Vector => BreezeVector, DenseMatrix => BreezeDenseMatrix }
+import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, Vector => BreezeVector}
 import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixOps
-import breeze.linalg.support.CanTraverseValues
+import breeze.linalg.support._
 import CanTraverseValues.ValuesVisitor
-import breeze.linalg.support.CanMapValues
-import breeze.linalg.support.CanZipMapValues
-import breeze.linalg.support.CanSlice2
-import breeze.linalg.support.CanCollapseAxis
-import breeze.linalg.support.CanCopy
 import breeze.linalg.Axis
 import scala.util.Random
-import scala.reflect.ClassTag
-import breeze.storage.DefaultArrayValue
-import breeze.math.Semiring
 import eu.stratosphere.types.Value
 import java.io.{DataInput, DataOutput}
 
@@ -233,6 +225,15 @@ object Submatrix extends SubmatrixOps {
     
   implicit def handholdCanMapRows: CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]] = 
     new CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]]()
+
+  implicit def canTranspose: CanTranspose[Submatrix, Submatrix] = {
+    new CanTranspose[Submatrix, Submatrix]{
+      override def apply(submatrix: Submatrix) = {
+        import submatrix._
+        Submatrix(matrix.t, columnIndex, rowIndex, columnOffset, rowOffset, totalColumns, totalRows)
+      }
+    }
+  }
 
 }
 

@@ -238,6 +238,27 @@ class SparkExecutor extends Executor {
         }
         )
 
+      case transpose: Transpose =>
+        transpose.getType match {
+          case MatrixType(DoubleType, _, _) =>
+            handle[Transpose, Matrix](
+            transpose,
+            { input => evaluate[Matrix](input.matrix)},
+            { (_, matrixRDD) =>
+              matrixRDD map { matrix => matrix.t }
+            }
+            )
+          case MatrixType(BooleanType, _, _) =>
+            handle[Transpose, BooleanMatrix](
+            transpose,
+            { input => evaluate[BooleanMatrix](input.matrix)},
+            { (_, matrixRDD) =>
+              matrixRDD map { matrix => matrix.t }
+            }
+            )
+        }
+
+
       case scalarScalar: ScalarScalarTransformation =>
         scalarScalar.operation match {
           case operation: LogicOperation =>
@@ -447,6 +468,34 @@ class SparkExecutor extends Executor {
               }
             }
             )
+        }
+
+      case typeConversion: TypeConversionMatrix =>
+        (typeConversion.sourceType, typeConversion.targetType) match {
+          case (MatrixType(BooleanType, _, _), MatrixType(DoubleType, _, _)) =>
+            handle[TypeConversionMatrix, Matrix](
+            typeConversion,
+            { input => evaluate[Matrix](input.matrix)},
+            { (_, matrixRDD) =>
+              matrixRDD map { matrix =>
+                matrix map ( value => if(value) 1.0 else 0.0)
+              }
+            }
+            )
+          case (srcType, targetType) => throw new SparkExecutionError(s"Cannot convert matrix from type $srcType to" +
+            s" type $targetType.")
+        }
+
+      case typeConversion: TypeConversionScalar =>
+        (typeConversion.sourceType, typeConversion.targetType) match {
+          case (BooleanType, DoubleType) =>
+            handle[TypeConversionScalar, Boolean](
+            typeConversion,
+            { input => evaluate[Boolean](input.scalar)},
+            { (_, scalarValue) => if(scalarValue) 1.0 else 0.0 }
+            )
+          case (srcType, targetType) => throw new SparkExecutionError(s"Cannot convert scalar from type $srcType to " +
+            s"type $targetType.")
         }
 
       case _ : Parameter => throw new SparkExecutionError("Cannot execute parameters.")
