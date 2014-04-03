@@ -295,6 +295,62 @@ class SparkExecutor extends Executor {
             )
         }
 
+      case scalarMatrix: ScalarMatrixTransformation =>
+        scalarMatrix.operation match {
+          case operation: LogicOperation =>
+            handle[ScalarMatrixTransformation, (Boolean, BooleanMatrix)](
+            scalarMatrix,
+            { input => (evaluate[Boolean](input.scalar), evaluate[BooleanMatrix](input.matrix))},
+            { case (_, (scalar, matrixRDD)) =>
+              val bcScalar = sc.broadcast(scalar)
+              operation match {
+                case And | SCAnd => matrixRDD map { matrix => matrix :& bcScalar.value }
+                case Or | SCOr => matrixRDD map { matrix => matrix :| bcScalar.value }
+              }
+            }
+            )
+          case operation: ArithmeticOperation =>
+            handle[ScalarMatrixTransformation, (Double, Matrix)](
+            scalarMatrix,
+            { input => (evaluate[Double](input.scalar), evaluate[Matrix](input.matrix))},
+            { case (_, (scalar, matrixRDD)) =>
+              val bcScalar = sc.broadcast(scalar)
+              operation match {
+                case Addition => matrixRDD map { matrix => matrix + bcScalar.value }
+                case Subtraction => matrixRDD map { matrix => matrix + -bcScalar.value }
+                case Multiplication => matrixRDD map { matrix => matrix * bcScalar.value }
+                case Division => matrixRDD map { matrix =>
+                  val partition = matrix.getPartition
+                  val result = Submatrix.init(partition, bcScalar.value)
+                  result / matrix
+                }
+                case Exponentiation =>
+                  matrixRDD map { matrix =>
+                    val partition = matrix.getPartition
+                    val result = Submatrix.init(partition, bcScalar.value)
+                    result :^ matrix
+                  }
+              }
+            }
+            )
+          case operation: ComparisonOperation =>
+            handle[ScalarMatrixTransformation, (Double, Matrix)](
+            scalarMatrix,
+            { input => (evaluate[Double](input.scalar), evaluate[Matrix](input.matrix))},
+            { case (_, (scalar, matrixRDD)) =>
+              val bcScalar = sc.broadcast(scalar)
+              operation match {
+                case GreaterThan => matrixRDD map { matrix => matrix :< bcScalar.value }
+                case GreaterEqualThan => matrixRDD map { matrix => matrix :<= bcScalar.value }
+                case LessThan => matrixRDD map { matrix => matrix :> bcScalar.value }
+                case LessEqualThan => matrixRDD map { matrix => matrix :>= bcScalar.value }
+                case Equals => matrixRDD map { matrix => matrix :== bcScalar.value }
+                case NotEquals => matrixRDD map { matrix => matrix :!= bcScalar.value }
+              }
+            }
+            )
+        }
+
       case unaryScalar: UnaryScalarTransformation =>
         handle[UnaryScalarTransformation, (Double)](
         unaryScalar,
