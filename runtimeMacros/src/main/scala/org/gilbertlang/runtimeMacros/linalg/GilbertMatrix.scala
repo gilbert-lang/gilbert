@@ -83,6 +83,14 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps with BreezeMa
     
     GilbertMatrix(factory.eye(rows, cols, nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD))
   }
+
+  def eye(rows: Int, cols: Int, startRow: Int, startCol: Int) = {
+    val size = rows*cols
+    val nonZeroElementsRatio = math.min(rows-startRow, cols-startCol).toDouble/size
+    val factory = implicitly[MatrixFactory[Double]]
+
+    GilbertMatrix(factory.eye(rows, cols, startRow, startCol, nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD))
+  }
   
   def rand(rows: Int, cols: Int, random: Random = new Random()):GilbertMatrix = {
     GilbertMatrix(BreezeDenseMatrix.rand(rows, cols, random))

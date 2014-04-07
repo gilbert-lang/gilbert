@@ -906,11 +906,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, columns.toInt)
 
                 for(matrixPartition <- partitionPlan.iterator) yield {
-                  if(matrixPartition.rowIndex == matrixPartition.columnIndex){
-                   Submatrix.eye(matrixPartition)
-                  }else{
-                    Submatrix(matrixPartition)
-                  }
+                  Submatrix.eye(matrixPartition)
                 }
               }
               result.setName("Eye")
@@ -1005,15 +1001,18 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                     case ((rowIndex, numRows, rowOffset), submatrix) =>
                       val partition = Partition(-1, rowIndex, submatrix.columnIndex, numRows, submatrix.cols,
                         rowOffset, submatrix.columnOffset, submatrix.totalColumns, submatrix.totalColumns)
-                      val result = Submatrix(partition, submatrix.totalColumns)
 
                       if (submatrix.columnIndex == rowIndex) {
+                        val result = Submatrix(partition, submatrix.cols)
+
                         for (index <- 0 until submatrix.cols) {
                           result.update(index, index, submatrix(0, index))
                         }
-                      }
 
-                      result
+                        result
+                      }else{
+                        Submatrix(partition)
+                      }
                   }
                 case (_, Some(1)) =>
                   matrix map { submatrix => (submatrix.rowIndex, submatrix.rows, submatrix.rowOffset) } cross
@@ -1022,15 +1021,19 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                         val partition = Partition(-1, submatrix.rowIndex, columnIndex, submatrix.rows, numColumns,
                           submatrix.rowOffset, columnOffset, submatrix.totalRows, submatrix.totalRows)
 
-                        val result = Submatrix(partition)
+
 
                         if (submatrix.rowIndex == columnIndex) {
+                          val result = Submatrix(partition, submatrix.rows)
+
                           for (index <- 0 until submatrix.rows) {
                             result.update(index, index, submatrix(index, 0))
                           }
-                        }
 
-                        result
+                          result
+                        }else{
+                          Submatrix(partition)
+                        }
                     }
                 case _ =>
                   val partialDiagResults = matrix map { submatrix =>

@@ -8,6 +8,7 @@ trait MatrixFactory[@specialized T] {
   def init(rows: Int, cols: Int, initialValue: T, dense: Boolean): Matrix[T]
   def create(rows: Int, cols: Int, entries: Seq[(Int, Int, T)], dense: Boolean): Matrix[T]
   def eye(rows: Int, cols: Int, dense: Boolean): Matrix[T]
+  def eye(rows: Int, cols: Int, startRow: Int, startCol: Int, dense: Boolean): Matrix[T]
 }
 
 object MatrixFactory{
@@ -62,8 +63,28 @@ object MatrixFactory{
         builder.result
       }
     }
+
+    def eye(rows: Int, cols: Int, startRow: Int, startCol: Int, dense: Boolean): Matrix[Double] = {
+      if(dense){
+        val result = BreezeDenseMatrix.zeros[Double](rows, cols)
+        for(idx <- 0 until math.min(rows -startRow, cols-startCol)){
+          result.update(idx+startRow, idx+startCol, 1.0)
+        }
+
+        result
+      }else{
+        val builder = new BreezeSparseMatrix.Builder[Double](rows, cols, math.min(rows-startRow, cols - startCol))
+
+        for(idx <- 0 until math.min(rows-startRow, cols-startCol)){
+          builder.add(idx+startRow, idx+startCol,1)
+        }
+
+        builder.result
+      }
+    }
   }
-  
+
+
   implicit object BooleanFactory extends MatrixFactory[Boolean] {
     def create(rows: Int, cols: Int, dense: Boolean): Bitmatrix = {
       Bitmatrix.zeros(rows, cols)
@@ -86,6 +107,16 @@ object MatrixFactory{
       for (idx <- 0 until math.min(rows, cols)) {
         result.update(idx, idx, value = true)
       }
+      result
+    }
+
+    def eye(rows: Int, cols: Int, startRow: Int, startCol: Int, dense: Boolean): Bitmatrix = {
+      val result = Bitmatrix.zeros(rows, cols)
+
+      for(idx <- 0 until math.min(rows - startRow, cols - startCol)){
+        result.update(idx+startRow, idx+startCol, value = true)
+      }
+
       result
     }
   }

@@ -102,8 +102,28 @@ object Submatrix extends SubmatrixOps {
     
     def eye(partitionInformation: Partition): Submatrix = {
       import partitionInformation._
-      Submatrix(GilbertMatrix.eye(numRows, numColumns), rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
+
+      val gilbertMatrix = containsDiagonal(partitionInformation) match {
+        case None => GilbertMatrix(numRows, numColumns)
+        case Some((startRow, startColumn)) => GilbertMatrix.eye(numRows, numColumns, startRow, startColumn)
+      }
+
+      Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
           numTotalColumns)
+    }
+
+    def containsDiagonal(partitionInformation: Partition): Option[(Int, Int)] = {
+      import partitionInformation._
+
+      if(columnOffset + numColumns <= rowOffset || rowOffset+numRows <= columnOffset){
+        None
+      }else{
+        if(columnOffset <= rowOffset){
+          Some(0, rowOffset- columnOffset)
+        }else{
+          Some(columnOffset - rowOffset, 0)
+        }
+      }
     }
     
     def rand(partition: Partition, random: Random = new Random()): Submatrix = {
