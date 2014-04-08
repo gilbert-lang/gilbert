@@ -16,15 +16,19 @@ case class Subvector(vector: GilbertVector, index: Int, offset: Int, totalEntrie
   def length = vector.length
   
   def repr = this
+
+  def indexRange = offset until (offset + length)
   
   def activeSize = vector.activeSize
-  def activeIterator = vector.activeIterator
+  override def iterator = vector.iterator map { case (idx, value) => (idx + offset, value)}
+  override def keysIterator = vector.keysIterator map { key => key + offset }
+  def activeIterator = vector.activeIterator map { case (idx, value) => (idx + offset, value)}
   def activeValuesIterator = vector.activeValuesIterator
-  def activeKeysIterator = vector.activeKeysIterator
+  def activeKeysIterator = vector.activeKeysIterator map { key => key + offset }
   
-  def update(i: Int, value: Double) = vector.update(i,value)
+  def update(i: Int, value: Double) = vector.update(i-offset,value)
   
-  def apply(i: Int) = vector(i)
+  def apply(i: Int) = vector(i-offset)
   
   def copy = Subvector(vector.copy, index, offset, totalEntries)
   

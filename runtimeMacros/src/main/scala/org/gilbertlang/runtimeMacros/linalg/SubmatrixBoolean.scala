@@ -13,15 +13,20 @@ case class SubmatrixBoolean(var matrix: GilbertMatrixBoolean, var rowIndex: Int,
   override def rows = matrix.rows
   override def cols = matrix.cols
 
-  override def apply(i: Int, j: Int): Boolean = matrix(i, j)
+  def rowRange = rowOffset until (rowOffset + rows)
+  def colRange = columnOffset until (columnOffset + cols)
+
+  override def apply(i: Int, j: Int): Boolean = matrix(i-rowOffset, j-columnOffset)
 
   override def copy = new SubmatrixBoolean(this.matrix.copy, rowIndex, columnIndex,
       rowOffset, columnOffset, totalRows, totalColumns)
 
-  override def update(i: Int, j: Int, value: Boolean) = matrix.update(i, j, value)
+  override def update(i: Int, j: Int, value: Boolean) = matrix.update(i-rowOffset, j-columnOffset, value)
 
   override def repr = this
 
+  override def iterator = matrix.iterator map { case ((row, col), value) => ((row+rowOffset, col+columnOffset),value)}
+  override def keysIterator = matrix.keysIterator map { case (row, col) => (row + rowOffset, col + columnOffset)}
   def activeIterator = matrix.activeIterator map { case ((row, col), value) => ((row+ rowOffset, col + columnOffset),
     value)}
   def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}

@@ -803,8 +803,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
                   val result = sumSquaredValues map {
                     sqv =>
-                      val matrix = sqv.asMatrix
-                      matrix mapActiveValues { value => math.sqrt(value) }
+                      sqv.asMatrix mapActiveValues { value => math.sqrt(value) }
                   }
                   result.setName("VWM: Norm2")
                   result
@@ -1005,7 +1004,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                       if (submatrix.columnIndex == rowIndex) {
                         val result = Submatrix(partition, submatrix.cols)
 
-                        for (index <- 0 until submatrix.cols) {
+                        for (index <- submatrix.colRange) {
                           result.update(index, index, submatrix(0, index))
                         }
 
@@ -1026,7 +1025,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                         if (submatrix.rowIndex == columnIndex) {
                           val result = Submatrix(partition, submatrix.rows)
 
-                          for (index <- 0 until submatrix.rows) {
+                          for (index <- submatrix.rowRange) {
                             result.update(index, index, submatrix(index, 0))
                           }
 
@@ -1042,37 +1041,13 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
                     val result = Submatrix(partition, submatrix.rows)
 
-                    val rowStart = submatrix.rowOffset
-                    val rowEnd = submatrix.rowOffset + submatrix.rows
-                    val columnStart = submatrix.columnOffset
-                    val columnEnd = submatrix.columnOffset + submatrix.cols
-
-                    var indexStart = (-1, -1)
-                    var indexEnd = (-1, -1)
-
-                    if (rowStart <= columnStart && rowEnd > columnStart) {
-                      indexStart = (columnStart - rowStart, 0)
-                    }
-
-                    if (columnStart < rowStart && columnEnd > rowStart) {
-                      indexStart = (0, rowStart - columnStart)
-                    }
-
-                    if (rowStart < columnEnd && rowEnd >= columnEnd) {
-                      indexEnd = (columnEnd - rowStart, submatrix.cols)
-                    }
-
-                    if (columnStart < rowEnd && columnEnd > rowEnd) {
-                      indexEnd = (submatrix.rows, rowEnd - columnStart)
-                    }
-
-                    if (indexStart._1 != -1 && indexStart._2 != -1 && indexEnd._1 != -1 && indexEnd._2 != -1) {
-                      for (counter <- 0 until indexEnd._1 - indexStart._1) {
-                        result.update(counter + indexStart._1, 0, submatrix(indexStart._1 + counter,
-                          indexStart._2 + counter))
-                      }
-                    } else {
-                      assert(indexStart._1 == -1 && indexStart._2 == -1 && indexEnd._1 == -1 && indexEnd._2 == -1)
+                    Submatrix.containsDiagonal(partition) match {
+                      case Some(startIndex) =>
+                        for(index <- startIndex until math.min(submatrix.rowOffset+submatrix.rows,
+                          submatrix.columnOffset + submatrix.cols)){
+                          result.update(index,0,submatrix(index,index))
+                        }
+                      case None => ;
                     }
 
                     result
@@ -1397,10 +1372,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                   val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                     val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
                       colsMult*matrix.totalColumns)
-                    val oldPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrix.totalRows,
-                      matrix.totalColumns)
-                    val rowIncrementor = oldPartitionPlan.maxRowIndex
-                    val colIncrementor = oldPartitionPlan.maxColumnIndex
+                    val rowIncrementor = matrix.totalRows
+                    val colIncrementor = matrix.totalColumns
 
 
                     val result = for(rowIdx <- matrix.rowIndex until partitionPlan.maxRowIndex by rowIncrementor;
@@ -1459,10 +1432,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                   val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
                     colsMult*matrix.totalColumns)
-                  val oldPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrix.totalRows,
-                    matrix.totalColumns)
-                  val rowIncrementor = oldPartitionPlan.maxRowIndex
-                  val colIncrementor = oldPartitionPlan.maxColumnIndex
+                  val rowIncrementor = matrix.totalRows
+                  val colIncrementor = matrix.totalColumns
 
 
                   val result = for(rowIdx <- matrix.rowIndex until partitionPlan.maxRowIndex by rowIncrementor;
@@ -1528,11 +1499,12 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
           val result = blocks cross startEnd map { case (block, (start, end)) =>
             val spacing = (end-start)/(block.numTotalColumns-1)
+            val result = Submatrix(block, block.numColumns)
 
-            val entries = for(counter <- 0 until block.numColumns) yield {
-              (0, counter + block.columnOffset, spacing * (counter + block.columnOffset)+start)
+            val entries = for(col <- result.colRange) yield {
+              result.update(0,col, spacing*col + start)
             }
-            Submatrix(block, entries)
+            result
           }
           result.setName("Linspace: Linear spaced matrix")
           result
@@ -1567,15 +1539,15 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
               val minPerBlock = matrix cross dimension flatMap { (matrix, dim) =>
                 if(dim == 1){
-                  val minPerColumn = for(column <- 0 until matrix.cols) yield{
-                    val (minRow, minValue) = matrix(::, column).iterator.minBy{ case (row, value) => value }
-                    (column + matrix.columnOffset, minRow, minValue)
+                  val minPerColumn = for(col <- matrix.colRange) yield{
+                    val (minRow, minValue) = matrix(::, col).iterator.minBy{ case (row, value) => value }
+                    (col , minRow, minValue)
                   }
                   minPerColumn.toIterator
                 }else if(dim == 2){
-                  val minPerRow = for(row <- 0 until matrix.rows) yield {
+                  val minPerRow = for(row <- matrix.rowRange) yield {
                     val ((_,minCol), minValue) = matrix(row, ::).iterator.minBy { case (col, value) => value }
-                    (row + matrix.rowOffset, minCol, minValue)
+                    (row, minCol, minValue)
                   }
                   minPerRow.toIterator
                 }else{
@@ -1596,6 +1568,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 }
               }
               newBlocks.setName("MinWithIndex: New blocks")
+
               val partitionedMinIndexValue = minIndexValue cross totalSizeDimension map { (mIdxValue, sizeDimension) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, sizeDimension._1,
                   sizeDimension._2)
@@ -1670,11 +1643,11 @@ class StratosphereExecutor extends Executor with WrapAsScala {
                 { b => b.columnIndex } map {
                 (a,b) =>
                   val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, a.totalRows, b.totalRows)
-                  val newEntries = for(rowA <- 0 until a.rows; rowB <- 0 until b.rows) yield {
+                  val newEntries = for(rowA <- a.rowRange; rowB <- b.rowRange) yield {
                     val diff = a(rowA,::) - b(rowB,::)
                     val diffsq = diff :^ 2.0
                     val summedDiff = breeze.linalg.sum(diffsq)
-                    (rowA + a.rowOffset, rowB + b.rowOffset, summedDiff)
+                    (rowA, rowB, summedDiff)
                   }
 
                   val partition = partitionPlan.getPartition(a.rowIndex, b.rowIndex)

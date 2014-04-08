@@ -16,15 +16,21 @@ case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnInd
   override def rows = matrix.rows
   override def cols = matrix.cols
 
-  override def apply(i: Int, j: Int): Double = matrix(i, j)
+  def rowRange = rowOffset until (rowOffset + rows)
+  def colRange = columnOffset until (columnOffset + cols)
+
+  override def apply(i: Int, j: Int): Double = matrix(i-rowOffset, j-columnOffset)
 
   override def copy = new Submatrix(this.matrix.copy, rowIndex, columnIndex,
       rowOffset, columnOffset, totalRows, totalColumns)
 
-  override def update(i: Int, j: Int, value: Double) = matrix.update(i, j, value)
+  override def update(i: Int, j: Int, value: Double) = matrix.update(i-rowOffset, j-columnOffset, value)
 
   override def repr = this
 
+  override def iterator = matrix.iterator map { case ((row, col), value ) => ((row + rowOffset, col + columnOffset),
+    value)}
+  override def keysIterator = matrix.keysIterator map { case (row, col) => (row+ rowOffset, col + columnOffset)}
   def activeIterator = matrix.activeIterator map { case ((row, col), value) => ((row+ rowOffset, col + columnOffset),
     value)}
   def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}
@@ -105,23 +111,25 @@ object Submatrix extends SubmatrixOps {
 
       val gilbertMatrix = containsDiagonal(partitionInformation) match {
         case None => GilbertMatrix(numRows, numColumns)
-        case Some((startRow, startColumn)) => GilbertMatrix.eye(numRows, numColumns, startRow, startColumn)
+        case Some(startIdx) =>
+          val (startRow, startColumn) = (startIdx - rowOffset, startIdx - columnOffset)
+          GilbertMatrix.eye(numRows, numColumns, startRow, startColumn)
       }
 
       Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
           numTotalColumns)
     }
 
-    def containsDiagonal(partitionInformation: Partition): Option[(Int, Int)] = {
+    def containsDiagonal(partitionInformation: Partition): Option[Int] = {
       import partitionInformation._
 
       if(columnOffset + numColumns <= rowOffset || rowOffset+numRows <= columnOffset){
         None
       }else{
         if(columnOffset <= rowOffset){
-          Some(0, rowOffset- columnOffset)
+          Some(rowOffset)
         }else{
-          Some(columnOffset - rowOffset, 0)
+          Some(columnOffset)
         }
       }
     }
@@ -137,6 +145,7 @@ object Submatrix extends SubmatrixOps {
       def apply(submatrix: Submatrix): String = {
         var result = ""
         for (((row, col), value) <- submatrix.activeIterator) {
+          // + 1 due to matlab indexing conventions which start at 1
           result += (row+1) + fieldDelimiter + (col+1) + fieldDelimiter +
           value + elementDelimiter
 
@@ -187,7 +196,7 @@ object Submatrix extends SubmatrixOps {
   implicit def canSliceRowSubmatrix: CanSlice2[Submatrix, Int, ::.type, Submatrix] = {
     new CanSlice2[Submatrix, Int, ::.type, Submatrix]{
       override def apply(submatrix: Submatrix, row: Int, ignored: ::.type) = {
-        Submatrix(submatrix.matrix(row, ::), 0, submatrix.columnIndex, 0,
+        Submatrix(submatrix.matrix(row-submatrix.rowOffset, ::), 0, submatrix.columnIndex, 0,
             submatrix.columnOffset, 1, submatrix.totalColumns)
       }
     }
@@ -196,7 +205,8 @@ object Submatrix extends SubmatrixOps {
   implicit def canSliceRowsSubmatrix: CanSlice2[Submatrix, Range, ::.type, Submatrix] = {
     new CanSlice2[Submatrix, Range, ::.type, Submatrix]{
       override def apply(submatrix: Submatrix, rows: Range, ignored: ::.type) = {
-        Submatrix(submatrix.matrix(rows, ::), 0, submatrix.columnIndex, 0,
+        val newRows = Range(rows.start - submatrix.rowOffset, rows.end-submatrix.rowOffset, rows.step)
+        Submatrix(submatrix.matrix(newRows, ::), 0, submatrix.columnIndex, 0,
             submatrix.columnOffset, rows.size, submatrix.totalColumns)
       }
     }
@@ -205,7 +215,8 @@ object Submatrix extends SubmatrixOps {
   implicit def canSliceColSubmatrix: CanSlice2[Submatrix, ::.type, Int, Subvector] = {
     new CanSlice2[Submatrix, ::.type, Int, Subvector]{
       override def apply(submatrix: Submatrix, ignored: ::.type, col: Int) ={
-        Subvector(submatrix.matrix(::, col), submatrix.rowIndex, submatrix.rowOffset, submatrix.totalRows)
+        Subvector(submatrix.matrix(::, col - submatrix.columnOffset), submatrix.rowIndex, submatrix.rowOffset,
+          submatrix.totalRows)
       }
     }
   }
@@ -213,8 +224,9 @@ object Submatrix extends SubmatrixOps {
   implicit def canSliceColsSubmatrix: CanSlice2[Submatrix, ::.type, Range, Submatrix] = {
       new CanSlice2[Submatrix, ::.type, Range, Submatrix]{
         override def apply(submatrix: Submatrix, ignored: ::.type, cols: Range) = {
-          Submatrix(submatrix.matrix(::, cols), submatrix.rowIndex, 0, submatrix.rowOffset,
-              0, submatrix.totalRows, cols.size)
+          val newCols = Range(cols.start-submatrix.columnOffset, cols.end - submatrix.columnOffset, cols.step)
+          Submatrix(submatrix.matrix(::, newCols), submatrix.rowIndex, 0, submatrix.rowOffset, 0, submatrix.totalRows,
+            cols.size)
         }
       }
   }

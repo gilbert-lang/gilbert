@@ -852,7 +852,7 @@ class SparkExecutor extends Executor {
                 if(rowIdx == submatrix.columnIndex){
                   val result = Submatrix(partition, submatrix.cols)
 
-                  for(idx <- 0 until submatrix.cols){
+                  for(idx <- submatrix.colRange){
                     result.update(idx,idx, submatrix(0, idx))
                   }
 
@@ -871,7 +871,7 @@ class SparkExecutor extends Executor {
                 if(colIdx == submatrix.rowIndex){
                   val result = Submatrix(partition, submatrix.rows)
 
-                  for(idx <- 0 until submatrix.rows){
+                  for(idx <- submatrix.rowRange){
                     result.update(idx, idx, submatrix(idx, 0))
                   }
 
@@ -889,9 +889,10 @@ class SparkExecutor extends Executor {
 
                 Submatrix.containsDiagonal(matrix.getPartition) match {
                   case None => result
-                  case Some((rowStart, colStart)) =>
-                    for(idx <- 0 until math.min(matrix.rows - rowStart, matrix.cols - colStart)) yield {
-                      result.update(idx+rowStart, 0, matrix(idx+rowStart, idx+colStart))
+                  case Some(idxStart) =>
+                    for(idx <- idxStart until math.min(matrix.rowOffset + matrix.rows,
+                      matrix.columnOffset+matrix.cols)) yield {
+                      result.update(idx, 0, matrix(idx, idx))
                     }
                     result
                 }
@@ -916,8 +917,8 @@ class SparkExecutor extends Executor {
           sc.parallelize(partitionPlan.toSeq) map { partition =>
             val result = Submatrix(partition, partition.numColumns)
 
-            for(counter <- partition.columnOffset until (partition.columnOffset + partition.numColumns)){
-              result.update(0, counter - partition.columnOffset, counter * bcStepWidth.value + bcStart.value)
+            for(counter <- result.colRange){
+              result.update(0, counter, counter * bcStepWidth.value + bcStart.value)
             }
 
             result
@@ -937,11 +938,11 @@ class SparkExecutor extends Executor {
             val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrixA.totalRows,
               matrixB.totalRows)
 
-            val entries = for(rowA <- 0 until matrixA.rows; rowB <- 0 until matrixB.rows) yield {
+            val entries = for(rowA <- matrixA.rowRange; rowB <- matrixB.rowRange) yield {
               val diff = matrixA(rowA, ::) - matrixB(rowB, ::)
               val squared = diff :^ 2.0
               val squaredSum = breeze.linalg.sum(squared)
-              (rowA + matrixA.rowOffset, rowB + matrixB.rowOffset, squaredSum)
+              (rowA, rowB, squaredSum)
             }
 
             ((matrixA.rowIndex, matrixB.rowIndex),Submatrix(partitionPlan.getPartition(matrixA.rowIndex,
@@ -1015,9 +1016,9 @@ class SparkExecutor extends Executor {
                 partition)}
 
               val blockwiseMinIdxValues = matrixRDD flatMap { matrix =>
-                for(col <- 0 until matrix.cols) yield {
+                for(col <- matrix.colRange) yield {
                   val (minRow, minValue) = matrix(::, col).iterator.minBy { case (row, value) => value}
-                  (col+matrix.columnOffset,( minRow, minValue) )
+                  (col,( minRow, minValue) )
                 }
               }
 
@@ -1062,10 +1063,10 @@ class SparkExecutor extends Executor {
               val newBlocks = sc.parallelize(partitionPlan.toSeq) map { partition => (partition.id, partition)}
 
               val blockwiseMinIdxValues = matrixRDD flatMap { matrix =>
-                for(row <- 0 until matrix.rows) yield {
-                  val ((_, minCol), minValue) = matrix(row, ::).iterator minBy { case ((row, col),
+                for(row <- matrix.rowRange) yield {
+                  val ((_, minCol), minValue) = matrix(row, ::).iterator minBy { case (_,
                   value) => value }
-                  (row + matrix.rowOffset,( minCol, minValue))
+                  (row,( minCol, minValue))
                 }
               }
 
