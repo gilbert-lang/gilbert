@@ -21,7 +21,6 @@ package org.gilbertlang.runtime.execution.spark
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.gilbertlang.runtime._
-import org.apache.spark.serializer.KryoSerializer
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
 import org.apache.spark.SparkContext
@@ -33,53 +32,69 @@ import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 import org.gilbertlang.runtime.shell.PlanPrinter
 import breeze.linalg.*
 import org.gilbertlang.runtime.execution.UtilityFunctions
+import scala.language.postfixOps
+import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
+import scala.util.control.Breaks.{break, breakable}
+import org.gilbertlang.runtime.Executables.diag
 import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
 import org.gilbertlang.runtime.Executables.WriteMatrix
+import scala.Some
+import org.gilbertlang.runtime.Executables.ConvergenceCurrentStateCellArrayPlaceholder
+import org.gilbertlang.runtime.Executables.eye
 import org.gilbertlang.runtime.Executables.TypeConversionMatrix
 import org.gilbertlang.runtime.Executables.CellArrayReferenceCellArray
+import org.gilbertlang.runtime.Executables.CellArrayReferenceMatrix
 import org.gilbertlang.runtime.Executables.WriteFunction
 import org.gilbertlang.runtime.Executables.LoadMatrix
+import org.gilbertlang.runtime.Executables.randn
 import org.gilbertlang.runtime.Executables.CompoundExecutable
 import org.gilbertlang.runtime.Executables.UnaryScalarTransformation
+import org.gilbertlang.runtime.Executables.minWithIndex
+import org.gilbertlang.runtime.Executables.pdist2
 import org.gilbertlang.runtime.Executables.scalar
 import org.gilbertlang.runtime.Executables.ScalarMatrixTransformation
+import org.gilbertlang.runtime.Executables.linspace
 import org.gilbertlang.runtime.Executables.WriteScalar
+import org.gilbertlang.runtime.Executables.zeros
 import org.gilbertlang.runtime.Executables.TypeConversionScalar
 import org.gilbertlang.runtime.Executables.CellwiseMatrixTransformation
+import org.gilbertlang.runtime.Executables.FixpointIterationMatrix
+import org.gilbertlang.runtime.Executables.CellArrayReferenceScalar
 import org.gilbertlang.runtime.Executables.MatrixMult
 import org.gilbertlang.runtime.Executables.boolean
+import org.gilbertlang.runtime.Executables.FixpointIterationCellArray
+import org.gilbertlang.runtime.Executables.sumCol
 import org.gilbertlang.runtime.Executables.string
 import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
 import org.gilbertlang.runtime.Executables.CellArrayExecutable
 import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
+import org.gilbertlang.runtime.Executables.sum
+import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
+import org.gilbertlang.runtime.Executables.spones
+import org.gilbertlang.runtime.Executables.ones
 import org.gilbertlang.runtime.Executables.AggregateMatrixTransformation
 import org.gilbertlang.runtime.Executables.WriteCellArray
+import org.gilbertlang.runtime.Executables.CellArrayReferenceString
 import org.gilbertlang.runtime.Executables.CellwiseMatrixMatrixTransformation
+import org.gilbertlang.runtime.Executables.IterationStatePlaceholderCellArray
 import org.gilbertlang.runtime.Executables.MatrixScalarTransformation
+import org.gilbertlang.runtime.Executables.repmat
 import org.gilbertlang.runtime.Executables.Transpose
+import org.gilbertlang.runtime.Executables.ConvergencePreviousStateCellArrayPlaceholder
+import org.gilbertlang.runtimeMacros.linalg.Partition
 import org.gilbertlang.runtime.RuntimeTypes.MatrixType
+import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
-import scala.language.postfixOps
-import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
-import scala.util.control.Breaks.{break, breakable}
-
 
 class SparkExecutor extends Executor {
-
-  case class CellEntry(idx: Int, value: Any){
-    override def toString = value.toString
-  }
 
   type Matrix = RDD[Submatrix]
   type BooleanMatrix = RDD[SubmatrixBoolean]
   type CellArray = RDD[CellEntry]
 
-  System.setProperty("spark.serializer", classOf[KryoSerializer].getName)
-  System.setProperty("spark.kryo.registrator", classOf[MahoutKryoRegistrator].getName)
-
   val WRITE_TO_OUTPUT = true
 
-  private val numWorkerThreads = 2
+  private val numWorkerThreads = 1
   private val degreeOfParallelism = 2*numWorkerThreads
   private val sc = new SparkContext("local["+numWorkerThreads+"]", "Gilbert")
 
@@ -206,10 +221,10 @@ class SparkExecutor extends Executor {
           val filtered = cellArrayRDD filter { entry => entry.idx == ref.reference }
 
           ref.getType match {
-            case MatrixType(DoubleType, _, _) => filtered map { filteredEntry => filteredEntry.value.
-              asInstanceOf[Matrix]}
+            case MatrixType(DoubleType, _, _) => filtered map { filteredEntry => filteredEntry.value.asInstanceOf[
+              Submatrix]}
             case MatrixType(BooleanType, _, _) => filtered map { filteredEntry => filteredEntry.value.asInstanceOf[
-              BooleanMatrix]}
+              SubmatrixBoolean]}
             case tpe@ MatrixType(_, _, _) => throw new SparkExecutionError( s"Cannot extract matrix of type $tpe from" +
               s" cell array.")
           }
@@ -335,7 +350,9 @@ class SparkExecutor extends Executor {
       case writeCellArray: WriteCellArray =>
         handle[WriteCellArray, CellArray](
         writeCellArray,
-        {input => evaluate[CellArray](input.cellArray)},
+        {input =>
+          evaluate[CellArray](input.cellArray)
+        },
         {(writeCellArray, cellArrayValueRDD) =>
           val cellArrayType = writeCellArray.cellArray.getType
 
@@ -583,9 +600,17 @@ class SparkExecutor extends Executor {
             { case (_, (matrixRDD, scalar)) =>
               val bcScalar = sc.broadcast(scalar)
               operation match {
-                case Addition => matrixRDD map { matrix => matrix + bcScalar.value }
+                case Addition =>
+                  matrixRDD map {
+                    matrix =>
+                      matrix + bcScalar.value
+                  }
                 case Subtraction => matrixRDD map { matrix => matrix - bcScalar.value }
-                case Multiplication => matrixRDD map { matrix => matrix * bcScalar.value }
+                case Multiplication =>
+                  matrixRDD map {
+                    matrix =>
+                      matrix * bcScalar.value
+                  }
                 case Division => matrixRDD map { matrix => matrix / bcScalar.value }
                 case Exponentiation => matrixRDD map { matrix => matrix :^ bcScalar.value }
               }
@@ -655,10 +680,18 @@ class SparkExecutor extends Executor {
               val keyedRight = rightMatrixRDD map { matrix => ((matrix.rowIndex, matrix.columnIndex), matrix) }
 
               operation match {
-                case Addition => keyedLeft join keyedRight map { case (_, (left, right)) => left + right }
+                case Addition =>
+                  keyedLeft join keyedRight map {
+                    case (_, (left, right)) =>
+                      left + right
+                  }
                 case Subtraction => keyedLeft join keyedRight map { case (_, (left, right)) => left - right }
                 case Multiplication => keyedLeft join keyedRight map { case (_, (left, right)) => left :* right }
-                case Division => keyedLeft join keyedRight map { case (_, (left, right)) => left :/ right }
+                case Division =>
+                  keyedLeft join keyedRight map {
+                    case (_, (left, right)) =>
+                      left :/ right
+                  }
                 case Exponentiation => keyedLeft join keyedRight map { case (_, (left, right)) => left :^ right }
               }
             }
@@ -713,12 +746,16 @@ class SparkExecutor extends Executor {
       case typeConversion: TypeConversionMatrix =>
         (typeConversion.sourceType, typeConversion.targetType) match {
           case (MatrixType(BooleanType, _, _), MatrixType(DoubleType, _, _)) =>
-            handle[TypeConversionMatrix, Matrix](
+            handle[TypeConversionMatrix, BooleanMatrix](
             typeConversion,
-            { input => evaluate[Matrix](input.matrix)},
+            { input => evaluate[BooleanMatrix](input.matrix)},
             { (_, matrixRDD) =>
               matrixRDD map { matrix =>
-                matrix map ( value => if(value) 1.0 else 0.0)
+                Submatrix(matrix.getPartition, matrix.activeIterator map {
+                  case ((row,col), value) =>
+                    (row,col, if(value) 1.0 else 0.0)
+                } toSeq
+                )
               }
             }
             )
@@ -906,12 +943,13 @@ class SparkExecutor extends Executor {
         { case (_, (start, end, numPoints)) =>
           val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, 1, numPoints)
           val bcStepWidth = sc.broadcast((end-start)/(numPoints-1))
+          val bcStart = sc.broadcast(start)
 
           sc.parallelize(partitionPlan.toSeq) map { partition =>
             val result = Submatrix(partition, partition.numColumns)
 
             for(counter <- partition.columnOffset until (partition.columnOffset + partition.numColumns)){
-              result.update(0, counter - partition.columnOffset, counter * bcStepWidth.value)
+              result.update(0, counter - partition.columnOffset, counter * bcStepWidth.value + bcStart.value)
             }
 
             result
@@ -942,7 +980,8 @@ class SparkExecutor extends Executor {
               matrixB.rowIndex), entries))
           }
 
-          blockwiseDist reduceByKey(_ + _) map { case (_, matrix) => matrix :^ 0.5 }
+          val result = blockwiseDist reduceByKey(_ + _) map { case (_, matrix) => matrix :^ 0.5 }
+          result
         }
         )
 
@@ -956,15 +995,15 @@ class SparkExecutor extends Executor {
           val bcMultCols = sc.broadcast(multCols)
 
           val newBlocks = matrixRDD flatMap { matrix =>
-            val newPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
+            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
               matrix.totalRows*bcMultRows.value, matrix.totalColumns*bcMultCols.value)
-            val oldPartitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrix.totalRows,
-              matrix.totalColumns)
 
-            for(rowIdx <- matrix.rowIndex until matrix.rowIndex * bcMultRows.value by oldPartitionPlan.maxRowIndex;
-                colIdx <- matrix.columnIndex until matrix.columnIndex*bcMultCols.value by oldPartitionPlan.
-                  maxColumnIndex) yield {
-              val partition = newPartitionPlan.getPartition(rowIdx, colIdx)
+            val rowStride = matrix.totalRows
+            val colStride = matrix.totalColumns
+
+            for(rowIdx <- matrix.rowIndex until partitionPlan.maxRowIndex by rowStride;
+                colIdx <- matrix.columnIndex until partitionPlan.maxColumnIndex by colStride) yield {
+              val partition = partitionPlan.getPartition(rowIdx, colIdx)
               (partition.id, partition)
             }
           }
@@ -1022,12 +1061,13 @@ class SparkExecutor extends Executor {
                 (partitionId, (row, col, value))
               }
 
+
               newBlocks cogroup partitionedMinIdxValues flatMap { case (_, (blocks, minIdxValues)) =>
                 require(blocks.length == 1, "There can only be one block for a partition id.")
-
                 val partition = blocks.head
-                val (minValueEntries, minIdxEntries) = minIdxValues.unzip { case (minRow, col, value) =>
-                  ((0, col, value), (0, col, minRow.toDouble))
+
+                val (minValueEntries, minIdxEntries) = minIdxValues unzip { case(minRow, col, minValue) =>
+                  ((0, col, minValue), (0, col, (minRow+1).toDouble))
                 }
 
                 val minValues = Submatrix(partition, minValueEntries)
@@ -1045,9 +1085,9 @@ class SparkExecutor extends Executor {
 
               val blockwiseMinIdxValues = matrixRDD flatMap { matrix =>
                 for(row <- 0 until matrix.rows) yield {
-                  val ((minRow, minCol), minValue) = matrix(row, ::).iterator minBy { case ((row, col),
+                  val ((_, minCol), minValue) = matrix(row, ::).iterator minBy { case ((row, col),
                   value) => value }
-                  (minRow + matrix.rowOffset,( minCol, minValue))
+                  (row + matrix.rowOffset,( minCol, minValue))
                 }
               }
 
@@ -1059,13 +1099,13 @@ class SparkExecutor extends Executor {
                 (partitionId, (row, minCol, minValue))
               }
 
-              newBlocks cogroup partitionedMinIdxValues flatMap { case (_, (blocks, entries)) =>
+              val result = newBlocks cogroup partitionedMinIdxValues flatMap { case (_, (blocks, entries)) =>
                 require(blocks.length == 1, "There can only be one block for a partition ID.")
 
                 val partition = blocks.head
 
                 val (minValueEntries, minIdxEntries) = entries unzip { case(row, minCol, minValue) =>
-                  ((row, 0, minValue), (row, 0, minCol.toDouble))
+                  ((row, 0, minValue), (row, 0, (minCol+1).toDouble))
                 }
 
                 val minValues = Submatrix(partition, minValueEntries)
@@ -1073,6 +1113,8 @@ class SparkExecutor extends Executor {
 
                 Seq(CellEntry(0, minValues), CellEntry(1, minIdxs))
               }
+
+              result
             case x => throw new SparkExecutionError(s"Spark executor does not support minWithIndex with dimension $x.")
           }
         }
@@ -1112,7 +1154,8 @@ class SparkExecutor extends Executor {
         }
         )
 
-      case placeholder: IterationStatePlaceholderCellArray => iterationStateCellArray
+      case placeholder: IterationStatePlaceholderCellArray =>
+        iterationStateCellArray
       case placeholder: ConvergencePreviousStateCellArrayPlaceholder => convergencePreviousStateCellArray
       case placeholder: ConvergenceCurrentStateCellArrayPlaceholder => convergenceCurrentStateCellArray
 
@@ -1141,6 +1184,8 @@ class SparkExecutor extends Executor {
               }
             }
           }
+
+          iterationStateCellArray
         }
         )
 
