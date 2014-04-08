@@ -72,7 +72,7 @@ trait Executor extends Serializable {
     }
 
     val input = retrieveInput(executable)
-    println("\t executing (" + id + ") " + executable)
+    println("\t executing (" + id + ") ")
 
     val output = handle(executable, input)
 

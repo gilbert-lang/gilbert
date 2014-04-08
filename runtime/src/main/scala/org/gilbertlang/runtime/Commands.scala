@@ -41,6 +41,16 @@ object local {
 }
 
 object withSpark {
+  var sparkExecutor: SparkExecutor = null
+
+
+  def getSparkExecutorInstance() = {
+    if(sparkExecutor == null){
+      sparkExecutor = new SparkExecutor()
+    }
+    sparkExecutor
+  }
+
   def apply(executable: Executable) = {
 
     val write = executable match {
@@ -51,7 +61,7 @@ object withSpark {
       case _ => executable
     }
 
-    new SparkExecutor().run(write)
+    getSparkExecutorInstance().run(write)
   }
 }
 

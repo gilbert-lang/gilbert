@@ -23,7 +23,7 @@ import org.apache.spark.rdd.RDD
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
 import org.gilbertlang.runtime.RuntimeTypes._
 import org.gilbertlang.runtime.Operations._
 import org.apache.commons.io.FileUtils
@@ -90,13 +90,19 @@ class SparkExecutor extends Executor {
 
   type Matrix = RDD[Submatrix]
   type BooleanMatrix = RDD[SubmatrixBoolean]
-  type CellArray = RDD[CellEntry]
+  type CellArray = List[Any]
 
   val WRITE_TO_OUTPUT = true
 
-  private val numWorkerThreads = 1
+  private val numWorkerThreads = 4
   private val degreeOfParallelism = 2*numWorkerThreads
-  private val sc = new SparkContext("local["+numWorkerThreads+"]", "Gilbert")
+
+  private val conf = new SparkConf().
+    setMaster("local["+numWorkerThreads+"]").
+    setAppName("Gilbert").
+    set("spark.executor.memory", "1g")
+
+  private val sc = new SparkContext(conf)
 
   private var tempFileCounter = 0
 
@@ -133,7 +139,7 @@ class SparkExecutor extends Executor {
           val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
           val bcPartitionPlan = sc.broadcast(partitionPlan)
 
-          val entries = sc.textFile(path) map { line =>
+          val entries = sc.textFile(path,degreeOfParallelism  ) map { line =>
             val splits = line.split(" ")
             val row = splits(0).toInt-1
             val col = splits(1).toInt-1
@@ -181,25 +187,8 @@ class SparkExecutor extends Executor {
         handle[CellArrayExecutable, List[Any]](
         cellArray,
         {input => input.elements map { evaluate[Any]}},
-        { (cellArray, elements) =>
-          val cellEntries = for((element, index) <- elements.zipWithIndex ) yield {
-            val tpe = cellArray.getType.elementTypes(index)
-            tpe match {
-              case BooleanType | DoubleType | StringType =>
-                val entry = CellEntry(index, element)
-                sc.parallelize(Seq(entry))
-              case MatrixType(BooleanType,_ ,_) => element.asInstanceOf[BooleanMatrix] map { matrix => CellEntry(
-                index, matrix) }
-              case MatrixType(DoubleType, _, _) => element.asInstanceOf[Matrix] map { matrix => CellEntry(index,
-                matrix)}
-              case CellArrayType(_) => element.asInstanceOf[CellArray] map { entry => CellEntry(index, entry)}
-              case MatrixType(_, _, _) | Void | Undefined | FunctionType | Unknown => throw new SparkExecutionError(
-                s"Cannot insert element of type $tpe into cell array.")
-            }
-          }
-
-          val firstEntry = cellEntries.head
-          cellEntries.tail.foldLeft(firstEntry)(_ union _)
+        { (_, elements) =>
+          elements
         }
         )
 
@@ -207,9 +196,8 @@ class SparkExecutor extends Executor {
         handle[CellArrayReferenceCellArray, CellArray](
         cellArrayReferenceCellArray,
         { input => evaluate[CellArray](input.parent)},
-        { (ref, cellArrayRDD) =>
-         cellArrayRDD filter { entry => entry.idx == ref.reference } map { filteredEntry => filteredEntry.value
-           .asInstanceOf[CellEntry] }
+        { (ref, cellArray) =>
+          cellArray(ref.reference)
         }
         )
 
@@ -217,17 +205,8 @@ class SparkExecutor extends Executor {
         handle[CellArrayReferenceMatrix, CellArray](
         cellArrayReferenceMatrix,
         { input => evaluate[CellArray](input.parent)},
-        { (ref, cellArrayRDD) =>
-          val filtered = cellArrayRDD filter { entry => entry.idx == ref.reference }
-
-          ref.getType match {
-            case MatrixType(DoubleType, _, _) => filtered map { filteredEntry => filteredEntry.value.asInstanceOf[
-              Submatrix]}
-            case MatrixType(BooleanType, _, _) => filtered map { filteredEntry => filteredEntry.value.asInstanceOf[
-              SubmatrixBoolean]}
-            case tpe@ MatrixType(_, _, _) => throw new SparkExecutionError( s"Cannot extract matrix of type $tpe from" +
-              s" cell array.")
-          }
+        { (ref, cellArray) =>
+          cellArray(ref.reference)
         }
         )
 
@@ -235,12 +214,8 @@ class SparkExecutor extends Executor {
         handle[CellArrayReferenceString, CellArray](
         caRefString,
         { input => evaluate[CellArray](input.parent)},
-        { (ref, cellArrayRDD) =>
-          val strings = cellArrayRDD filter { entry => entry.idx == ref.reference } map { filteredEntry =>
-            filteredEntry.value.asInstanceOf[String] } collect
-
-          require(strings.length == 1, "Scalar entry of cell array can only contain one element.")
-          strings(0)
+        { (ref, cellArray) =>
+          cellArray(ref.reference)
         }
         )
 
@@ -248,24 +223,8 @@ class SparkExecutor extends Executor {
         handle[CellArrayReferenceScalar, CellArray](
         caRefScalar,
         { input => evaluate[CellArray](input.parent)},
-        { (ref, cellArrayRDD) =>
-          val filtered = cellArrayRDD filter { entry => entry.idx == ref.reference }
-          ref.getType match {
-            case DoubleType =>
-              val doubles = filtered map { filteredEntry => filteredEntry.value.asInstanceOf[Double]} collect
-
-              require(doubles.length == 1, "Scalar entry of cell array can only contain one element.")
-              doubles(0)
-            case BooleanType =>
-              val booleans = filtered map { filteredEntry => filteredEntry.value.asInstanceOf[Boolean]} collect
-
-              require(booleans.length == 1, " Scalar entry of cell array can only contain one element.")
-              booleans(0)
-            case ScalarType | Unknown | Void => throw new SparkExecutionError("Scalar cell array reference requires " +
-              "concrete " +
-              "scalar " +
-              "type.")
-          }
+        { (ref, cellArray) =>
+          cellArray(ref.reference)
         }
         )
 
@@ -353,17 +312,26 @@ class SparkExecutor extends Executor {
         {input =>
           evaluate[CellArray](input.cellArray)
         },
-        {(writeCellArray, cellArrayValueRDD) =>
+        {(writeCellArray, cellArray) =>
           val cellArrayType = writeCellArray.cellArray.getType
 
           for(idx <- 0 until cellArrayType.elementTypes.length){
-            val cellEntryRDD = cellArrayValueRDD filter { entry => entry.idx == idx}
 
             if(WRITE_TO_OUTPUT){
-              cellEntryRDD foreach { println }
+              cellArrayType.elementTypes(idx) match {
+                case ScalarType => println(cellArray(idx))
+                case MatrixType(_, _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach { println }
+                case tpe => throw new SparkExecutionError(s"Write cell array does not support type $tpe.")
+              }
             }else{
               val path = newTempFileName()
-              cellEntryRDD.saveAsTextFile(path)
+              cellArrayType.elementTypes(idx) match {
+                case ScalarType =>
+                  FileUtils.writeStringToFile(new File(path), cellArray(idx).toString)
+                case MatrixType(_, _, _) =>
+                  cellArray(idx).asInstanceOf[RDD[_]].saveAsTextFile(path)
+                case tpe => throw new SparkExecutionError(s"Write cell array does not support type $tpe.")
+              }
             }
           }
         }
@@ -1062,19 +1030,29 @@ class SparkExecutor extends Executor {
               }
 
 
-              newBlocks cogroup partitionedMinIdxValues flatMap { case (_, (blocks, minIdxValues)) =>
+              val minValues = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, minIdxValues)) =>
                 require(blocks.length == 1, "There can only be one block for a partition id.")
                 val partition = blocks.head
 
-                val (minValueEntries, minIdxEntries) = minIdxValues unzip { case(minRow, col, minValue) =>
-                  ((0, col, minValue), (0, col, (minRow+1).toDouble))
+                val minValueEntries = minIdxValues map { case(minRow, col, minValue) =>
+                  (0, col, minValue)
                 }
 
-                val minValues = Submatrix(partition, minValueEntries)
-                val minIdxs = Submatrix(partition, minIdxEntries)
-
-                Seq(CellEntry(0, minValues), CellEntry(1, minIdxs))
+                Submatrix(partition, minValueEntries)
               }
+
+              val minIdxs = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, minIdxValues)) =>
+                require(blocks.length == 1, "There can only be one block for a partition id.")
+                val partition = blocks.head
+
+                val minIdxEntries = minIdxValues map { case(minRow, col, minValue) =>
+                  (0, col, (minRow+1).toDouble)
+                }
+
+                Submatrix(partition, minIdxEntries)
+              }
+
+              List(minValues, minIdxs)
             case 2 =>
               val (rows, cols) = matrixRDD map { matrix => (matrix.totalRows, 1) } reduce { (a,b) => a}
               val bcRows = sc.broadcast(rows)
@@ -1099,22 +1077,31 @@ class SparkExecutor extends Executor {
                 (partitionId, (row, minCol, minValue))
               }
 
-              val result = newBlocks cogroup partitionedMinIdxValues flatMap { case (_, (blocks, entries)) =>
+              val minValues = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, entries)) =>
                 require(blocks.length == 1, "There can only be one block for a partition ID.")
 
                 val partition = blocks.head
 
-                val (minValueEntries, minIdxEntries) = entries unzip { case(row, minCol, minValue) =>
-                  ((row, 0, minValue), (row, 0, (minCol+1).toDouble))
+                val minValueEntries = entries map { case(row, minCol, minValue) =>
+                  (row, 0, minValue)
                 }
 
-                val minValues = Submatrix(partition, minValueEntries)
-                val minIdxs = Submatrix(partition, minIdxEntries)
-
-                Seq(CellEntry(0, minValues), CellEntry(1, minIdxs))
+                Submatrix(partition, minValueEntries)
               }
 
-              result
+              val minIdxs = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, entries)) =>
+                require(blocks.length == 1, "There can only be one block for a partition ID.")
+
+                val partition = blocks.head
+
+                val minIdxEntries = entries map { case(row, minCol, minValue) =>
+                  (row, 0, (minCol+1).toDouble)
+                }
+
+                Submatrix(partition, minIdxEntries)
+              }
+
+              List(minValues, minIdxs)
             case x => throw new SparkExecutionError(s"Spark executor does not support minWithIndex with dimension $x.")
           }
         }
