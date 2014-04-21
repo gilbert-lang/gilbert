@@ -41,19 +41,28 @@ object local {
 }
 
 object withSpark {
-  var sparkExecutor: SparkExecutor = null
+  class ExecutorWrapper(executable: Executable){
+    def local(numWorkerThreads: Int = 4, appName: String = "Gilbert") {
+      val master = "local[" + numWorkerThreads + "]";
+      val sparkExecutor = new SparkExecutor(master, appName);
 
+      sparkExecutor.run(executable);
 
-  def getSparkExecutorInstance() = {
-    if(sparkExecutor == null){
-      sparkExecutor = new SparkExecutor()
+      sparkExecutor.stop()
     }
-    sparkExecutor
+
+    def remote(master: String, appName: String = "Gilbert") {
+      val sparkExecutor = new SparkExecutor(master, appName);
+
+      sparkExecutor.run(executable);
+
+      sparkExecutor.stop();
+    }
   }
 
   def apply(executable: Executable) = {
 
-    val write = executable match {
+    val writeExecutable = executable match {
       case matrix: Matrix => WriteMatrix(matrix)
       case scalar: ScalarRef => WriteScalar(scalar)
       case string: StringRef => WriteString(string)
@@ -61,7 +70,7 @@ object withSpark {
       case _ => executable
     }
 
-    getSparkExecutorInstance().run(write)
+    new ExecutorWrapper(writeExecutable);
   }
 }
 

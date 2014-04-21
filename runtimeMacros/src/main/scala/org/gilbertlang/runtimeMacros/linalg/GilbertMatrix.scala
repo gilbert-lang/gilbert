@@ -55,9 +55,11 @@ final class GilbertMatrix(var matrix: BreezeMatrix[Double]) extends BreezeMatrix
 object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps with BreezeMatrixImplicits {
   def apply(matrix: BreezeMatrix[Double]): GilbertMatrix = new GilbertMatrix(matrix)
   
-  def apply(rows: Int, cols: Int, entries: Seq[(Int, Int, Double)]): GilbertMatrix= {
+  def apply(rows: Int, cols: Int, entries: Traversable[(Int, Int, Double)]): GilbertMatrix= {
     val size = rows*cols
-    val nonZeroElementsRatio = entries.length.toDouble/size
+    val numElements = entries.size.toDouble
+
+    val nonZeroElementsRatio = numElements/size
     val factory = implicitly[MatrixFactory[Double]]
     
     GilbertMatrix(factory.create(rows, cols, entries, nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD))

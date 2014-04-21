@@ -6,7 +6,7 @@ import breeze.linalg.{DenseMatrix => BreezeDenseMatrix, CSCMatrix => BreezeSpars
 trait MatrixFactory[@specialized T] {
   def create(rows: Int, cols: Int, dense: Boolean): Matrix[T]
   def init(rows: Int, cols: Int, initialValue: T, dense: Boolean): Matrix[T]
-  def create(rows: Int, cols: Int, entries: Seq[(Int, Int, T)], dense: Boolean): Matrix[T]
+  def create(rows: Int, cols: Int, entries: Traversable[(Int, Int, T)], dense: Boolean): Matrix[T]
   def eye(rows: Int, cols: Int, dense: Boolean): Matrix[T]
   def eye(rows: Int, cols: Int, startRow: Int, startCol: Int, dense: Boolean): Matrix[T]
 }
@@ -30,7 +30,7 @@ object MatrixFactory{
       }
     }
     
-    def create(rows: Int, cols: Int, entries: Seq[(Int,Int,Double)], dense: Boolean): Matrix[Double] = {
+    def create(rows: Int, cols: Int, entries: Traversable[(Int,Int,Double)], dense: Boolean): Matrix[Double] = {
       if(dense){
         val result = BreezeDenseMatrix.zeros[Double](rows, cols)
         for((row, col, value) <- entries){
@@ -94,7 +94,7 @@ object MatrixFactory{
       Bitmatrix.init(rows, cols, initialValue)
     }
 
-    def create(rows: Int, cols: Int, entries: Seq[(Int, Int, Boolean)], dense: Boolean): Bitmatrix = {
+    def create(rows: Int, cols: Int, entries: Traversable[(Int, Int, Boolean)], dense: Boolean): Bitmatrix = {
       val result = Bitmatrix.zeros(rows, cols)
       for ((row, col, value) <- entries) {
         result.update(row, col, value)

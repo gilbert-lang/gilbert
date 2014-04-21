@@ -1,5 +1,2 @@
-repIdx = ones(2,2);
-mask = ones(2,2);
-dimension=2;
-multiplier = repIdx == mask;
-sum(multiplier,2);
+numVertices = 10;
+N = load("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/examples/src/main/resources/network.csv", numVertices, numVertices)

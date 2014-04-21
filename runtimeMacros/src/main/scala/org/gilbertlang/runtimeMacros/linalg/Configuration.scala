@@ -11,7 +11,7 @@ import breeze.util.ArrayUtil
 import breeze.math.Semiring
 
 object Configuration {
-  val BLOCKSIZE = 10
+  val BLOCKSIZE = 1
   val DENSITYTHRESHOLD = 0.6
   
   type DenseMatrix = BreezeDenseMatrix[Double]

@@ -86,7 +86,7 @@ object Submatrix extends SubmatrixOps {
     }
   }
 
-  def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Double)]): Submatrix = {
+  def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,Double)]): Submatrix = {
     import partitionInformation._
     val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
     val gilbertMatrix = GilbertMatrix(numRows, numColumns, adjustedEntries)

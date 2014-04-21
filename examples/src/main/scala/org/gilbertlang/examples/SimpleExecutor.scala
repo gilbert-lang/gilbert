@@ -7,11 +7,11 @@ import org.gilbertlang.runtime.{local, withStratosphere}
 object SimpleExecutor {
 
   def main(args:Array[String]){
-    val executable = Gilbert.compileRessource("builtin.gb")
+    val executable = Gilbert.compileRessource("test.gb")
 
-//    val plan = withStratosphere(executable)
-//    LocalExecutor.execute(plan)
-    val result = local(executable)
-    println(result)
+    val plan = withStratosphere(executable)
+    LocalExecutor.execute(plan)
+//    val result = local(executable)
+//    println(result)
   }
 }

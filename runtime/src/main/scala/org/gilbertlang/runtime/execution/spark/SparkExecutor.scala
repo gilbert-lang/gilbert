@@ -86,7 +86,7 @@ import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 
-class SparkExecutor extends Executor {
+class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert") extends Executor {
 
   type Matrix = RDD[Submatrix]
   type BooleanMatrix = RDD[SubmatrixBoolean]
@@ -94,13 +94,12 @@ class SparkExecutor extends Executor {
 
   val WRITE_TO_OUTPUT = true
 
-  private val numWorkerThreads = 4
-  private val degreeOfParallelism = 2*numWorkerThreads
+//  private val numWorkerThreads = 4
+//  private val degreeOfParallelism = 2*numWorkerThreads
 
   private val conf = new SparkConf().
-    setMaster("local["+numWorkerThreads+"]").
-    setAppName("Gilbert").
-    set("spark.executor.memory", "1g")
+    setMaster(master).
+    setAppName(appName)
 
   private val sc = new SparkContext(conf)
 
@@ -112,6 +111,10 @@ class SparkExecutor extends Executor {
   private var convergenceCurrentStateMatrix: Matrix = null
   private var convergencePreviousStateCellArray: CellArray = null
   private var convergenceCurrentStateCellArray: CellArray = null
+
+  def stop() {
+    sc.stop()
+  }
 
   def getCWD: String = System.getProperty("user.dir")
 
@@ -139,7 +142,7 @@ class SparkExecutor extends Executor {
           val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
           val bcPartitionPlan = sc.broadcast(partitionPlan)
 
-          val entries = sc.textFile(path,degreeOfParallelism  ) map { line =>
+          val entries = sc.textFile(path) map { line =>
             val splits = line.split(" ")
             val row = splits(0).toInt-1
             val col = splits(1).toInt-1
@@ -152,9 +155,9 @@ class SparkExecutor extends Executor {
           val blocks = sc.parallelize(blockSeq)
 
           val submatrices = blocks.cogroup(entries).map{ case (partitionId, (blocks, entries)) =>
-            require(blocks.length==1)
+            require(blocks.nonEmpty)
 
-            val partition = blocks(0)
+            val partition = blocks.head
             Submatrix(partition, entries)
           }
 
@@ -992,9 +995,11 @@ class SparkExecutor extends Executor {
           }
 
           newBlocks cogroup newEntries map { case (id, (blocks, entries)) =>
-            require(blocks.length == 1, "There can only be one block for a partition id.")
+            require(blocks.nonEmpty, "There has to be at least one block for a partition id.")
 
             val partition = blocks.head
+
+            require(blocks.isEmpty, "There can only be one block for a partition id.")
             Submatrix(partition, entries)
           }
         }
@@ -1032,8 +1037,10 @@ class SparkExecutor extends Executor {
 
 
               val minValues = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, minIdxValues)) =>
-                require(blocks.length == 1, "There can only be one block for a partition id.")
+                require(blocks.nonEmpty, "There has to be at least one block for a partition id.")
                 val partition = blocks.head
+
+                require(blocks.isEmpty, "There can only be one block for a partition id.")
 
                 val minValueEntries = minIdxValues map { case(minRow, col, minValue) =>
                   (0, col, minValue)
@@ -1043,8 +1050,10 @@ class SparkExecutor extends Executor {
               }
 
               val minIdxs = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, minIdxValues)) =>
-                require(blocks.length == 1, "There can only be one block for a partition id.")
+                require(blocks.nonEmpty, "There has to be at least one block for a partition id.")
                 val partition = blocks.head
+
+                require(blocks.isEmpty, "There can only be one block for a partition id.")
 
                 val minIdxEntries = minIdxValues map { case(minRow, col, minValue) =>
                   (0, col, (minRow+1).toDouble)
@@ -1079,9 +1088,11 @@ class SparkExecutor extends Executor {
               }
 
               val minValues = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, entries)) =>
-                require(blocks.length == 1, "There can only be one block for a partition ID.")
+                require(blocks.nonEmpty, "There has to be at least one block for a partition ID.")
 
                 val partition = blocks.head
+
+                require(blocks.isEmpty, "There can only be one block for a partition id.")
 
                 val minValueEntries = entries map { case(row, minCol, minValue) =>
                   (row, 0, minValue)
@@ -1091,9 +1102,11 @@ class SparkExecutor extends Executor {
               }
 
               val minIdxs = newBlocks cogroup partitionedMinIdxValues map { case (_, (blocks, entries)) =>
-                require(blocks.length == 1, "There can only be one block for a partition ID.")
+                require(blocks.nonEmpty, "There has to be at least one block for a partition ID.")
 
                 val partition = blocks.head
+
+                require(blocks.isEmpty, "There can only be one block for a partition id.")
 
                 val minIdxEntries = entries map { case(row, minCol, minValue) =>
                   (row, 0, (minCol+1).toDouble)

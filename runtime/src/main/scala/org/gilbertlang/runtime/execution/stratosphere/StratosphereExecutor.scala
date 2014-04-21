@@ -824,7 +824,9 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               val source = DataSource("file://" + pathLiteral, CsvInputFormat[(Int, Int, Double)]("\n", ' '))
 
               val rowsCols = rows cross cols
-              val rowsColsPair = rowsCols map { (rows, cols) => (rows.toInt, cols.toInt)}
+              val rowsColsPair = rowsCols map {
+                (rows, cols) => (rows.toInt, cols.toInt)
+              }
 
               val blocks = rowsColsPair flatMap { case (numRows, numCols) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, numRows, numCols)
