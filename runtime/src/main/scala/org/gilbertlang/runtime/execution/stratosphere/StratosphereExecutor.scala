@@ -69,6 +69,8 @@ import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 import scala.language.postfixOps
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
+import java.net.URLClassLoader
+import sun.misc.Launcher.AppClassLoader
 
 class StratosphereExecutor extends Executor with WrapAsScala {
   import ImplicitConversions._
@@ -89,7 +91,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
   def newTempFileName(): String = {
     tempFileCounter += 1
-    "file://" + getCWD + "/gilbert" + tempFileCounter + ".output"
+//    "file://" + getCWD + "/gilbert" + tempFileCounter + ".output"
+    "hdfs://node1.stsffap.org:54310/user/hduser/gilbert" + tempFileCounter + ".output"
   }
 
 

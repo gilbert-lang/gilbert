@@ -50,6 +50,12 @@
         <groupId>org.scalanlp</groupId>
         <artifactId>breeze_2.10</artifactId>
         <version>0.6-SNAPSHOT</version>
+        <exclusions>
+          <exclusion>
+            <groupId>com.thoughtworks.paranamer</groupId>
+            <artifactId>paranamer</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.gilbertlang</groupId>
@@ -102,11 +108,27 @@
         <groupId>eu.stratosphere</groupId>
         <artifactId>stratosphere-scala</artifactId>
         <version>0.5-SNAPSHOT</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-servlet</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>eu.stratosphere</groupId>
         <artifactId>stratosphere-clients</artifactId>
         <version>0.5-SNAPSHOT</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-servlet</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
     </dependencies>
   </dependencyManagement>
@@ -207,6 +229,25 @@
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>build-helper-maven-plugin</artifactId>
       </plugin>
+      <plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-enforcer-plugin</artifactId>
+    <version>1.0.1</version>
+    <executions>
+      <execution>
+        <id>enforce</id>
+        <configuration>
+          <skip>true</skip>
+          <rules>
+            <DependencyConvergence />
+          </rules>
+        </configuration>
+        <goals>
+          <goal>enforce</goal>
+        </goals>
+      </execution>
+    </executions>
+  </plugin>
     </plugins>
   </build>
 

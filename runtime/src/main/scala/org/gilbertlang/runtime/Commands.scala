@@ -51,8 +51,8 @@ object withSpark {
       sparkExecutor.stop()
     }
 
-    def remote(master: String, appName: String = "Gilbert") {
-      val sparkExecutor = new SparkExecutor(master, appName);
+    def remote(master: String, appName: String = "Gilbert", jars: Seq[String] = Seq[String]()) {
+      val sparkExecutor = new SparkExecutor(master, appName, jars);
 
       sparkExecutor.run(executable);
 

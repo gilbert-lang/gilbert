@@ -86,7 +86,9 @@ import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 
-class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert") extends Executor {
+class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert", jars: Seq[String] = Seq[String]())
+  extends
+Executor {
 
   type Matrix = RDD[Submatrix]
   type BooleanMatrix = RDD[SubmatrixBoolean]
@@ -99,7 +101,8 @@ class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert") ex
 
   private val conf = new SparkConf().
     setMaster(master).
-    setAppName(appName)
+    setAppName(appName).
+    setJars(jars)
 
   private val sc = new SparkContext(conf)
 

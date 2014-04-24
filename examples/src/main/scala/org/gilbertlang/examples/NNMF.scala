@@ -23,9 +23,12 @@ object NNMF {
       ".jar", "/Users/till/.m2/repository/org/scalanlp/breeze_2.10/0.6-SNAPSHOT/breeze_2.10-0.6-SNAPSHOT.jar",
       "/Users/till/.m2/repository/com/github/fommil/netlib/native_ref-java/1.1/native_ref-java-1.1.jar",
       "/Users/till/.m2/repository/com/github/fommil/netlib/core/1.1.1/core-1.1.1.jar",
-      "/Users/till/.m2/repository/",
-      "/Users/till/.m2/repository/com/github/fommil/jniloader/1.1/jniloader-1.1.jar");
-    val executor = new RemoteExecutor("node1.stsffap.org", 6123, jarFiles.asJava);
+      "/Users/till/.m2/repository/com/github/fommil/jniloader/1.1/jniloader-1.1.jar",
+      "/Users/till/.m2/repository/com/github/fommil/netlib/netlib-native_system-linux-x86_64/1" +
+        ".1/netlib-native_system-linux-x86_64-1.1-natives.jar",
+      "/Users/till/.m2/repository/com/github/fommil/netlib/netlib-native_ref-linux-x86_64/1" +
+        ".1/netlib-native_ref-linux-x86_64-1.1-natives.jar");
+    val executor = new RemoteExecutor("node1", 6123, jarFiles.asJava);
 
     executor.executePlan(plan)
 

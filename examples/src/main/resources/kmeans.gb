@@ -2,8 +2,11 @@ numCenters = 3;
 dimension = 2;
 numDatapoints = 10;
 datapoints = load("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/examples/datapoints.csv", numDatapoints,dimension);
+
 centers = load("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/examples/centers.csv", numCenters, dimension);
+
 mask = repmat(linspace(1, numCenters, numCenters), numDatapoints, 1)';
+
 function newCenters = kmeansStep(centers)
   distances = pdist2(datapoints, centers);
   assignments = minWithIndex(distances, 2);
