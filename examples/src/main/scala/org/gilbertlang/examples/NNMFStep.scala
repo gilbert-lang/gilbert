@@ -9,7 +9,6 @@ object NNMFStep {
   def main(args:Array[String]){
     val executable = Gilbert.compileRessource("NNMFStep.gb")
 
-    val plan = withStratosphere(executable)
-    LocalExecutor.execute(plan)
+    withStratosphere(executable).local(4)
   }
 }

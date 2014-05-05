@@ -69,10 +69,8 @@ import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 import scala.language.postfixOps
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
-import java.net.URLClassLoader
-import sun.misc.Launcher.AppClassLoader
 
-class StratosphereExecutor extends Executor with WrapAsScala {
+class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
   import ImplicitConversions._
 
   type Matrix = DataSet[Submatrix]
@@ -91,8 +89,8 @@ class StratosphereExecutor extends Executor with WrapAsScala {
 
   def newTempFileName(): String = {
     tempFileCounter += 1
-//    "file://" + getCWD + "/gilbert" + tempFileCounter + ".output"
-    "hdfs://node1.stsffap.org:54310/user/hduser/gilbert" + tempFileCounter + ".output"
+    val separator = if(path.endsWith("/")) "" else "/"
+    path + separator + "gilbert" + tempFileCounter + ".output"
   }
 
 
@@ -1631,6 +1629,7 @@ class StratosphereExecutor extends Executor with WrapAsScala {
               }
               minIndices.setName("MinWithIndex: Min indices cell entry")
 
+              minValues.union(minIndices)
               val result = minValues union minIndices
               result.setName("MinWithIndex: Cell array")
               result

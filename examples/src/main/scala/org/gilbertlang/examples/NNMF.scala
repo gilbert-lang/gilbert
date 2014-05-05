@@ -2,8 +2,7 @@ package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.runtime.{withSpark, local, withStratosphere}
-import eu.stratosphere.client.{RemoteExecutor, LocalExecutor}
-import scala.collection.JavaConverters._
+
 import java.util.logging.{ConsoleHandler, Level, Logger}
 
 object NNMF {
@@ -11,13 +10,13 @@ object NNMF {
   def main(args:Array[String]){
     val logger = Logger.getLogger("com.github.fommil.jni.JniLoader");
     val handler = new ConsoleHandler();
+    val dop = 4;
+    val outputPath = "hdfs://node1.stsffap.org:54310/user/hduser/"
     handler.setLevel(Level.FINEST);
     logger.addHandler(handler)
     logger.setLevel(Level.FINEST);
 
     val executable = Gilbert.compileRessource("nnmf.gb")
-
-    val plan = withStratosphere(executable)
 
     val jarFiles = List("runtime/target/runtime-0.1-SNAPSHOT.jar", "runtimeMacros/target/runtimeMacros-0.1-SNAPSHOT" +
       ".jar", "/Users/till/.m2/repository/org/scalanlp/breeze_2.10/0.6-SNAPSHOT/breeze_2.10-0.6-SNAPSHOT.jar",
@@ -28,12 +27,8 @@ object NNMF {
         ".1/netlib-native_system-linux-x86_64-1.1-natives.jar",
       "/Users/till/.m2/repository/com/github/fommil/netlib/netlib-native_ref-linux-x86_64/1" +
         ".1/netlib-native_ref-linux-x86_64-1.1-natives.jar");
-    val executor = new RemoteExecutor("node1", 6123, jarFiles.asJava);
 
-    executor.executePlan(plan)
-
-//    LocalExecutor.execute(plan)
-//    withSpark(executable)
-//    local(executable)
+    withStratosphere(executable).remote("node1", 6123, dop, outputPath, jarFiles)
+    //withSpark(executable).remote("spark://node1:7077", "NNMF", dop, None, jarFiles)
   }
 }

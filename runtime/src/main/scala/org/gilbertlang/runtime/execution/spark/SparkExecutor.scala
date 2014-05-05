@@ -69,7 +69,6 @@ import org.gilbertlang.runtime.Executables.ScalarScalarTransformation
 import org.gilbertlang.runtime.Executables.CellArrayExecutable
 import org.gilbertlang.runtimeMacros.linalg.SquareBlockPartitionPlan
 import org.gilbertlang.runtime.Executables.sum
-import org.gilbertlang.runtime.RuntimeTypes.CellArrayType
 import org.gilbertlang.runtime.Executables.spones
 import org.gilbertlang.runtime.Executables.ones
 import org.gilbertlang.runtime.Executables.AggregateMatrixTransformation
@@ -86,7 +85,8 @@ import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 
-class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert", jars: Seq[String] = Seq[String]())
+class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert", parallelism: Int = 4,
+ outputPath: Option[String], jars: Seq[String] = Seq[String]())
   extends
 Executor {
 
@@ -94,7 +94,8 @@ Executor {
   type BooleanMatrix = RDD[SubmatrixBoolean]
   type CellArray = List[Any]
 
-  val WRITE_TO_OUTPUT = true
+  val WRITE_TO_OUTPUT = !outputPath.isDefined
+  val path = outputPath.getOrElse("")
 
 //  private val numWorkerThreads = 4
 //  private val degreeOfParallelism = 2*numWorkerThreads
@@ -102,7 +103,8 @@ Executor {
   private val conf = new SparkConf().
     setMaster(master).
     setAppName(appName).
-    setJars(jars)
+    setJars(jars).
+    set("spark.cores.max", parallelism.toString)
 
   private val sc = new SparkContext(conf)
 
@@ -123,7 +125,8 @@ Executor {
 
   def newTempFileName(): String = {
     tempFileCounter += 1
-    "file://" + getCWD + "/gilbert" + tempFileCounter + ".output"
+    val separator = if(path.endsWith("/")) "" else "/"
+    path + separator + "gilbert" + tempFileCounter + ".output"
   }
 
   protected def execute(executable: Executable): Any = {

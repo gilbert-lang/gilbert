@@ -9,8 +9,6 @@ object StratosphereExecutor {
   def main(args: Array[String]) {
     val executable = Gilbert.compileRessource("test.gb")
 
-    val plan = withStratosphere(executable)
-    LocalExecutor.execute(plan)
-//    local(executable)
+    withStratosphere(executable).local(4)
   }
 }

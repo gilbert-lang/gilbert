@@ -24,6 +24,8 @@ import org.gilbertlang.runtime.execution.stratosphere.StratosphereExecutor
 import eu.stratosphere.api.scala.ScalaPlan
 import eu.stratosphere.api.scala.ScalaSink
 import Executables._
+import eu.stratosphere.client.{RemoteExecutor, LocalExecutor}
+import scala.collection.JavaConverters._
 
 object local {
   def apply(executable: Executable) = {
@@ -42,17 +44,18 @@ object local {
 
 object withSpark {
   class ExecutorWrapper(executable: Executable){
-    def local(numWorkerThreads: Int = 4, appName: String = "Gilbert") {
+    def local(numWorkerThreads: Int = 4, appName: String = "Gilbert", outputPath: Option[String] = None) {
       val master = "local[" + numWorkerThreads + "]";
-      val sparkExecutor = new SparkExecutor(master, appName);
+      val sparkExecutor = new SparkExecutor(master, appName, numWorkerThreads, outputPath);
 
       sparkExecutor.run(executable);
 
       sparkExecutor.stop()
     }
 
-    def remote(master: String, appName: String = "Gilbert", jars: Seq[String] = Seq[String]()) {
-      val sparkExecutor = new SparkExecutor(master, appName, jars);
+    def remote(master: String, appName: String = "Gilbert",parallelism: Int,
+               outputPath: Option[String] = None, jars: Seq[String] = Seq[String]()) {
+      val sparkExecutor = new SparkExecutor(master, appName, parallelism,outputPath, jars);
 
       sparkExecutor.run(executable);
 
@@ -75,25 +78,47 @@ object withSpark {
 }
 
 object withStratosphere{
+  class ExecutorWrapper(executable: Executable){
+    def compile(outputPath: String, degreeOfParallelism: Int) = {
+      val executor = new StratosphereExecutor(outputPath)
+
+      val result = executor.execute(executable)
+
+      val plan = result match {
+        case x:ScalaPlan => x
+        case x:ScalaSink[_] => new ScalaPlan(Seq(x))
+        case x:List[_] =>
+          val sinks = for(dataset <- x) yield dataset.asInstanceOf[ScalaSink[_]]
+          new ScalaPlan(sinks)
+      }
+
+      plan.setDefaultParallelism(degreeOfParallelism)
+      plan
+    }
+    def local(degreeOfParallelism: Int, outputPath: Option[String] = None){
+      val path = outputPath.getOrElse("file://" + System.getProperty("user.dir"))
+      val plan = compile(path, degreeOfParallelism)
+
+      LocalExecutor.execute(plan);
+    }
+
+    def remote(jobmanager: String, port: Int, degreeOfParallelism: Int, outputPath: String, jars: List[String]){
+      val plan = compile(outputPath, degreeOfParallelism)
+      val executor = new RemoteExecutor(jobmanager, port, jars.asJava);
+
+      executor.executePlan(plan)
+    }
+  }
+
   def apply(executable: Executable) = {
-    val write = executable match {
+    val writeExecutable = executable match {
       case matrix: Matrix => WriteMatrix(matrix)
       case scalar: ScalarRef => WriteScalar(scalar)
       case string: StringRef => WriteString(string)
       case function: FunctionRef => WriteFunction(function)
       case _ => executable
     }
-    val executor = new StratosphereExecutor()
-    val result = executor.run(write)
-    
-    val plan = result match {
-      case x:ScalaPlan => x
-      case x:ScalaSink[_] => new ScalaPlan(Seq(x))
-      case x:List[_] =>
-        val sinks = for(dataset <- x) yield dataset.asInstanceOf[ScalaSink[_]]
-        new ScalaPlan(sinks)
-    }
 
-    plan
+    new ExecutorWrapper(writeExecutable);
   }
 }
