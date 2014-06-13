@@ -14,7 +14,7 @@ import scala.language.implicitConversions
  */
 object ImplicitConversions {
 
-  implicit def dataset2Operator[T](dataset: DataSet[T]): Operator = dataset.contract
+  implicit def dataset2Operator[T](dataset: DataSet[T]): Operator[Record] = dataset.contract
   implicit def dataset2ValueExtractor[T](dataset: DataSet[T]): ValueExtractor[T] = new ValueExtractor(dataset)
 
   class ValueExtractor[T](dataset: DataSet[T]){

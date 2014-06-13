@@ -36,7 +36,7 @@ object Delimiters extends Enumeration {
   val LTE = Value("<=")
   //TODO remove until necessary
   val DEQ = Value("==")
-  val NEQ = Value("!=")
+  val NEQ = Value("~=")
   val PLUS = Value("+")  
   val MINUS = Value("-")  
   val MULT = Value("*")  

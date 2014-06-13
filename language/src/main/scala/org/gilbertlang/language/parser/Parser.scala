@@ -255,7 +255,7 @@ trait Parser extends Parsers {
   def multiplicationOperator = MULT | DIV | CELLWISE_MULT | CELLWISE_DIV
 
   def additionOperator = PLUS  | MINUS
-  def comparisonOperator = GT | GTE | LT | LTE | DEQ
+  def comparisonOperator = GT | GTE | LT | LTE | DEQ | NEQ
   def postFixOperator = CELLWISE_TRANSPOSE | TRANSPOSE
   def exponentiationOperator = EXP | CELLWISE_EXP
 

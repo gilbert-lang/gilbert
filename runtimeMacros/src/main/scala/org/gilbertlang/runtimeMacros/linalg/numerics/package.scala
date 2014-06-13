@@ -14,7 +14,7 @@ package object numerics {
 
     implicit def maxTensor[T <: Tensor[_, Double]]: Impl[T, Double] = new Impl[T, Double] {
       override def apply(tensor: T): Double = {
-        tensor.max
+        max(tensor)
       }
     }
 
@@ -29,7 +29,7 @@ package object numerics {
 
     implicit def minTensor[T <: Tensor[_, Double]]: Impl[T, Double] = new Impl[T, Double] {
       override def apply(tensor: T): Double = {
-        tensor.min
+        min(tensor)
       }
     }
 

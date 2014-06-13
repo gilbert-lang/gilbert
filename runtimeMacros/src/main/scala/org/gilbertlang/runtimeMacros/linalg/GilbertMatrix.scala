@@ -1,5 +1,6 @@
 package org.gilbertlang.runtimeMacros.linalg
 
+import breeze.stats.distributions.Rand
 import eu.stratosphere.types.Value
 import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, CSCMatrix => BreezeSparseMatrix,
   DenseMatrix => BreezeDenseMatrix, Vector => BreezeVector, DenseVector => BreezeDenseVector,
@@ -15,7 +16,6 @@ import breeze.linalg.support.CanSlice2
 import breeze.linalg.support.CanTranspose
 import breeze.linalg.support.CanCollapseAxis
 import breeze.linalg.support.CanCopy
-import scala.util.Random
 import breeze.linalg._
 
 
@@ -94,7 +94,7 @@ object GilbertMatrix extends GilbertMatrixOps with BreezeMatrixOps with BreezeMa
     GilbertMatrix(factory.eye(rows, cols, startRow, startCol, nonZeroElementsRatio > Configuration.DENSITYTHRESHOLD))
   }
   
-  def rand(rows: Int, cols: Int, random: Random = new Random()):GilbertMatrix = {
+  def rand(rows: Int, cols: Int, random: Rand[Double]):GilbertMatrix = {
     GilbertMatrix(BreezeDenseMatrix.rand(rows, cols, random))
   }
   

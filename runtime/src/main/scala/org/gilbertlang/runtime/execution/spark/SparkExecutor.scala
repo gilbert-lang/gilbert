@@ -18,6 +18,7 @@
 
 package org.gilbertlang.runtime.execution.spark
 
+import breeze.stats.distributions.Gaussian
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.gilbertlang.runtime._
@@ -802,8 +803,8 @@ Executor {
           val bcMean = sc.broadcast(mean)
           val bcStd = sc.broadcast(std)
           sc.parallelize(partitionPlan.toSeq) map { partition =>
-            val randomGenerator = new GaussianRandom(bcMean.value, bcStd.value)
-            Submatrix.rand(partition, randomGenerator)
+            val rand = Gaussian(bcMean.value, bcStd.value)
+            Submatrix.rand(partition, rand)
           }
         }
         )

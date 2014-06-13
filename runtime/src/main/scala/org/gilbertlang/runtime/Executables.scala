@@ -327,7 +327,7 @@ object Executables {
     def getType = matrix.getType
   }
 
-  case class VectorwiseMatrixTransformation(matrix: Matrix, operation: VectorwiseOperation)
+    case class VectorwiseMatrixTransformation(matrix: Matrix, operation: VectorwiseOperation)
     extends UnaryMatrixTransformation {
 
     def getMatrixSize: (Option[Int], Option[Int]) = {

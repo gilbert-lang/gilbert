@@ -28,7 +28,7 @@ object NNMF {
       "/Users/till/.m2/repository/com/github/fommil/netlib/netlib-native_ref-linux-x86_64/1" +
         ".1/netlib-native_ref-linux-x86_64-1.1-natives.jar");
 
-    withStratosphere(executable).remote("node1", 6123, dop, outputPath, jarFiles)
-    //withSpark(executable).remote("spark://node1:7077", "NNMF", dop, None, jarFiles)
+    //withStratosphere(executable).remote("node1", 6123, dop, outputPath, jarFiles)
+    withSpark(executable).remote("spark://node1:7077", "NNMF", dop, None, jarFiles)
   }
 }

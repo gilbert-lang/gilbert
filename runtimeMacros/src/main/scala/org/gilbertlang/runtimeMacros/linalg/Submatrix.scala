@@ -1,11 +1,11 @@
 package org.gilbertlang.runtimeMacros.linalg
 
 import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, Vector => BreezeVector}
+import breeze.stats.distributions.{Uniform, Rand}
 import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixOps
 import breeze.linalg.support._
 import CanTraverseValues.ValuesVisitor
 import breeze.linalg.Axis
-import scala.util.Random
 import eu.stratosphere.types.Value
 import java.io.{DataInput, DataOutput}
 
@@ -134,7 +134,7 @@ object Submatrix extends SubmatrixOps {
       }
     }
     
-    def rand(partition: Partition, random: Random = new Random()): Submatrix = {
+    def rand(partition: Partition, random: Rand[Double] = new Uniform(0,1)): Submatrix = {
       import partition._
       Submatrix(GilbertMatrix.rand(numRows, numColumns, random), rowIndex, columnIndex, rowOffset, columnOffset,
           numTotalRows, numTotalColumns)

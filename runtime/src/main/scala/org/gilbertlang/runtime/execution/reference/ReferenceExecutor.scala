@@ -18,6 +18,7 @@
 
 package org.gilbertlang.runtime.execution.reference
 
+import breeze.stats.distributions.Gaussian
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
@@ -428,7 +429,8 @@ class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixR
                   evaluate[Double](transformation.mean), evaluate[Double](transformation.std)) },
           { case (_, (numRows, numColumns, mean, std)) =>
             val random = new GaussianRandom(mean, std)
-            DenseMatrix.rand(numRows, numColumns, random)
+            val rand = new Gaussian(mean, std)
+            DenseMatrix.rand(numRows, numColumns, rand)
           })
 
       case transformation: spones =>

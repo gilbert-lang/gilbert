@@ -1,5 +1,6 @@
 package org.gilbertlang.runtime.execution.stratosphere
 
+import breeze.stats.distributions.Gaussian
 import org.gilbertlang.runtime.Executor
 import eu.stratosphere.api.scala.operators.{CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
 import eu.stratosphere.api.scala._
@@ -936,7 +937,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
                     val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, cols.toInt)
 
                     val result = for (partition <- partitionPlan.iterator) yield {
-                      Submatrix.rand(partition, new GaussianRandom(mean, std))
+                      Submatrix.rand(partition, Gaussian(mean, std))
                     }
 
                     result
