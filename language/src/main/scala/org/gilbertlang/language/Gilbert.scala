@@ -4,6 +4,7 @@ import java.io.Reader
 import java.io.InputStreamReader
 import java.io.FileReader
 import org.apache.commons.io.IOUtils
+import org.gilbertlang.optimizer.Optimizer
 import org.gilbertlang.runtime.Executables.Executable
 import org.gilbertlang.language.parser.Parser
 import org.gilbertlang.language.typer.Typer
@@ -40,14 +41,28 @@ object Gilbert {
     val parser = new Parser{}
     val typer = new Typer()
     val compiler = new Compiler{}
-    
+
     val ast = parser.parse(reader) match {
       case None => throw new ParseError("Could not parse input")
       case Some(astValue) => astValue
     }
-    
+
     val typedAST = typer.typeProgram(ast)
-    
+
     compiler.compile(typedAST)
+  }
+
+  def optimize(program: Executable, mmReorder: Boolean, transposePushdown: Boolean): Executable = {
+    val afterTransposePushdown = transposePushdown match {
+      case true => Optimizer.transposePushdown(program)
+      case false => program
+    }
+
+    val afterMMReordering = mmReorder match {
+      case true => Optimizer.mmReorder(afterTransposePushdown)
+      case false => afterTransposePushdown
+    }
+
+    afterMMReordering
   }
 }

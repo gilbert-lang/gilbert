@@ -134,6 +134,13 @@ object Executables {
   sealed trait Matrix extends ExpressionExecutable {
     def rows = getType.rows
     def cols = getType.cols
+    def size: Option[Int] = {
+      (rows, cols) match {
+        case (Some(r), Some(c)) => Some(r*c)
+        case _ => None
+      }
+    }
+
     def elementType = getType.elementType
 
     def transpose() = {

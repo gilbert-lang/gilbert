@@ -8,8 +8,7 @@ import scala.collection.convert.WrapAsScala
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
-import breeze.linalg.norm
-import breeze.linalg.*
+import breeze.linalg.{min, max, norm, *}
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 import org.gilbertlang.runtime.RuntimeTypes._
@@ -20,7 +19,6 @@ import org.gilbertlang.runtimeMacros.linalg.numerics
 import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
 import org.gilbertlang.runtime.Executables.WriteMatrix
 import org.gilbertlang.runtime.Executables.MatrixParameter
-import scala.Some
 import org.gilbertlang.runtime.Executables.ConvergenceCurrentStateCellArrayPlaceholder
 import org.gilbertlang.runtime.Executables.eye
 import org.gilbertlang.runtime.Executables.TypeConversionMatrix
@@ -203,7 +201,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
             { (_, scalar) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(scalar.write(completePathWithFilename, CsvOutputFormat(),
+              List(scalar.write(completePathWithFilename, CsvOutputFormat[Double](),
                 s"WriteScalarRef($completePathWithFilename)"))
             }
             })
@@ -517,17 +515,17 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
             {
               exec.operation match {
                 case Maximum =>
-                  matrix map { x => x.max } combinableReduceAll
+                  matrix map { x => max(x) } combinableReduceAll
                     { elements => elements.max }
                 case Minimum =>
-                  matrix map { x => x.min } combinableReduceAll
+                  matrix map { x => min(x) } combinableReduceAll
                     { elements => elements.min }
                 case Norm2 =>
                   matrix map { x => breeze.linalg.sum(x:*x) } combinableReduceAll
                     { x => x.fold(0.0)(_ + _) } map
                     { x => math.sqrt(x) }
                 case SumAll =>
-                  val blockwiseSum = matrix map { x => x.sum }
+                  val blockwiseSum = matrix map { x => breeze.linalg.sum(x) }
                   blockwiseSum.setName("Aggregate Matrix: Blockwise sum.")
                   val result = blockwiseSum combinableReduceAll( sums => sums.foldLeft(0.0)(_ + _))
                   result.setName("Aggregate Matrix: Sum all")

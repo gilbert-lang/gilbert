@@ -18,18 +18,16 @@
 
 package org.gilbertlang.runtime
 
+
 import org.gilbertlang.runtime.optimization.VolatileExpressionDetector
 import org.gilbertlang.runtime.shell.printPlan
-import java.io.ObjectOutputStream
-import java.io.ObjectInputStream
 import Executables._
 
 @SerialVersionUID(1l)
 trait Executor extends Serializable {
+  @transient private var symbolTable = Map[Int, Any]()
 
-  private var symbolTable = Map[Int, Any]()
-  
-  private var volatileExpressions = Set[Int]()
+  @transient private var volatileExpressions = Set[Int]()
   
   protected def clear() {
     symbolTable = Map[Int,Any]()

@@ -7,8 +7,9 @@ import org.gilbertlang.runtime.{local, withStratosphere}
 object SimpleExecutor {
 
   def main(args:Array[String]){
-    val executable = Gilbert.compileRessource("test.gb")
+    val executable = Gilbert.compileRessource("optimization.gb")
+    val optimized = Gilbert.optimize(executable, transposePushdown = true, mmReorder = true)
 
-    withStratosphere(executable).local(4)
+    withStratosphere(optimized).local(1)
   }
 }

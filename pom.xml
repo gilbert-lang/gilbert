@@ -18,6 +18,7 @@
     <scala.version>2.10.3</scala.version>
     <java.compatibility>1.6</java.compatibility>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <stratosphere.version>0.6-SNAPSHOT</stratosphere.version>
   </properties>
   
   <dependencyManagement>
@@ -83,7 +84,7 @@
       <dependency>
         <groupId>eu.stratosphere</groupId>
         <artifactId>stratosphere-scala</artifactId>
-        <version>0.5</version>
+        <version>${stratosphere.version}</version>
         <exclusions>
           <exclusion>
             <groupId>org.eclipse.jetty</groupId>
@@ -98,7 +99,7 @@
       <dependency>
         <groupId>eu.stratosphere</groupId>
         <artifactId>stratosphere-clients</artifactId>
-        <version>0.5</version>
+        <version>${stratosphere.version}</version>
         <exclusions>
           <exclusion>
             <groupId>org.eclipse.jetty</groupId>
