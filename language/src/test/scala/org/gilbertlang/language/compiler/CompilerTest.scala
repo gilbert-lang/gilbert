@@ -92,7 +92,7 @@ class CompilerTest extends Assertions {
     )
 
     val result = Gilbert.compileRessource(filename)
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testBooleanOperationCompilation() {
@@ -131,7 +131,7 @@ class CompilerTest extends Assertions {
     ))
     val result = Gilbert.compileRessource("booleanOperationCompilation.gb")
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testCellArrayCompilation(){
@@ -141,7 +141,7 @@ class CompilerTest extends Assertions {
 
     val result = Gilbert.compileRessource(filename)
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testCellArrayAnonymousFunctionCompilation(){
@@ -201,7 +201,7 @@ class CompilerTest extends Assertions {
 
     val result = Gilbert.compileRessource(filename)
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
 
   }
 
@@ -223,7 +223,7 @@ class CompilerTest extends Assertions {
 
     val result = Gilbert.compileRessource(filename)
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testNNMFCompilation() {
@@ -641,7 +641,7 @@ class CompilerTest extends Assertions {
 
     val result = Gilbert.compileRessource(filename)
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testGeneralization(){
@@ -650,7 +650,7 @@ class CompilerTest extends Assertions {
 
     val result = Gilbert.compileRessource(filename)
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testTypeWidening(){
@@ -737,7 +737,7 @@ class CompilerTest extends Assertions {
       )
     )
     val result = Gilbert.compileRessource(filename)
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 }
 

@@ -27,7 +27,7 @@ object TestUtils extends Parser with Assertions with Comparisons
       phrase(program)(reader) match {
         case Success(actual, next) =>
           assert(next.atEnd, "Input has not been read completely.")
-          expectResult(expected)(actual)
+          assertResult(expected)(actual)
         case _ => fail("Could not parse file " + filename)
       }
     }finally{

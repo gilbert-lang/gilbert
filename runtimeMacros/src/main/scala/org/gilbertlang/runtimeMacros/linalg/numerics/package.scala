@@ -1,8 +1,8 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import breeze.generic.UFunc
-import breeze.generic.MappingUFunc
-import breeze.linalg.Tensor
+import _root_.breeze.generic.UFunc
+import _root_.breeze.generic.MappingUFunc
+import _root_.breeze.linalg.Tensor
 
 package object numerics {
   object max extends UFunc {

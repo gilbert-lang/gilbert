@@ -1,12 +1,8 @@
-package org.gilbertlang.runtimeMacros.linalg.operators
+package org.gilbertlang.runtimeMacros.linalg.breeze.operators
 
-import breeze.macros.expand
-import breeze.linalg.operators.BinaryUpdateRegistry
 import breeze.linalg.Matrix
-import breeze.linalg.operators.BinaryRegistry
-import breeze.linalg.operators.OpAnd
-import breeze.linalg.operators.OpOr
-import breeze.linalg.operators.OpType
+import breeze.linalg.operators.{BinaryRegistry, BinaryUpdateRegistry, OpAnd, OpOr, OpType}
+import breeze.macros.expand
 
 trait BreezeMatrixRegistries {
   @expand

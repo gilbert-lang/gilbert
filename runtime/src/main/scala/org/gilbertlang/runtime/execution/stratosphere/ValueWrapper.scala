@@ -2,7 +2,7 @@ package org.gilbertlang.runtime.execution.stratosphere
 
 import eu.stratosphere.types.Value
 import java.io.{DataOutput, DataInput}
-import org.gilbertlang.runtimeMacros.linalg.{Submatrix, SubmatrixBoolean}
+import org.gilbertlang.runtimeMacros.linalg.{Submatrix, BooleanSubmatrix}
 
 
 class ValueWrapper(var value: Any) extends Value {
@@ -29,7 +29,7 @@ class ValueWrapper(var value: Any) extends Value {
       case x:Submatrix =>
         out.writeUTF(submatrixID)
         x.write(out)
-      case x:SubmatrixBoolean =>
+      case x:BooleanSubmatrix =>
         out.writeUTF(submatrixBooleanID)
         x.write(out)
     }
@@ -48,7 +48,7 @@ class ValueWrapper(var value: Any) extends Value {
         submatrix.read(in)
         value = submatrix
       case `submatrixBooleanID` =>
-        val submatrix = new SubmatrixBoolean()
+        val submatrix = new BooleanSubmatrix()
         submatrix.read(in)
         value = submatrix
 

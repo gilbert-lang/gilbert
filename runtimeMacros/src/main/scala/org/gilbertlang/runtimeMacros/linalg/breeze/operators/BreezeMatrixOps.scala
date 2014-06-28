@@ -1,16 +1,12 @@
-package org.gilbertlang.runtimeMacros.linalg.operators
+package org.gilbertlang.runtimeMacros.linalg.breeze.operators
 
 import breeze.linalg._
-import breeze.linalg.operators.OpLT
-import breeze.linalg.operators.OpGT
-import breeze.linalg.operators.OpEq
-import breeze.linalg.operators.OpNe
+import breeze.linalg.operators.{OpEq, OpGT, OpGTE, OpLT, OpLTE, OpNe}
+import breeze.linalg.support.{CanZipMapValues, CanMapValues}
 import breeze.macros.expand
-import breeze.linalg.operators.OpLTE
-import breeze.linalg.operators.OpGTE
-import org.gilbertlang.runtimeMacros.linalg.Bitmatrix
+import org.gilbertlang.runtimeMacros.linalg.breeze.Bitmatrix
 
-trait BreezeMatrixOps  {
+trait BreezeMatrixOps extends BreezeSparseMatrixImplicits  {
    
   @expand
   @expand.valify
@@ -43,6 +39,26 @@ trait BreezeMatrixOps  {
       }
       
       result
+    }
+  }
+
+  implicit def canMapValues: CanMapValues[Matrix[Double], Double, Double, Matrix[Double]] = {
+    new CanMapValues[Matrix[Double], Double, Double, Matrix[Double]]{
+      def map(from : Matrix[Double], func: Double => Double): Matrix[Double] = {
+        from match {
+          case m: DenseMatrix[Double] => m.map(func)
+          case m: CSCMatrix[Double] => m.map(func)
+          case _ => throw new IllegalArgumentException("Type " + from.getClass + " is not supported.")
+        }
+      }
+
+      def mapActive(from: Matrix[Double], func: Double => Double): Matrix[Double] = {
+        from match {
+          case m: DenseMatrix[Double] => m.mapActiveValues(func)
+          case m: CSCMatrix[Double] => m.mapActiveValues(func)
+          case _ => throw new IllegalArgumentException("Type " + from.getClass + " is not supported.")
+        }
+      }
     }
   }
 }

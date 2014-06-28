@@ -2,7 +2,7 @@ package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
 import eu.stratosphere.client.LocalExecutor
-import org.gilbertlang.runtime.{local, withStratosphere}
+import org.gilbertlang.runtime.{withSpark, local, withStratosphere}
 
 object SimpleExecutor {
 
@@ -10,6 +10,6 @@ object SimpleExecutor {
     val executable = Gilbert.compileRessource("optimization.gb")
     val optimized = Gilbert.optimize(executable, transposePushdown = true, mmReorder = true)
 
-    withStratosphere(optimized).local(1)
+    withSpark(optimized).local(4)
   }
 }

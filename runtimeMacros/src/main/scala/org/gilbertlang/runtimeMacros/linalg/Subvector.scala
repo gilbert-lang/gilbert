@@ -1,67 +1,26 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import breeze.linalg.{Vector => BreezeVector, VectorLike => BreezeVectorLike}
-import org.gilbertlang.runtimeMacros.linalg.operators.SubvectorOps
-import breeze.linalg.support.CanZipMapValues
-import breeze.linalg.support.CanMapValues
-import scala.reflect.ClassTag
-import breeze.storage.DefaultArrayValue
-import breeze.math.Semiring
+case class Subvector(val vectorValue: DoubleVectorValue, index: Int, offset: Int, totalEntries: Int) {
 
-case class Subvector(vector: GilbertVector, index: Int, offset: Int, totalEntries: Int) extends 
-  BreezeVector[Double] with BreezeVectorLike[Double, Subvector]{
-  
-  def this() = this(null,0,0,0)
-  
-  def length = vector.length
-  
-  def repr = this
+  def vector: DoubleVector = vectorValue.vector
 
-  def indexRange = offset until (offset + length)
-  
-  def activeSize = vector.activeSize
-  override def iterator = vector.iterator map { case (idx, value) => (idx + offset, value)}
-  override def keysIterator = vector.keysIterator map { key => key + offset }
-  def activeIterator = vector.activeIterator map { case (idx, value) => (idx + offset, value)}
-  def activeValuesIterator = vector.activeValuesIterator
-  def activeKeysIterator = vector.activeKeysIterator map { key => key + offset }
-  
-  def update(i: Int, value: Double) = vector.update(i-offset,value)
-  
-  def apply(i: Int) = vector(i-offset)
-  
-  def copy = Subvector(vector.copy, index, offset, totalEntries)
-  
-  
-  def asMatrix:Submatrix = {
+  def copy: Subvector = Subvector(vector.copy, index, offset, totalEntries)
+
+  def iterator: Iterator[(Int, Double)] = vector.iterator map { case (key, value) => (key + offset, value)}
+
+  def asMatrix: Submatrix = {
     Submatrix(vector.asMatrix, index, 0, offset, 0, totalEntries, 1)
   }
-  
-  override def toString: String = {
-    val subvectorInfo = s"Subvectr[Index: $index, Offset: $offset, TotalEntries: $totalEntries]"
-    
-    if(vector != null)
-      subvectorInfo + "\n"+ vector
-    else
-        subvectorInfo
+
+  def +(subvector: Subvector) = {
+    Subvector(vector + subvector.vector, index, offset, totalEntries)
+  }
+
+  def :/=(op: Double): Subvector = {
+    Subvector(vector :/= op, index, offset, totalEntries)
+  }
+
+  def :/=(op: Subvector): Subvector = {
+    Subvector(vector :/= op.vector, index, offset, totalEntries)
   }
 }
-
-object Subvector extends SubvectorOps{
-  def apply(size:Int, index: Int, offset: Int, totalEntries: Int): Subvector = {
-    Subvector(GilbertVector(size),index, offset, totalEntries)
-  }
-  
-  implicit def canZipMapValues:CanZipMapValues[Subvector, Double, Double, Subvector] = {
-    new CanZipMapValues[Subvector, Double, Double, Subvector]{
-      override def map(a: Subvector, b: Subvector, fn: (Double, Double) => Double) = {
-        val mapper = implicitly[CanZipMapValues[GilbertVector, Double, Double, GilbertVector]]
-        val result = mapper.map(a.vector, b.vector, fn)
-        Subvector(result, a.index, a.offset, a.totalEntries)
-      }
-    }
-  }
-  
-  implicit def handholdCMV[T]: CanMapValues.HandHold[Subvector, Double] = new CanMapValues.HandHold[Subvector, Double]
-}
-

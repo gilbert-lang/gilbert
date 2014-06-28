@@ -21,7 +21,7 @@ class LogicalOperationsTest extends Assertions {
     val typer = new Typer()
     val result = typer.typeProgram(ast)
     
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
   
   @Test def testLogicalAnd() {
@@ -49,7 +49,7 @@ class LogicalOperationsTest extends Assertions {
     val typer = new Typer{}
     val result = typer.typeProgram(ast)
     
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
   
 }

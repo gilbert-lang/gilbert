@@ -35,7 +35,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
 
       val result = lex(streamReader)
 
-      expectResult(expected)(result)
+      assertResult(expected)(result)
     } finally {
       IOUtils.closeQuietly(fileReader)
     }
@@ -47,7 +47,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
 
     val result = lex(input)
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testZeroLexing() {
@@ -62,7 +62,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
       val streamReader = StreamReader(fileReader)
       val result = lex(streamReader)
       
-      expectResult(expected)(result)
+      assertResult(expected)(result)
     }finally{
       IOUtils.closeQuietly(fileReader)
     }
@@ -77,7 +77,7 @@ class LexerTest extends Lexer with DiscardWhitespaces with Assertions {
       val streamReader = StreamReader(inputReader)
       val result = lex(streamReader)
 
-      expectResult(expected)(result)
+      assertResult(expected)(result)
     }finally{
       IOUtils.closeQuietly(inputReader)
     }

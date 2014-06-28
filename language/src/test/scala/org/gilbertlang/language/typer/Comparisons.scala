@@ -32,7 +32,7 @@ trait Comparisons extends Assertions {
   def checkProgram(expected: TypedProgram, actual: TypedProgram) {
     (expected, actual) match {
       case (TypedProgram(exp), TypedProgram(act)) =>
-        expectResult(exp.length)(act.length)
+        assertResult(exp.length)(act.length)
         exp.zip(act).foreach({ case (a, b) => checkStmtOrFuncEquality(a, b) })
       case _ => fail("expected and actual are not of type TypedProgram")
     }
@@ -64,10 +64,10 @@ trait Comparisons extends Assertions {
     (expected, actual) match {
       case (TypedFunction(expResult, expId, expParams, expBody),
         TypedFunction(actResult, actId, actParams, actBody)) =>
-        expectResult(expResult.length)(actResult.length)
+        assertResult(expResult.length)(actResult.length)
         expResult zip actResult foreach { case (e, a) => checkIdentifier(e, a) }
         checkIdentifier(expId, actId)
-        expectResult(expParams.length)(actParams.length)
+        assertResult(expParams.length)(actParams.length)
         expParams zip actParams foreach { case (e, a) => checkIdentifier(e, a) }
         checkProgram(expBody, actBody)
     }
@@ -78,34 +78,34 @@ trait Comparisons extends Assertions {
       case (e: TypedIdentifier, a: TypedIdentifier) => checkIdentifier(e, a)
       case (TypedMatrix(expRows, expMType), TypedMatrix(actRows, actMType)) =>
         checkType(expMType, actMType)
-        expectResult(expRows.length)(actRows.length)
+        assertResult(expRows.length)(actRows.length)
         expRows zip actRows foreach {
           case (TypedMatrixRow(expEntries), TypedMatrixRow(actEntries)) =>
-            expectResult(expEntries.length)(actEntries.length)
+            assertResult(expEntries.length)(actEntries.length)
             expEntries zip actEntries foreach { case (e, a) => checkExpression(e, a) }
         }
       case (TypedUnaryExpression(exp, expOp, expType), TypedUnaryExpression(act, actOp, actType)) =>
         checkExpression(exp, act)
-        expectResult(expOp)(actOp)
+        assertResult(expOp)(actOp)
         checkType(expType, actType)
       case (TypedBinaryExpression(expA, expOp, expB, expType),
         TypedBinaryExpression(actA, actOp, actB, actType)) =>
         checkExpression(expA, actA)
         checkExpression(expB, actB)
-        expectResult(expOp)(actOp)
+        assertResult(expOp)(actOp)
         checkType(expType, actType)
       case (TypedFunctionApplication(expFunc, expParams, expType),
         TypedFunctionApplication(actFunc, actParams, actType)) =>
         checkExpression(expFunc, actFunc)
-        expectResult(expParams.length)(actParams.length)
+        assertResult(expParams.length)(actParams.length)
         expParams zip actParams foreach { case (e, a) => checkExpression(e, a) }
         checkType(expType, actType)
       case (TypedAnonymousFunction(expParams, expBody, expClosure, expType),
           TypedAnonymousFunction(actParams, actBody, actClosure, actType)) =>
-        expectResult(expParams.length)(actParams.length)
+        assertResult(expParams.length)(actParams.length)
         expParams zip actParams foreach { case(e,a) => checkIdentifier(e,a)}
-        expectResult(expClosure.length)(actClosure.length)
-        expClosure zip actClosure foreach { case (e,a) => expectResult(e)(a)}
+        assertResult(expClosure.length)(actClosure.length)
+        expClosure zip actClosure foreach { case (e,a) => assertResult(e)(a)}
         checkExpression(expBody, actBody)
         checkType(expType, actType)
       case (TypedFunctionReference(exp, expType), TypedFunctionReference(act, actType)) =>
@@ -119,35 +119,35 @@ trait Comparisons extends Assertions {
         checkExpression(cellArrayA, cellArrayB)
         assert(indexA == indexB)
         checkType(typeA, typeB)
-      case _ => expectResult(expected)(actual)
+      case _ => assertResult(expected)(actual)
     }
   }
 
   def checkIdentifier(expected: TypedIdentifier, actual: TypedIdentifier) {
     checkType(expected.datatype, actual.datatype)
-    expectResult(expected.value)(actual.value)
+    assertResult(expected.value)(actual.value)
   }
   
   def checkType(expected: Type, actual: Type) {
     (expected, actual) match {
       case (UniversalType(exp), UniversalType(act)) =>
         val resolvedExp = universalTypeMapping.getOrElseUpdate(exp, act)
-        expectResult(resolvedExp)(act)
+        assertResult(resolvedExp)(act)
       case (e: AbstractTypeVar, a: AbstractTypeVar) =>
         val resolvedExp = typeVarMapping.getOrElseUpdate(e,a)
-        expectResult(resolvedExp)(a)
+        assertResult(resolvedExp)(a)
       case (FunctionType(expArgs, expResult), FunctionType(actArgs, actResult)) =>
       case (PolymorphicType(exp), PolymorphicType(act)) =>
-        expectResult(exp.length)(act.length)
+        assertResult(exp.length)(act.length)
         exp zip act foreach { case(e,a) => checkType(e,a)}
       case (MatrixType(expEType, expRows, expCols), MatrixType(actEType, actRows, actCols)) =>
         checkType(expEType,actEType)
         checkValue(expRows,actRows)
         checkValue(expCols, actCols)
       case (a: CellArrayType, b: CellArrayType) =>
-        expectResult(a.types.length)(b.types.length)
+        assertResult(a.types.length)(b.types.length)
         a.types zip b.types foreach { case (typeA,typeB) => checkType(typeA,typeB)}
-      case _ => expectResult(expected)(actual)
+      case _ => assertResult(expected)(actual)
     }
   }
   
@@ -155,11 +155,11 @@ trait Comparisons extends Assertions {
     (expected, actual) match{
       case (UniversalValue(exp), UniversalValue(act)) =>
         val resolvedExp = universalValueMapping.getOrElseUpdate(exp,act)
-        expectResult(resolvedExp)(act)
+        assertResult(resolvedExp)(act)
       case (exp: ValueVar, act: ValueVar) =>
         val resolvedExp = valueVarMapping.getOrElseUpdate(exp,act)
-        expectResult(resolvedExp)(act)
-      case _ => expectResult(expected)(actual)
+        assertResult(resolvedExp)(act)
+      case _ => assertResult(expected)(actual)
     }
   }
 }

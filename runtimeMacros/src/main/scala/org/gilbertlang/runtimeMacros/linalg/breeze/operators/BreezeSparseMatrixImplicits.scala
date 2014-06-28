@@ -1,12 +1,12 @@
-package org.gilbertlang.runtimeMacros.linalg.operators
+package org.gilbertlang.runtimeMacros.linalg.breeze.operators
 
-import scala.reflect.ClassTag
-import breeze.linalg.support.{CanCollapseAxis, CanZipMapValues, CanSlice2, CanCopy}
-import breeze.linalg.{Axis, SparseVector, CSCMatrix}
+import breeze.linalg.support.{CanCollapseAxis, CanCopy, CanSlice2, CanZipMapValues}
+import breeze.linalg.{Axis, CSCMatrix, SparseVector}
 import breeze.math.Semiring
 import breeze.storage.DefaultArrayValue
-import scala.collection.mutable.ArrayBuilder
+
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
  * Created by till on 01/04/14.

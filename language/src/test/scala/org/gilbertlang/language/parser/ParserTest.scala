@@ -39,7 +39,7 @@ class ParserTest extends Parser with Assertions {
 
     functionParams(input) match {
       case Success(result, in) =>
-        expectResult(expected)(result)
+        assertResult(expected)(result)
       case _ => fail()
     }
   }
@@ -51,7 +51,7 @@ class ParserTest extends Parser with Assertions {
     identifierList(input) match {
       case Success(result, in) =>
         assert(in.first == EOF)
-        expectResult(expected)(result)
+        assertResult(expected)(result)
       case _ => fail()
     }
 

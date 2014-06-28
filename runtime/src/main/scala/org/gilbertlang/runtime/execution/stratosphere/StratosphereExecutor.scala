@@ -1,14 +1,15 @@
 package org.gilbertlang.runtime.execution.stratosphere
 
+import _root_.breeze.linalg.{*, norm, min, max}
 import breeze.stats.distributions.Gaussian
 import org.gilbertlang.runtime.Executor
 import eu.stratosphere.api.scala.operators.{CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
 import eu.stratosphere.api.scala._
+import org.gilbertlang.runtimeMacros.linalg.operators.{SubvectorImplicits, SubmatrixImplicits}
 import scala.collection.convert.WrapAsScala
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
-import breeze.linalg.{min, max, norm, *}
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 import org.gilbertlang.runtime.RuntimeTypes._
@@ -69,11 +70,12 @@ import org.gilbertlang.runtime.Executables.WriteString
 import scala.language.postfixOps
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 
-class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
+class StratosphereExecutor(val path: String) extends Executor with WrapAsScala with SubmatrixImplicits with
+SubvectorImplicits  {
   import ImplicitConversions._
 
   type Matrix = DataSet[Submatrix]
-  type BooleanMatrix = DataSet[SubmatrixBoolean]
+  type BooleanMatrix = DataSet[BooleanSubmatrix]
   type Scalar[T] = DataSet[T]
   type CellArray = DataSet[CellEntry]
   private var tempFileCounter = 0
@@ -116,7 +118,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
             { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(SubmatrixBoolean.outputFormatter("\n", " "),
+              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(BooleanSubmatrix.outputFormatter("\n", " "),
                 ""), s"WriteMatrix($completePathWithFilename)"))
             }
             })
@@ -521,11 +523,11 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
                   matrix map { x => min(x) } combinableReduceAll
                     { elements => elements.min }
                 case Norm2 =>
-                  matrix map { x => breeze.linalg.sum(x:*x) } combinableReduceAll
+                  matrix map { x => _root_.breeze.linalg.sum(x:*x) } combinableReduceAll
                     { x => x.fold(0.0)(_ + _) } map
                     { x => math.sqrt(x) }
                 case SumAll =>
-                  val blockwiseSum = matrix map { x => breeze.linalg.sum(x) }
+                  val blockwiseSum = matrix map { x => _root_.breeze.linalg.sum(x) }
                   blockwiseSum.setName("Aggregate Matrix: Blockwise sum.")
                   val result = blockwiseSum combinableReduceAll( sums => sums.foldLeft(0.0)(_ + _))
                   result.setName("Aggregate Matrix: Sum all")
@@ -734,12 +736,16 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
             case (_, (left, right)) =>
               left join right where { leftElement => leftElement.columnIndex } isEqualTo
                 { rightElement => rightElement.rowIndex } map
-                { (left, right) => left * right } groupBy
+                { (left, right) =>
+                  val result = left * right
+                  result
+                } groupBy
                 { element => (element.rowIndex, element.columnIndex) } combinableReduceGroup
                 { elements =>
                   {
                     val element = elements.next().copy
-                    elements.foldLeft(element)({ _ + _ })
+                    val result = elements.foldLeft(element)({ _ + _ })
+                    result
                   }
                 }
           })
@@ -772,19 +778,19 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
                     matrix where { l1norm => l1norm.index } isEqualTo { submatrix => submatrix.rowIndex } map
                     { (l1norm, submatrix) =>
                       val result = submatrix.copy
-                      for(col <- 0 until submatrix.cols)
+                      for(col <- submatrix.colRange)
                         result(::, col) :/= l1norm
 
                       result
                     }
                 case Maximum =>
-                  matrix map { submatrix => numerics.max(submatrix(*, ::)) } groupBy
+                  matrix map { submatrix => max(submatrix(*, ::)) } groupBy
                     { subvector => subvector.index } combinableReduceGroup { subvectors =>
                       val firstElement = subvectors.next().copy
                       subvectors.foldLeft(firstElement) { numerics.max(_, _) }
                     } map { subvector => subvector.asMatrix }
                 case Minimum =>
-                  matrix map { submatrix => numerics.min(submatrix(*, ::)) } groupBy
+                  matrix map { submatrix => min(submatrix(*, ::)) } groupBy
                     { subvector => subvector.index } combinableReduceGroup { subvectors =>
                       val firstElement = subvectors.next().copy
                       subvectors.foldLeft(firstElement) { numerics.min(_, _) }
@@ -793,7 +799,8 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
                   val squaredValues = matrix map { submatrix => submatrix :^ 2.0 }
                   squaredValues.setName("VWM: Norm2 squared values")
 
-                  val sumSquaredValues = squaredValues map { submatrix => breeze.linalg.sum(submatrix(*, ::)) } groupBy
+                  val sumSquaredValues = squaredValues map { submatrix => _root_.breeze.linalg.sum(submatrix(*,
+                    ::)) } groupBy
                     { subvector => subvector.index } combinableReduceGroup
                     { subvectors =>
                       val firstSubvector = subvectors.next().copy
@@ -963,7 +970,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix map { submatrix => breeze.linalg.sum(submatrix(*, ::)) } groupBy
+              matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(*, ::)) } groupBy
                 { subvector => subvector.index } combinableReduceGroup
                 { subvectors =>
                   val firstSubvector = subvectors.next().copy
@@ -979,7 +986,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix map { submatrix => breeze.linalg.sum(submatrix(::, *)) } groupBy
+              matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(::, *)) } groupBy
                 { submatrix => submatrix.columnIndex } combinableReduceGroup
                 { subvectors =>
                   val firstSubvector = subvectors.next().copy
@@ -1172,9 +1179,9 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
             case (_, (matrix, scalar)) =>
               scalar cross matrix map { (scalar, submatrix) =>
                 if (scalar == 1) {
-                  (submatrix.columnIndex, breeze.linalg.sum(submatrix(::, *)))
+                  (submatrix.columnIndex, _root_.breeze.linalg.sum(submatrix(::, *)))
                 } else {
-                  (submatrix.rowIndex, breeze.linalg.sum(submatrix(*, ::)).asMatrix)
+                  (submatrix.rowIndex, _root_.breeze.linalg.sum(submatrix(*, ::)).asMatrix)
                 }
               } groupBy { case (group, subvector) => group } combinableReduceGroup { submatrices =>
                 val firstSubvector = submatrices.next()
@@ -1272,7 +1279,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
               filtered map {
                 x => x.wrappedValue[Submatrix]}
             case MatrixType(BooleanType,_,_) =>
-              filtered map { x => x.wrappedValue[SubmatrixBoolean]}
+              filtered map { x => x.wrappedValue[BooleanSubmatrix]}
           }
         }
         )
@@ -1475,7 +1482,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
                       throw new IllegalArgumentError("LoadMatrix coGroup phase must have at most one block")
                     }
 
-                    SubmatrixBoolean(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
+                    BooleanSubmatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
                 }
                 result.setName("Repmat: Repeated matrix")
                 result
@@ -1649,7 +1656,7 @@ class StratosphereExecutor(val path: String) extends Executor with WrapAsScala {
                   val newEntries = for(rowA <- a.rowRange; rowB <- b.rowRange) yield {
                     val diff = a(rowA,::) - b(rowB,::)
                     val diffsq = diff :^ 2.0
-                    val summedDiff = breeze.linalg.sum(diffsq)
+                    val summedDiff = _root_.breeze.linalg.sum(diffsq)
                     (rowA, rowB, summedDiff)
                   }
 

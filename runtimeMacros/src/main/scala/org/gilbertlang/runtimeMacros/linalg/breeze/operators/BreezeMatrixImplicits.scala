@@ -1,13 +1,13 @@
-package org.gilbertlang.runtimeMacros.linalg.operators
+package org.gilbertlang.runtimeMacros.linalg.breeze.operators
 
-import scala.reflect.ClassTag
-import breeze.linalg.support._
 import breeze.linalg._
-import breeze.storage.DefaultArrayValue
-import breeze.math.Semiring
 import breeze.linalg.support.CanTraverseValues.ValuesVisitor
-import scala.language.implicitConversions
-import scala.language.postfixOps
+import breeze.linalg.support._
+import breeze.math.Semiring
+import breeze.storage.DefaultArrayValue
+
+import scala.language.{implicitConversions, postfixOps}
+import scala.reflect.ClassTag
 
 /**
  * Created by till on 01/04/14.
@@ -63,7 +63,8 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canTransposeMatrix[@specialized(Double, Boolean) T:ClassTag:DefaultArrayValue:Semiring]: CanTranspose[Matrix[T], Matrix[T]] = {
+  implicit def canTransposeMatrixBM[@specialized(Double, Boolean) T:ClassTag:DefaultArrayValue:Semiring]:
+  CanTranspose[Matrix[T], Matrix[T]] = {
     new CanTranspose[Matrix[T], Matrix[T]]{
       override def apply(from: Matrix[T]):Matrix[T] = {
         from match {
@@ -78,7 +79,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canTraverseValues[T]:CanTraverseValues[Matrix[T], T] = {
+  implicit def canTraverseValuesBM[@specialized(Double, Boolean) T]:CanTraverseValues[Matrix[T], T] = {
     new CanTraverseValues[Matrix[T], T] {
       override def isTraversableAgain(matrix: Matrix[T]):Boolean = true
 
@@ -218,21 +219,4 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
   implicit def handholdCanMapRowsMatrix[T: ClassTag: DefaultArrayValue: Semiring]: CanCollapseAxis
   .HandHold[Matrix[T], Axis._0.type, Vector[T]] =
     new CanCollapseAxis.HandHold[Matrix[T], Axis._0.type, Vector[T]]()
-
-
-  class VectorDecorator[T:ClassTag:Semiring:DefaultArrayValue](vector: Vector[T]) extends BreezeVectorImplicits{
-
-    def asMatrix: Matrix[T] = {
-      vector match {
-        case x: DenseVector[T] => x.asDenseMatrix.t
-        case x: SparseVector[T] => x.asSparseMatrix
-        case x =>
-          val result = DenseMatrix.zeros[T](vector.length, 1)
-          vector.activeIterator foreach { case (idx, value) => result.update(idx,0,value)}
-          result
-      }
-    }
-  }
-
-  implicit def vectorDecorator[T:ClassTag:Semiring:DefaultArrayValue](vector: Vector[T]):VectorDecorator[T] = new VectorDecorator(vector)
 }

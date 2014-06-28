@@ -1,42 +1,58 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import breeze.linalg.{ Matrix => BreezeMatrix, MatrixLike => BreezeMatrixLike, Vector => BreezeVector}
-import breeze.stats.distributions.{Uniform, Rand}
-import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixOps
-import breeze.linalg.support._
-import CanTraverseValues.ValuesVisitor
-import breeze.linalg.Axis
+import _root_.breeze.linalg.support.CanSlice2
+import _root_.breeze.stats.distributions.{Uniform, Rand}
 import eu.stratosphere.types.Value
 import java.io.{DataInput, DataOutput}
 
-case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
-  var columnOffset: Int, var totalRows: Int, var totalColumns: Int) extends BreezeMatrix[Double] with 
-  BreezeMatrixLike[Double, Submatrix] with Value {
+import org.gilbertlang.runtimeMacros.linalg.breeze.BreezeDoubleMatrixFactory
+import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixImplicits
+import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
-  override def rows = matrix.rows
-  override def cols = matrix.cols
+case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var columnIndex: Int,
+                     var rowOffset: Int, var columnOffset: Int, var totalRows: Int,
+                     var totalColumns: Int) extends Value {
+
+  implicit def boolean2BooleanSubmatrix(matrix: BooleanMatrix): BooleanSubmatrix = {
+    BooleanSubmatrix(matrix, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
+  }
+
+  def matrix = matrixValue.matrix
+
+  def rows = matrix.rows
+  def cols = matrix.cols
 
   def rowRange = rowOffset until (rowOffset + rows)
   def colRange = columnOffset until (columnOffset + cols)
 
-  override def apply(i: Int, j: Int): Double = matrix(i-rowOffset, j-columnOffset)
+  def apply(i: Int, j: Int): Double = matrix(i-rowOffset, j-columnOffset)
+  def apply[Slice1, Slice2, Result](slice1: Slice1, slice2: Slice2)(implicit canSlice: CanSlice2[Submatrix, Slice1,
+    Slice2, Result]): Result = {
+    canSlice(this, slice1, slice2)
+  }
 
-  override def copy = new Submatrix(this.matrix.copy, rowIndex, columnIndex,
+  def mapActiveValues(func: Double => Double): Submatrix = {
+    Submatrix(matrix.mapActiveValues(func), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
+  }
+
+  def copy = new Submatrix(this.matrix.copy, rowIndex, columnIndex,
       rowOffset, columnOffset, totalRows, totalColumns)
 
-  override def update(i: Int, j: Int, value: Double) = matrix.update(i-rowOffset, j-columnOffset, value)
+  def update(i: Int, j: Int, value: Double) = matrix.update((i-rowOffset, j-columnOffset), value)
 
-  override def repr = this
+//  override def repr = this
 
-  override def iterator = matrix.iterator map { case ((row, col), value ) => ((row + rowOffset, col + columnOffset),
-    value)}
-  override def keysIterator = matrix.keysIterator map { case (row, col) => (row+ rowOffset, col + columnOffset)}
+//  override def iterator = matrix.iterator map { case ((row, col), value ) => ((row + rowOffset, col + columnOffset),
+//    value)}
+//  override def keysIterator = matrix.keysIterator map { case (row, col) => (row+ rowOffset, col + columnOffset)}
   def activeIterator = matrix.activeIterator map { case ((row, col), value) => ((row+ rowOffset, col + columnOffset),
-    value)}
-  def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}
-  def activeValuesIterator = matrix.activeValuesIterator
-
-  def activeSize = matrix.activeSize
+  value)}
+  def iterator: Iterator[((Int, Int), Double)] = matrix.iterator map { case ((row, col), value) => ((row + rowOffset,
+   col + columnOffset), value)}
+//  def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}
+//  def activeValuesIterator = matrix.activeValuesIterator
+//
+//  def activeSize = matrix.activeSize
 
   def this() = this(null, -1, -1, -1, -1, -1, -1)
 
@@ -55,8 +71,67 @@ case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnInd
   
   def getPartition = Partition(-1, rowIndex, columnIndex, rows, cols, rowOffset, columnOffset, totalRows, totalColumns)
 
-  override def write(out: DataOutput){
-    matrix.write(out)
+  def +(op: Submatrix): Submatrix = { Submatrix(matrix + op.matrix, rowIndex, columnIndex, rowOffset,
+    columnOffset, totalRows, totalColumns) }
+  def -(op: Submatrix): Submatrix = { Submatrix(matrix - op.matrix, rowIndex, columnIndex, rowOffset, columnOffset,
+    totalRows, totalColumns)}
+  def /(op: Submatrix): Submatrix = { Submatrix(matrix / op.matrix, rowIndex, columnIndex, rowOffset, columnOffset,
+    totalRows, totalColumns)}
+  def :/(op: Submatrix): Submatrix = { Submatrix(matrix / op.matrix, rowIndex, columnIndex, rowOffset, columnOffset,
+    totalRows, totalColumns)}
+  def *(op: Submatrix): Submatrix = { Submatrix(matrix * op.matrix, rowIndex, op.columnIndex, rowOffset,
+    op.columnOffset,totalRows, op.totalColumns)}
+  def :^(op: Submatrix): Submatrix = { Submatrix(matrix :^ op.matrix, rowIndex, columnIndex, rowOffset, columnOffset,
+    totalRows, totalColumns)
+  }
+
+  def :*(op: Submatrix): Submatrix = { Submatrix(matrix:* op.matrix, rowIndex, columnIndex, rowOffset, columnOffset,
+    totalRows, totalColumns)}
+
+  def +(sc: Double): Submatrix = { Submatrix(matrix + sc, rowIndex, columnIndex, rowOffset, columnOffset, totalRows,
+    totalColumns)}
+  def -(sc: Double): Submatrix = { Submatrix(matrix - sc, rowIndex, columnIndex, rowOffset, columnOffset, totalRows,
+    totalColumns)}
+  def /(sc: Double): Submatrix = { Submatrix(matrix / sc, rowIndex, columnIndex, rowOffset, columnOffset, totalRows,
+    totalColumns)}
+  def *(sc: Double): Submatrix = { Submatrix(matrix * sc, rowIndex, columnIndex, rowOffset, columnOffset, totalRows,
+    totalColumns)}
+  def :^(sc: Double): Submatrix = { Submatrix(matrix :^ sc, rowIndex, columnIndex, rowOffset, columnOffset,
+    totalRows, totalColumns)}
+
+  def :>(m: Submatrix) : BooleanSubmatrix = { matrix :> m.matrix }
+  def :>=(m: Submatrix): BooleanSubmatrix = { matrix :>= m.matrix }
+  def :<(m: Submatrix): BooleanSubmatrix = { matrix :< m.matrix }
+  def :<=(m: Submatrix): BooleanSubmatrix = { matrix :<= m.matrix }
+  def :==(m: Submatrix): BooleanSubmatrix = { matrix :== m.matrix }
+  def :!=(m: Submatrix): BooleanSubmatrix = { matrix :!= m.matrix }
+
+  def :>(sc: Double): BooleanSubmatrix = { BooleanSubmatrix(matrix :> sc, rowIndex, columnIndex, rowOffset,
+    columnOffset,
+    totalRows, totalColumns)}
+  def :>=(sc: Double): BooleanSubmatrix = { BooleanSubmatrix(matrix :>= sc, rowIndex, columnIndex, rowOffset,
+    columnOffset,
+    totalRows, totalColumns)}
+  def :<(sc: Double): BooleanSubmatrix = { BooleanSubmatrix(matrix :< sc, rowIndex, columnIndex, rowOffset,
+    columnOffset,
+    totalRows, totalColumns)}
+  def :<=(sc: Double): BooleanSubmatrix = { BooleanSubmatrix(matrix :<= sc, rowIndex, columnIndex, rowOffset,
+    columnOffset,
+    totalRows, totalColumns)}
+  def :==(sc: Double): BooleanSubmatrix = { BooleanSubmatrix(matrix :== sc, rowIndex, columnIndex, rowOffset,
+    columnOffset,
+    totalRows, totalColumns)}
+  def :!=(sc: Double): BooleanSubmatrix = { BooleanSubmatrix(matrix :!= sc, rowIndex, columnIndex, rowOffset,
+    columnOffset,
+    totalRows, totalColumns)}
+
+
+  def t: Submatrix = {
+    Submatrix(matrix.t, columnIndex, rowIndex, columnOffset, rowOffset, totalColumns, totalRows)
+  }
+
+  def write(out: DataOutput): Unit = {
+    matrixValue.write(out)
     out.writeInt(rowIndex)
     out.writeInt(columnIndex)
     out.writeInt(rowOffset)
@@ -65,9 +140,9 @@ case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnInd
     out.writeInt(totalColumns)
   }
 
-  override def read(in: DataInput){
-    matrix = new GilbertMatrix()
-    matrix.read(in)
+  def read(in: DataInput): Unit = {
+    matrixValue = new DoubleMatrixValue()
+    matrixValue.read(in)
     rowIndex = in.readInt()
     columnIndex = in.readInt()
     rowOffset = in.readInt()
@@ -77,46 +152,48 @@ case class Submatrix(var matrix: GilbertMatrix, var rowIndex: Int, var columnInd
   }
 }
 
-object Submatrix extends SubmatrixOps {
-    
-  implicit def canCopySubmatrix:CanCopy[Submatrix] = new CanCopy[Submatrix]{
-    override def apply(submatrix: Submatrix): Submatrix = {
-      import submatrix._
-      Submatrix(breeze.linalg.copy(submatrix.matrix), rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
-    }
-  }
+object Submatrix extends SubmatrixImplicits {
+  var matrixFactory: DoubleMatrixFactory = BreezeDoubleMatrixFactory
 
   def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,Double)]): Submatrix = {
     import partitionInformation._
     val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
-    val gilbertMatrix = GilbertMatrix(numRows, numColumns, adjustedEntries)
-    Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
+
+    val dense = adjustedEntries.size.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
+
+    val matrix = matrixFactory.create(numRows, numColumns, adjustedEntries, dense)
+    Submatrix(matrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
   }
 
 
   def apply(partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix = {
       import partitionInformation._
-      Submatrix(GilbertMatrix(numRows, numColumns, numNonZeroElements), rowIndex, columnIndex, rowOffset,
+
+      val dense = numNonZeroElements.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
+
+      Submatrix(matrixFactory.create(numRows, numColumns, dense), rowIndex, columnIndex, rowOffset,
           columnOffset, numTotalRows, numTotalColumns)
     }
     
     def init(partitionInformation: Partition, initialValue: Double): Submatrix = {
-      Submatrix(GilbertMatrix.init(partitionInformation.numRows, partitionInformation.numColumns, initialValue),
-          partitionInformation.rowIndex, partitionInformation.columnIndex, partitionInformation.rowOffset,
-          partitionInformation.columnOffset, partitionInformation.numTotalRows, partitionInformation.numTotalColumns)
+      import partitionInformation._
+      Submatrix(matrixFactory.init(numRows, numColumns, initialValue, dense = true), rowIndex, columnIndex,
+        rowOffset, columnOffset, numTotalRows, numTotalColumns)
     }
     
     def eye(partitionInformation: Partition): Submatrix = {
       import partitionInformation._
 
-      val gilbertMatrix = containsDiagonal(partitionInformation) match {
-        case None => GilbertMatrix(numRows, numColumns)
+      val matrix = containsDiagonal(partitionInformation) match {
+        case None => matrixFactory.create(numRows, numColumns, dense = false)
         case Some(startIdx) =>
           val (startRow, startColumn) = (startIdx - rowOffset, startIdx - columnOffset)
-          GilbertMatrix.eye(numRows, numColumns, startRow, startColumn)
+          val dense = math.min(numRows-startRow, numColumns-startColumn).toDouble/(numRows*numColumns) >
+            Configuration.DENSITYTHRESHOLD
+          matrixFactory.eye(numRows, numColumns, startRow, startColumn, dense)
       }
 
-      Submatrix(gilbertMatrix, rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
+      Submatrix(matrix, rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
           numTotalColumns)
     }
 
@@ -136,7 +213,7 @@ object Submatrix extends SubmatrixOps {
     
     def rand(partition: Partition, random: Rand[Double] = new Uniform(0,1)): Submatrix = {
       import partition._
-      Submatrix(GilbertMatrix.rand(numRows, numColumns, random), rowIndex, columnIndex, rowOffset, columnOffset,
+      Submatrix(matrixFactory.rand(numRows, numColumns, random), rowIndex, columnIndex, rowOffset, columnOffset,
           numTotalRows, numTotalColumns)
     }
   
@@ -154,118 +231,5 @@ object Submatrix extends SubmatrixOps {
       }
     }
   }
-  
-  implicit def canMapValues = { 
-    new CanMapValues[Submatrix, Double, Double, Submatrix]{
-      override def map(submatrix: Submatrix, fun: Double => Double) = {
-        val gilbert:GilbertMatrix = submatrix.matrix.map(fun)
-        import submatrix._
-        Submatrix(gilbert, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
-      }
-      
-      override def mapActive(submatrix: Submatrix, fun: Double => Double) = {
-        Submatrix(submatrix.matrix.mapActiveValues(fun), submatrix.rowIndex, submatrix.columnIndex, submatrix.rowOffset,
-            submatrix.columnOffset, submatrix.totalRows, submatrix.totalColumns)
-      }
-    }
-  }
-  
-  implicit def handholdCMV = new CanMapValues.HandHold[Submatrix, Double]
-  
-  implicit def canZipMapValues:CanZipMapValues[Submatrix, Double, Double, Submatrix] = {
-    new CanZipMapValues[Submatrix, Double, Double, Submatrix]{
-      override def map(a: Submatrix, b: Submatrix, fn: (Double, Double) => Double) = {
-        val mapper = implicitly[CanZipMapValues[GilbertMatrix, Double, Double, GilbertMatrix]]
-        val result = mapper.map(a.matrix, b.matrix, fn)
-        Submatrix(result, a.rowIndex, a.columnIndex, a.rowOffset, a.columnOffset, a.totalRows, a.totalColumns)
-      }
-    }
-  }
-  
-  implicit def canIterateValues:CanTraverseValues[Submatrix, Double] = {
-    new CanTraverseValues[Submatrix, Double]{
-      override def isTraversableAgain(submatrix: Submatrix): Boolean = true
-      
-      override def traverse(submatrix: Submatrix, fn: ValuesVisitor[Double]) {
-        val traversal = implicitly[CanTraverseValues[GilbertMatrix, Double]]
-        traversal.traverse(submatrix.matrix, fn)
-      }
-    }
-  }
-  
-  implicit def canSliceRowSubmatrix: CanSlice2[Submatrix, Int, ::.type, Submatrix] = {
-    new CanSlice2[Submatrix, Int, ::.type, Submatrix]{
-      override def apply(submatrix: Submatrix, row: Int, ignored: ::.type) = {
-        Submatrix(submatrix.matrix(row-submatrix.rowOffset, ::), 0, submatrix.columnIndex, 0,
-            submatrix.columnOffset, 1, submatrix.totalColumns)
-      }
-    }
-  }
-  
-  implicit def canSliceRowsSubmatrix: CanSlice2[Submatrix, Range, ::.type, Submatrix] = {
-    new CanSlice2[Submatrix, Range, ::.type, Submatrix]{
-      override def apply(submatrix: Submatrix, rows: Range, ignored: ::.type) = {
-        val newRows = Range(rows.start - submatrix.rowOffset, rows.end-submatrix.rowOffset, rows.step)
-        Submatrix(submatrix.matrix(newRows, ::), 0, submatrix.columnIndex, 0,
-            submatrix.columnOffset, rows.size, submatrix.totalColumns)
-      }
-    }
-  }
-  
-  implicit def canSliceColSubmatrix: CanSlice2[Submatrix, ::.type, Int, Subvector] = {
-    new CanSlice2[Submatrix, ::.type, Int, Subvector]{
-      override def apply(submatrix: Submatrix, ignored: ::.type, col: Int) ={
-        Subvector(submatrix.matrix(::, col - submatrix.columnOffset), submatrix.rowIndex, submatrix.rowOffset,
-          submatrix.totalRows)
-      }
-    }
-  }
-  
-  implicit def canSliceColsSubmatrix: CanSlice2[Submatrix, ::.type, Range, Submatrix] = {
-      new CanSlice2[Submatrix, ::.type, Range, Submatrix]{
-        override def apply(submatrix: Submatrix, ignored: ::.type, cols: Range) = {
-          val newCols = Range(cols.start-submatrix.columnOffset, cols.end - submatrix.columnOffset, cols.step)
-          Submatrix(submatrix.matrix(::, newCols), submatrix.rowIndex, 0, submatrix.rowOffset, 0, submatrix.totalRows,
-            cols.size)
-        }
-      }
-  }
-  
-  implicit def canCollapseRows: CanCollapseAxis[Submatrix, Axis._0.type, BreezeVector[Double], Double, Submatrix] = {
-    new CanCollapseAxis[Submatrix, Axis._0.type, BreezeVector[Double], Double, Submatrix]{
-      override def apply(submatrix: Submatrix, axis: Axis._0.type)(fn: BreezeVector[Double] => Double) = {
-        val collapser = 
-          implicitly[CanCollapseAxis[GilbertMatrix, Axis._0.type, BreezeVector[Double], Double, GilbertMatrix]]
-        Submatrix(collapser(submatrix.matrix, axis)(fn), 0, submatrix.columnIndex, 0, submatrix.columnOffset,
-            1, submatrix.totalColumns)
-      }
-    }
-  }
-  
-  implicit def canCollapseCols: CanCollapseAxis[Submatrix, Axis._1.type, BreezeVector[Double], Double, Subvector] = {
-    new CanCollapseAxis[Submatrix, Axis._1.type, BreezeVector[Double], Double, Subvector]{
-      override def apply(submatrix: Submatrix, axis: Axis._1.type)(fn: BreezeVector[Double] => Double) = {
-        val collapser = 
-          implicitly[CanCollapseAxis[GilbertMatrix, Axis._1.type, BreezeVector[Double], Double, GilbertVector]]
-        Subvector(collapser(submatrix.matrix, axis)(fn), submatrix.rowIndex, submatrix.rowOffset, submatrix.totalRows)
-      }
-    }
-  }
-  
-  implicit def handholdCanMapCols: CanCollapseAxis.HandHold[Submatrix, Axis._1.type, BreezeVector[Double]] = 
-    new CanCollapseAxis.HandHold[Submatrix, Axis._1.type, BreezeVector[Double]]()
-    
-  implicit def handholdCanMapRows: CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]] = 
-    new CanCollapseAxis.HandHold[Submatrix, Axis._0.type, BreezeVector[Double]]()
-
-  implicit def canTranspose: CanTranspose[Submatrix, Submatrix] = {
-    new CanTranspose[Submatrix, Submatrix]{
-      override def apply(submatrix: Submatrix) = {
-        import submatrix._
-        Submatrix(matrix.t, columnIndex, rowIndex, columnOffset, rowOffset, totalColumns, totalRows)
-      }
-    }
-  }
-
 }
 

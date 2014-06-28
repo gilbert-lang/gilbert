@@ -31,15 +31,14 @@ import org.apache.commons.io.FileUtils
 import java.io.File
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 import org.gilbertlang.runtime.shell.PlanPrinter
-import breeze.linalg.*
+import _root_.breeze.linalg.{norm, min, max, *}
 import org.gilbertlang.runtime.execution.UtilityFunctions
+import org.gilbertlang.runtimeMacros.linalg.operators.{SubvectorImplicits, DoubleVectorImplicits, SubmatrixImplicits}
 import scala.language.postfixOps
-import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
 import scala.util.control.Breaks.{break, breakable}
 import org.gilbertlang.runtime.Executables.diag
 import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
 import org.gilbertlang.runtime.Executables.WriteMatrix
-import scala.Some
 import org.gilbertlang.runtime.Executables.ConvergenceCurrentStateCellArrayPlaceholder
 import org.gilbertlang.runtime.Executables.eye
 import org.gilbertlang.runtime.Executables.TypeConversionMatrix
@@ -87,12 +86,11 @@ import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 
 class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert", parallelism: Int = 4,
- outputPath: Option[String], jars: Seq[String] = Seq[String]())
-  extends
-Executor {
+ outputPath: Option[String], jars: Seq[String] = Seq[String]()) extends Executor with SubmatrixImplicits with
+SubvectorImplicits {
 
   type Matrix = RDD[Submatrix]
-  type BooleanMatrix = RDD[SubmatrixBoolean]
+  type BooleanMatrix = RDD[BooleanSubmatrix]
   type CellArray = List[Any]
 
   val WRITE_TO_OUTPUT = !outputPath.isDefined
@@ -101,13 +99,13 @@ Executor {
 //  private val numWorkerThreads = 4
 //  private val degreeOfParallelism = 2*numWorkerThreads
 
-  private val conf = new SparkConf().
+  @transient private val conf = new SparkConf().
     setMaster(master).
     setAppName(appName).
     setJars(jars).
     set("spark.cores.max", parallelism.toString)
 
-  private val sc = new SparkContext(conf)
+  @transient private val sc = new SparkContext(conf)
 
   private var tempFileCounter = 0
 
@@ -526,16 +524,16 @@ Executor {
         {(aggregate, matrixRDD) =>
           aggregate.operation match {
             case SumAll =>
-              val result = matrixRDD map { matrix => matrix.sum } reduce { _ + _ }
+              val result = matrixRDD map { matrix => _root_.breeze.linalg.sum(matrix) } reduce { _ + _ }
               result
             case Maximum =>
-              val result = matrixRDD map { matrix => matrix.max } reduce { math.max(_,_) }
+              val result = matrixRDD map { matrix => max(matrix) } reduce { math.max(_,_) }
               result
             case Minimum =>
-              val result = matrixRDD map { matrix => matrix.min } reduce { math.min(_,_) }
+              val result = matrixRDD map { matrix => min(matrix) } reduce { math.min(_,_) }
               result
             case Norm2 =>
-              val squaredSum = matrixRDD map { matrix => (matrix :^ 2.0).sum } reduce { _ + _ }
+              val squaredSum = matrixRDD map { matrix => _root_.breeze.linalg.sum(matrix :^ 2.0) } reduce { _ + _ }
               math.sqrt(squaredSum)
           }
         }
@@ -603,16 +601,17 @@ Executor {
         { (vectorwise, matrixRDD) =>
           vectorwise.operation match {
             case Maximum =>
-              val blockwiseMax = matrixRDD map { matrix => (matrix.rowIndex, breeze.linalg.max( matrix(*, ::) ))}
-              val totalMax = blockwiseMax.reduceByKey( numerics.max(_, _))
+              val blockwiseMax = matrixRDD map { matrix => (matrix.rowIndex, max( matrix(*, ::) ))}
+              val totalMax = blockwiseMax.reduceByKey( max(_, _))
               totalMax map { case (_, subvector) => subvector.asMatrix }
             case Minimum =>
-              val blockwiseMax = matrixRDD map { matrix => (matrix.rowIndex, breeze.linalg.min( matrix(*, ::) ))}
-              val totalMax = blockwiseMax.reduceByKey( numerics.min(_, _))
+              val blockwiseMax = matrixRDD map { matrix => (matrix.rowIndex, min( matrix(*, ::) ))}
+              val totalMax = blockwiseMax.reduceByKey( min(_, _))
               totalMax map { case (_, subvector) => subvector.asMatrix }
             case Norm2 =>
               val squaredMatrix = matrixRDD map { matrix => matrix :^ 2.0 }
-              val blockwiseSumSquared = squaredMatrix map { matrix => (matrix.rowIndex, breeze.linalg.sum(matrix(*,
+              val blockwiseSumSquared = squaredMatrix map { matrix => (matrix.rowIndex,
+                _root_.breeze.linalg.sum(matrix(*,
               ::)))}
               val totalSumSquared = blockwiseSumSquared.reduceByKey(_ + _)
               totalSumSquared map { case (_, subvector) =>
@@ -620,12 +619,12 @@ Executor {
                 matrix mapActiveValues { math.sqrt }
               }
             case NormalizeL1 =>
-              val blockwiseNorm = matrixRDD map { matrix => (matrix.rowIndex, breeze.linalg.norm(matrix(*, ::), 1))}
+              val blockwiseNorm = matrixRDD map { matrix => (matrix.rowIndex, norm(matrix(*, ::), 1))}
               val l1Norm = blockwiseNorm reduceByKey ( _ + _ )
 
               val keyedMatrix = matrixRDD map { matrix => (matrix.rowIndex, matrix)}
               keyedMatrix.join(l1Norm).map{case (_, (matrix, l1norm)) =>
-                for(col <- 0 until matrix.cols){
+                for(col <- matrix.colRange){
                   matrix(::, col) :/= l1norm
                 }
               }
@@ -816,10 +815,11 @@ Executor {
         { case (_, (matrixRDD, dim)) =>
           dim match {
             case 1 =>
-              val blockwiseSum = matrixRDD map { matrix => (matrix.columnIndex, breeze.linalg.sum(matrix(::, *)))}
+              val blockwiseSum = matrixRDD map { matrix => (matrix.columnIndex, _root_.breeze.linalg.sum(matrix(::,
+                *)))}
               blockwiseSum reduceByKey { _ + _ } map { case (_, sumMatrix) => sumMatrix }
             case 2 =>
-              val blockwiseSum = matrixRDD map { matrix => (matrix.rowIndex, breeze.linalg.sum(matrix(*, ::)))}
+              val blockwiseSum = matrixRDD map { matrix => (matrix.rowIndex, _root_.breeze.linalg.sum(matrix(*, ::)))}
               blockwiseSum reduceByKey { _ + _ } map { case (_, sumVector) => sumVector.asMatrix }
             case _ => throw new SparkExecutionError(s"Sum does not support dimension $dim.")
           }
@@ -831,7 +831,7 @@ Executor {
         sRow,
         { input => evaluate[Matrix](input.matrix)},
         { (_, matrixRDD) =>
-          val blockwiseSum = matrixRDD map { matrix => (matrix.rowIndex, breeze.linalg.sum(matrix(*, ::)))}
+          val blockwiseSum = matrixRDD map { matrix => (matrix.rowIndex, _root_.breeze.linalg.sum(matrix(*, ::)))}
           blockwiseSum reduceByKey { _ + _ } map { case (_, sumVector) => sumVector.asMatrix }
         }
         )
@@ -841,7 +841,7 @@ Executor {
         sCol,
         { input => evaluate[Matrix](input.matrix)},
         { (_, matrixRDD) =>
-          val blockwiseSum = matrixRDD map { matrix => (matrix.columnIndex, breeze.linalg.sum(matrix(::, *)))}
+          val blockwiseSum = matrixRDD map { matrix => (matrix.columnIndex, _root_.breeze.linalg.sum(matrix(::, *)))}
           blockwiseSum reduceByKey { _ + _ } map { case (_, sumMatrix) => sumMatrix }
         }
         )
@@ -951,7 +951,7 @@ Executor {
             val entries = for(rowA <- matrixA.rowRange; rowB <- matrixB.rowRange) yield {
               val diff = matrixA(rowA, ::) - matrixB(rowB, ::)
               val squared = diff :^ 2.0
-              val squaredSum = breeze.linalg.sum(squared)
+              val squaredSum = _root_.breeze.linalg.sum(squared)
               (rowA, rowB, squaredSum)
             }
 

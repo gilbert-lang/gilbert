@@ -1,14 +1,9 @@
-package org.gilbertlang.runtimeMacros.linalg.operators
+package org.gilbertlang.runtimeMacros.linalg.breeze.operators
 
-import org.gilbertlang.runtimeMacros.linalg.Bitmatrix
-import breeze.linalg.operators.OpSet
-import breeze.linalg.operators.OpAnd
-import breeze.linalg.operators.OpOr
-import breeze.linalg.operators.BinaryUpdateRegistry
-import breeze.linalg.operators.BinaryRegistry
-import breeze.macros.expand
-import breeze.linalg.operators.OpType
 import breeze.linalg._
+import breeze.linalg.operators.{BinaryRegistry, BinaryUpdateRegistry, OpAnd, OpOr, OpSet, OpType}
+import breeze.macros.expand
+import org.gilbertlang.runtimeMacros.linalg.breeze.Bitmatrix
 
 trait BitmatrixOps {
   this: Bitmatrix.type =>

@@ -16,13 +16,13 @@ class TyperTest extends Comparisons {
     val typer = new Typer()
     val result = typer.typeProgram(ast)
 
-    expectResult(expected)(result)
+    assertResult(expected)(result)
   }
 
   @Test def testCharacterIntegerUnification() {
     val typer = new Typer()
 
-    expectResult(Some(DoubleType))(typer.unify(CharacterType, DoubleType))
+    assertResult(Some(DoubleType))(typer.unify(CharacterType, DoubleType))
   }
 
   @Test def testMatrixMatrixUnification1() {
@@ -31,7 +31,7 @@ class TyperTest extends Comparisons {
     
     val typer = new Typer()
 
-    expectResult(Some(MatrixType(DoubleType, IntValue(10), IntValue(42))))(typer.unify(MatrixType(newTV(), newVV(), IntValue(42)),
+    assertResult(Some(MatrixType(DoubleType, IntValue(10), IntValue(42))))(typer.unify(MatrixType(newTV(), newVV(), IntValue(42)),
       MatrixType(DoubleType, IntValue(10), newVV())))
   }
 

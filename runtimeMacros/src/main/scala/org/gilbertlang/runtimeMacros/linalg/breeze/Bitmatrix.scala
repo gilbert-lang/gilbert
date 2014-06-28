@@ -1,12 +1,9 @@
-package org.gilbertlang.runtimeMacros.linalg
+package org.gilbertlang.runtimeMacros.linalg.breeze
 
-import breeze.linalg.Matrix
-import breeze.linalg.MatrixLike
-import org.gilbertlang.runtimeMacros.linalg.operators.BitmatrixOps
-import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixOps
-import org.gilbertlang.runtimeMacros.linalg.operators.BreezeMatrixRegistries
-import breeze.linalg.support.CanCopy
-import breeze.linalg.support.CanTranspose
+import breeze.linalg.support.{CanCopy, CanTranspose}
+import breeze.linalg.{Matrix, MatrixLike}
+import breeze.stats.distributions.Rand
+import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BreezeMatrixRegistries, BitmatrixOps}
 
 class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
     val isTranspose: Boolean) 
@@ -100,6 +97,19 @@ object Bitmatrix extends BitmatrixOps with BreezeMatrixRegistries{
   def init(rows: Int, cols: Int, initialValue: Boolean): Bitmatrix = {
     val data = new java.util.BitSet(rows*cols)
     data.set(0,rows*cols, initialValue)
+    new Bitmatrix(rows, cols, data, false)
+  }
+
+  def rand(rows: Int, cols: Int, rand: Rand[Double]): Bitmatrix ={
+    val data = new java.util.BitSet(rows*cols)
+    val samples = rand.sample(rows*cols)
+
+    for((sample, index) <- samples.zipWithIndex){
+      if(sample >= 0.5){
+        data.set(index)
+      }
+    }
+
     new Bitmatrix(rows, cols, data, false)
   }
   
