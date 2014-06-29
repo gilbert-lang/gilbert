@@ -1,4 +1,3 @@
-A = rand(10,1,0,1)
+A = rand(10,1,0,1);
 B = zeros(1,10);
-C = ones(10,1);
-A*B*C
+A*B

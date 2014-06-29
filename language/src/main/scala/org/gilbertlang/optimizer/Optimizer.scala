@@ -48,7 +48,7 @@ object Optimizer {
         matrix match {
         case ScalarMatrixTransformation(s, m, op) => ScalarMatrixTransformation(tpS(s),
           tpM(m), op)
-        case MatrixScalarTransformation(m,s,op) => ScalarMatrixTransformation(tpS(s),tpM(m),  op)
+        case MatrixScalarTransformation(m,s,op) => MatrixScalarTransformation(tpM(m),tpS(s),op)
         case MatrixMult(a,b) => MatrixMult(tpM(a), tpM(b))
         case CellArrayReferenceMatrix(parent, idx, tpe) => CellArrayReferenceMatrix(tpC(parent), idx, tpe)
         case CellwiseMatrixMatrixTransformation(a,b,op) => CellwiseMatrixMatrixTransformation(tpM(a), tpM(b), op)
@@ -164,7 +164,7 @@ object Optimizer {
         matrix match {
           case ScalarMatrixTransformation(s, m, op) => ScalarMatrixTransformation(mmS(s),
             mmM(m), op)
-          case MatrixScalarTransformation(m,s,op) => ScalarMatrixTransformation(mmS(s),mmM(m),  op)
+          case MatrixScalarTransformation(m,s,op) => MatrixScalarTransformation(mmM(m),mmS(s),op)
           case op@MatrixMult(a,b) =>
             val operands = retrieveOperands(op)
             bestMMOrder(operands)._2

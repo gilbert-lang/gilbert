@@ -1,7 +1,7 @@
 package org.gilbertlang.runtimeMacros.linalg
 
 
-import _root_.breeze.linalg.support.{CanSlice2, CanSlice}
+import _root_.breeze.linalg.support.{CanSlice2}
 
 trait DoubleMatrix extends Serializable {
   def rows: Int

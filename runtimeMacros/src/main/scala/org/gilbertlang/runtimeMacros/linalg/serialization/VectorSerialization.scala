@@ -5,7 +5,10 @@ import java.io.{DataInput, DataOutput}
 
 import breeze.linalg.{VectorBuilder, SparseVector, DenseVector}
 import org.gilbertlang.runtimeMacros.linalg.breeze._
+import org.gilbertlang.runtimeMacros.linalg.mahout.MahoutDoubleVector
 import org.gilbertlang.runtimeMacros.linalg.{ DoubleVector}
+import org.apache.mahout.math.{DenseVector => MahoutDenseVector, RandomAccessSparseVector => MahoutSparseVector}
+import collection.JavaConversions._
 
 
 object VectorSerialization {
@@ -14,14 +17,17 @@ object VectorSerialization {
   val breezeBitvectorId = "breezeBitvector"
   val mahoutSparseVectorId = "mahoutSparseVector"
   val mahoutDenseVectorId = "mahoutDenseVector"
-  val mahoutBooleanVector = "mahoutBooleanVector"
+  val mahoutBooleanSparseVector = "mahoutBooleanSparseVector"
+  val mahoutBooleanDenseVector = "mahoutBooleanDenseVector"
 
   def readDouble(in: DataInput): DoubleVector = {
     val tpeId = in.readUTF()
 
     tpeId match {
-      case breezeDenseVectorId => readBreezeDenseVector(in)
-      case breezeSparseVectorId => readBreezeSparseVector(in)
+      case `breezeDenseVectorId` => readBreezeDenseVector(in)
+      case `breezeSparseVectorId` => readBreezeSparseVector(in)
+      case `mahoutDenseVectorId` => MahoutDoubleVector(readMahoutDenseVector(in))
+      case `mahoutSparseVectorId` => MahoutDoubleVector(readMahoutSparseVector(in))
       case _ =>
         throw new IllegalArgumentException("Vector serialization does not support vectors with type id " + tpeId)
     }
@@ -31,6 +37,8 @@ object VectorSerialization {
     vector match {
       case v: BreezeDoubleVector =>
         writeBreezeDoubleVector(v, out)
+      case v: MahoutDoubleVector =>
+        writeMahoutDoubleVector(v, out)
       case _ =>
         throw new IllegalArgumentException("Vector serialization cannot serialize vector of type " + vector.getClass)
     }
@@ -42,6 +50,37 @@ object VectorSerialization {
       case v: SparseVector[Double] => writeBreezeSparseVector(v, out)
       case _ => throw new IllegalArgumentException("Vector serialization cannot serialize vector of type " + vector
         .getClass)
+    }
+  }
+
+  def writeMahoutDoubleVector(vector: MahoutDoubleVector, out: DataOutput) = {
+    vector.vector match {
+      case v: MahoutDenseVector =>
+        out.writeUTF(this.mahoutDenseVectorId)
+        writeMahoutDenseVector(v, out)
+      case v: MahoutSparseVector =>
+        out.writeUTF(this.mahoutSparseVectorId)
+        writeMahoutSparseVector(v, out)
+      case _ => throw new IllegalArgumentException("Vector serialization cannot serialize vector of type " + vector
+        .vector.getClass)
+    }
+  }
+
+  def writeMahoutDenseVector(vector: MahoutDenseVector, out: DataOutput){
+    out.writeInt(vector.size)
+
+    for(idx <- 0 until vector.size){
+      out.writeDouble(vector.getQuick(idx))
+    }
+  }
+
+  def writeMahoutSparseVector(vector: MahoutSparseVector, out: DataOutput){
+    out.writeInt(vector.size)
+    out.writeInt(vector.getNumNonZeroElements)
+
+    for(element <- vector.iterateNonZero()){
+      out.writeInt(element.index())
+      out.writeDouble(element.get())
     }
   }
 
@@ -91,5 +130,32 @@ object VectorSerialization {
     }
 
     builder.toSparseVector
+  }
+
+  def readMahoutDenseVector(in: DataInput): MahoutDenseVector = {
+    val size = in.readInt()
+    val data = Array.ofDim[Double](size)
+
+    for(i <- 0 until size){
+      val value = in.readDouble()
+      data(i) = value
+    }
+
+    new MahoutDenseVector(data)
+  }
+
+  def readMahoutSparseVector(in: DataInput): MahoutSparseVector = {
+    val size = in.readInt()
+    val used = in.readInt()
+
+    val result = new MahoutSparseVector(size, used)
+
+    for(_ <- 0 until used){
+      val idx = in.readInt()
+      val value=  in.readDouble()
+      result.setQuick(idx, value)
+    }
+
+    result
   }
 }

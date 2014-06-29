@@ -4,6 +4,7 @@ import eu.stratosphere.types.Value
 import java.io.{DataInput, DataOutput}
 
 import org.gilbertlang.runtimeMacros.linalg.breeze.BreezeBooleanMatrixFactory
+import org.gilbertlang.runtimeMacros.linalg.mahout.MahoutBooleanMatrixFactory
 import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
 case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
@@ -105,7 +106,7 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
 
 object BooleanSubmatrix {
 
-  var matrixFactory:BooleanMatrixFactory = BreezeBooleanMatrixFactory
+  var matrixFactory:BooleanMatrixFactory = MahoutBooleanMatrixFactory
 
     def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Boolean)]): BooleanSubmatrix = {
       import partitionInformation._

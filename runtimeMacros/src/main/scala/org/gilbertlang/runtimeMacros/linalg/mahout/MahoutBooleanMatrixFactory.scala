@@ -3,7 +3,7 @@ package org.gilbertlang.runtimeMacros.linalg.mahout
 import org.apache.mahout.math.{SparseMatrix, DenseMatrix}
 import org.gilbertlang.runtimeMacros.linalg.{BooleanMatrix, BooleanMatrixFactory}
 
-class MahoutBooleanMatrixFactory extends BooleanMatrixFactory{
+object MahoutBooleanMatrixFactory extends BooleanMatrixFactory{
   def create(rows: Int, cols: Int, entries: Traversable[(Int, Int, Boolean)], dense: Boolean): BooleanMatrix = {
     if(dense){
       val data = Array.ofDim[Double](rows, cols)

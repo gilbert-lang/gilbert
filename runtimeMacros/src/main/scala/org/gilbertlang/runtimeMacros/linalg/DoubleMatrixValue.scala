@@ -1,6 +1,6 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import java.io.{DataInput, DataOutput}
+import java.io._
 
 import eu.stratosphere.types.Value
 import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
@@ -14,6 +14,16 @@ class DoubleMatrixValue(var matrix: DoubleMatrix) extends Value {
 
   def read(in: DataInput): Unit = {
     matrix = MatrixSerialization.readDoubleMatrix(in)
+  }
+
+  @throws(classOf[IOException])
+  private def readObject(in: ObjectInputStream): Unit = {
+    matrix = MatrixSerialization.readDoubleMatrix(in)
+  }
+
+  @throws(classOf[IOException])
+  private def writeObject(out: ObjectOutputStream): Unit = {
+    MatrixSerialization.writeDoubleMatrix(matrix, out)
   }
 }
 

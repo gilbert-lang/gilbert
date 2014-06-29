@@ -33,6 +33,8 @@ class MahoutBooleanMatrix(var matrix: Matrix) extends BooleanMatrix {
   def t: MahoutBooleanMatrix = {
     MahoutBooleanMatrix(matrix.transpose())
   }
+
+  override def toString = matrix.toString
 }
 
 object MahoutBooleanMatrix{

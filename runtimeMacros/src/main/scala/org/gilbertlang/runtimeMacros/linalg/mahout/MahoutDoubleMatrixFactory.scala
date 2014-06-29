@@ -4,7 +4,7 @@ import breeze.stats.distributions.Rand
 import org.apache.mahout.math.{SparseMatrix, DenseMatrix}
 import org.gilbertlang.runtimeMacros.linalg.DoubleMatrixFactory
 
-class MahoutDoubleMatrixFactory extends DoubleMatrixFactory {
+object MahoutDoubleMatrixFactory extends DoubleMatrixFactory {
   def create(rows: Int, cols: Int, entries: Traversable[(Int, Int, Double)], dense: Boolean): MahoutDoubleMatrix = {
     if(dense){
       val data = Array.ofDim[Double](rows, cols)

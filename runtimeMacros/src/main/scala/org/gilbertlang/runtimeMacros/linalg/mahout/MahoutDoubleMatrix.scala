@@ -26,10 +26,10 @@ class MahoutDoubleMatrix(var matrix: Matrix) extends DoubleMatrix {
   }
 
   def mapActiveValues(func: Double => Double): MahoutDoubleMatrix = {
-    MahoutDoubleMatrix(matrix.like().assign(func))
+    MahoutDoubleMatrix(matrix.copy().assign(func))
   }
 
-  def copy = MahoutDoubleMatrix(matrix.like())
+  def copy = MahoutDoubleMatrix(matrix.copy())
 
   def t = MahoutDoubleMatrix(matrix.transpose())
 
@@ -124,6 +124,8 @@ class MahoutDoubleMatrix(var matrix: Matrix) extends DoubleMatrix {
   def :!=(op: DoubleMatrix): MahoutBooleanMatrix = {
     MahoutBooleanMatrix(matrix.copy().assign(op.matrix, (x: Double, y: Double) => b2D(x != y)))
   }
+
+  override def toString = matrix.toString
 }
 
 object MahoutDoubleMatrix{

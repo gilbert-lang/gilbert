@@ -1,6 +1,6 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import java.io.{DataInput, DataOutput}
+import java.io._
 
 import eu.stratosphere.types.Value
 import org.gilbertlang.runtimeMacros.linalg.serialization.VectorSerialization
@@ -15,6 +15,16 @@ class DoubleVectorValue(var vector: DoubleVector) extends Value {
 
   def read(in: DataInput): Unit = {
     vector = VectorSerialization.readDouble(in)
+  }
+
+  @throws(classOf[IOException])
+  private def readObject(in: ObjectInputStream): Unit = {
+    vector = VectorSerialization.readDouble(in)
+  }
+
+  @throws(classOf[IOException])
+  private def writeObject(out: ObjectOutputStream): Unit = {
+    VectorSerialization.writeDouble(vector, out)
   }
 }
 

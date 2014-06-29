@@ -743,8 +743,9 @@ SubvectorImplicits  {
                 { element => (element.rowIndex, element.columnIndex) } combinableReduceGroup
                 { elements =>
                   {
-                    val element = elements.next().copy
-                    val result = elements.foldLeft(element)({ _ + _ })
+                    val element = elements.next()
+                    val copied= element.copy
+                    val result = elements.foldLeft(copied)({ _ + _ })
                     result
                   }
                 }

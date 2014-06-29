@@ -18,24 +18,18 @@
 
 package org.gilbertlang.runtime.execution.reference
 
-import breeze.linalg._
 import breeze.stats.distributions.Gaussian
-import org.gilbertlang.runtime.Executables.Matrix
-import org.gilbertlang.runtime.Executables.Transpose
-import org.gilbertlang.runtime.Executables.diag
-import org.gilbertlang.runtime.Executables.linspace
-import org.gilbertlang.runtime.Executables.randn
-import org.gilbertlang.runtime.Executables.sum
-
+import breeze.linalg.{min, max, norm, *}
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtimeMacros.linalg.breeze.{BreezeBooleanMatrixFactory, BreezeDoubleMatrixFactory}
+import org.gilbertlang.runtimeMacros.linalg.mahout.{MahoutDoubleMatrixFactory, MahoutBooleanMatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BreezeMatrixOps}
 import org.gilbertlang.runtimeMacros.linalg.operators.{DoubleVectorImplicits, DoubleMatrixImplicits}
 import scala.io.Source
 import org.gilbertlang.runtime.shell.PlanPrinter
-import org.gilbertlang.runtimeMacros.linalg.{DoubleMatrix, numerics, Configuration, DoubleMatrixFactory}
+import org.gilbertlang.runtimeMacros.linalg.{DoubleMatrix, Configuration, DoubleMatrixFactory}
 import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
 import org.gilbertlang.runtimeMacros.linalg.breeze.operators.BreezeMatrixRegistries
 import util.control.Breaks.{break, breakable}
@@ -57,8 +51,8 @@ with DoubleVectorImplicits {
   var convergenceCurrentStateCellArray: CellArray = null
   var convergencePreviousStateCellArray: CellArray = null
 
-  implicit var doubleMatrixFacotry = BreezeDoubleMatrixFactory
-  implicit var booleanMatrixFactory = BreezeBooleanMatrixFactory
+  implicit var doubleMatrixFacotry = MahoutDoubleMatrixFactory
+  implicit var booleanMatrixFactory = MahoutBooleanMatrixFactory
 
   protected def execute(executable: Executable): Any = {
 
@@ -444,7 +438,8 @@ with DoubleVectorImplicits {
           { case (_, (numRows, numColumns, mean, std)) =>
             val random = new GaussianRandom(mean, std)
             val rand = new Gaussian(mean, std)
-            DenseMatrix.rand(numRows, numColumns, rand)
+            val factory = implicitly[DoubleMatrixFactory]
+            factory.rand(numRows, numColumns, rand)
           })
 
       case transformation: spones =>

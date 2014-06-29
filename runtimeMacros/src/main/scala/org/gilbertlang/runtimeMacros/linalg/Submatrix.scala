@@ -6,6 +6,7 @@ import eu.stratosphere.types.Value
 import java.io.{DataInput, DataOutput}
 
 import org.gilbertlang.runtimeMacros.linalg.breeze.BreezeDoubleMatrixFactory
+import org.gilbertlang.runtimeMacros.linalg.mahout.MahoutDoubleMatrixFactory
 import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixImplicits
 import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
@@ -153,7 +154,7 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
 }
 
 object Submatrix extends SubmatrixImplicits {
-  var matrixFactory: DoubleMatrixFactory = BreezeDoubleMatrixFactory
+  var matrixFactory: DoubleMatrixFactory = MahoutDoubleMatrixFactory
 
   def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,Double)]): Submatrix = {
     import partitionInformation._
