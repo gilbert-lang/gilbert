@@ -18,9 +18,6 @@ trait DoubleMatrix extends Serializable {
 
   def mapActiveValues(func: Double => Double): DoubleMatrix
 
-  def apply[Slice, Result](slice: Slice)(implicit canSlice: CanSlice[DoubleMatrix, Slice, Result]) = {
-    canSlice(this, slice)
-  }
 
   def apply[Slice1, Slice2, Result](slice1: Slice1, slice2: Slice2)(implicit canSlice: CanSlice2[DoubleMatrix,
     Slice1, Slice2, Result]) = {
