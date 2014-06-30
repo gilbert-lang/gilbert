@@ -236,7 +236,6 @@ SubvectorImplicits  {
                     case And | SCAnd =>
                       val result = scalar cross matrix map { (scalar, submatrix) => submatrix :& scalar }
                       result.setName("SM: Logical And")
-                      result
                     case Or | SCOr =>
                       val result = scalar cross matrix map { (scalar, submatrix) => submatrix :| scalar }
                       result.setName("SM: Logical Or")

@@ -57,7 +57,7 @@ object Optimizer {
         case x:LoadMatrix => x
         case x:MatrixParameter => x
         case FixpointIterationMatrix(initial, update, maxIterations, convergence) => FixpointIterationMatrix(tpM
-          (initial), tpF(update), tpS(maxIterations), tpF(convergence))
+          (initial), tpF(update), tpS(maxIterations), if(convergence != null) tpF(convergence) else null)
         case TypeConversionMatrix(m, srcType, targetType) => TypeConversionMatrix(tpM(m), srcType, targetType)
         case VectorwiseMatrixTransformation(m, op) => VectorwiseMatrixTransformation(tpM(m), op)
         case diag(m) => diag(tpM(m))
@@ -105,6 +105,8 @@ object Optimizer {
         case function(numP, body) => function(numP, tpExec(body))
         case x:FunctionParameter => x
         case VoidExecutable => VoidExecutable
+        case _ =>
+          throw new IllegalArgumentException("Does not support type " + f.getClass)
       }).asInstanceOf[FunctionRef]
     }
 
@@ -114,7 +116,8 @@ object Optimizer {
         case CellArrayExecutable(elements) => CellArrayExecutable(elements map (tpExp _))
         case CellArrayReferenceCellArray(parent, idx, tpe) => CellArrayReferenceCellArray(tpC(parent), idx, tpe)
         case FixpointIterationCellArray(initial, update, maxIterations,
-        convergenceFunc) => FixpointIterationCellArray(tpC(initial), tpF(update), tpS(maxIterations), tpF(convergenceFunc))
+        convergenceFunc) => FixpointIterationCellArray(tpC(initial), tpF(update), tpS(maxIterations),
+          if(convergenceFunc != null) tpF(convergenceFunc) else null)
         case minWithIndex(m, dim) => minWithIndex(tpM(m), tpS(dim))
         case x: Placeholder => x
         case x:CellArrayParameter => x
@@ -175,7 +178,7 @@ object Optimizer {
           case x:LoadMatrix => x
           case x:MatrixParameter => x
           case FixpointIterationMatrix(initial, update, maxIterations, convergence) => FixpointIterationMatrix(mmM
-            (initial), mmF(update), mmS(maxIterations), mmF(convergence))
+            (initial), mmF(update), mmS(maxIterations), if(convergence!= null) mmF(convergence) else null)
           case TypeConversionMatrix(m, srcType, targetType) => TypeConversionMatrix(mmM(m), srcType, targetType)
           case VectorwiseMatrixTransformation(m, op) => VectorwiseMatrixTransformation(mmM(m), op)
           case diag(m) => diag(mmM(m))
@@ -225,7 +228,8 @@ object Optimizer {
           case CellArrayExecutable(elements) => CellArrayExecutable(elements map (mmExp _))
           case CellArrayReferenceCellArray(parent, idx, tpe) => CellArrayReferenceCellArray(mmC(parent), idx, tpe)
           case FixpointIterationCellArray(initial, update, maxIterations,
-          convergenceFunc) => FixpointIterationCellArray(mmC(initial), mmF(update), mmS(maxIterations), mmF(convergenceFunc))
+          convergenceFunc) => FixpointIterationCellArray(mmC(initial), mmF(update), mmS(maxIterations),
+            if(convergenceFunc != null) mmF(convergenceFunc) else null)
           case minWithIndex(m, dim) => minWithIndex(mmM(m), mmS(dim))
           case x: Placeholder => x
           case x:CellArrayParameter => x

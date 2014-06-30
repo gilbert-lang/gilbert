@@ -11,7 +11,7 @@ object NNMF {
     val logger = Logger.getLogger("com.github.fommil.jni.JniLoader");
     val handler = new ConsoleHandler();
     val dop = 4;
-    val outputPath = "hdfs://node1.stsffap.org:54310/user/hduser/"
+    val path = "hdfs://node1.stsffap.org:54310/user/hduser/"
     handler.setLevel(Level.FINEST);
     logger.addHandler(handler)
     logger.setLevel(Level.FINEST);
@@ -29,6 +29,7 @@ object NNMF {
         ".1/netlib-native_ref-linux-x86_64-1.1-natives.jar");
 
     //withStratosphere(executable).remote("node1", 6123, dop, outputPath, jarFiles)
-    withSpark(executable).remote("spark://node1:7077", "NNMF", dop, None, jarFiles)
+    withSpark(executable).remote("spark://node1:7077",checkpointDir = "", appName="NNMF",parallelism=dop,
+      outputPath = None,jars = jarFiles)
   }
 }

@@ -5,10 +5,7 @@ import _root_.breeze.stats.distributions.{Uniform, Rand}
 import eu.stratosphere.types.Value
 import java.io.{DataInput, DataOutput}
 
-import org.gilbertlang.runtimeMacros.linalg.breeze.BreezeDoubleMatrixFactory
-import org.gilbertlang.runtimeMacros.linalg.mahout.MahoutDoubleMatrixFactory
 import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixImplicits
-import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
 case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var columnIndex: Int,
                      var rowOffset: Int, var columnOffset: Int, var totalRows: Int,
@@ -41,19 +38,10 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
 
   def update(i: Int, j: Int, value: Double) = matrix.update((i-rowOffset, j-columnOffset), value)
 
-//  override def repr = this
-
-//  override def iterator = matrix.iterator map { case ((row, col), value ) => ((row + rowOffset, col + columnOffset),
-//    value)}
-//  override def keysIterator = matrix.keysIterator map { case (row, col) => (row+ rowOffset, col + columnOffset)}
   def activeIterator = matrix.activeIterator map { case ((row, col), value) => ((row+ rowOffset, col + columnOffset),
   value)}
   def iterator: Iterator[((Int, Int), Double)] = matrix.iterator map { case ((row, col), value) => ((row + rowOffset,
    col + columnOffset), value)}
-//  def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}
-//  def activeValuesIterator = matrix.activeValuesIterator
-//
-//  def activeSize = matrix.activeSize
 
   def this() = this(null, -1, -1, -1, -1, -1, -1)
 
@@ -154,7 +142,7 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
 }
 
 object Submatrix extends SubmatrixImplicits {
-  var matrixFactory: DoubleMatrixFactory = MahoutDoubleMatrixFactory
+  var matrixFactory: DoubleMatrixFactory = MatrixFactory.doubleMatrixFactory
 
   def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,Double)]): Submatrix = {
     import partitionInformation._

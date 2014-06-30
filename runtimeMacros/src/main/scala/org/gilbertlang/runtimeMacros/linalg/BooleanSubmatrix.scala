@@ -3,8 +3,6 @@ package org.gilbertlang.runtimeMacros.linalg
 import eu.stratosphere.types.Value
 import java.io.{DataInput, DataOutput}
 
-import org.gilbertlang.runtimeMacros.linalg.breeze.BreezeBooleanMatrixFactory
-import org.gilbertlang.runtimeMacros.linalg.mahout.MahoutBooleanMatrixFactory
 import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
 case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
@@ -13,8 +11,8 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
   def rows = matrix.rows
   def cols = matrix.cols
 
-//  def rowRange = rowOffset until (rowOffset + rows)
-//  def colRange = columnOffset until (columnOffset + cols)
+  def rowRange = rowOffset until (rowOffset + rows)
+  def colRange = columnOffset until (columnOffset + cols)
 
   def apply(i: Int, j: Int): Boolean = matrix(i-rowOffset, j-columnOffset)
 
@@ -23,16 +21,9 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
 
   def update(coord: (Int, Int), value: Boolean) = matrix.update((coord._1-rowOffset, coord._2-columnOffset), value)
 
-//  override def repr = this
 
-//  override def iterator = matrix.iterator map { case ((row, col), value) => ((row+rowOffset, col+columnOffset),value)}
-//  override def keysIterator = matrix.keysIterator map { case (row, col) => (row + rowOffset, col + columnOffset)}
   def activeIterator = matrix.activeIterator map { case ((row, col), value) => ((row+ rowOffset, col + columnOffset),
     value)}
-//  def activeKeysIterator = matrix.activeKeysIterator map { case (row, col) => (row+ rowOffset, col+ columnOffset)}
-//  def activeValuesIterator = matrix.activeValuesIterator
-//
-//  def activeSize = matrix.activeSize
 
   def this() = this(null, -1, -1, -1, -1, -1, -1)
 
@@ -106,7 +97,7 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
 
 object BooleanSubmatrix {
 
-  var matrixFactory:BooleanMatrixFactory = MahoutBooleanMatrixFactory
+  var matrixFactory:BooleanMatrixFactory = MatrixFactory.booleanMatrixFactory
 
     def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Boolean)]): BooleanSubmatrix = {
       import partitionInformation._

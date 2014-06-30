@@ -85,9 +85,10 @@ import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 
-class SparkExecutor(master: String = "local[4]", appName: String = "Gilbert", parallelism: Int = 4,
- outputPath: Option[String], jars: Seq[String] = Seq[String]()) extends Executor with SubmatrixImplicits with
-SubvectorImplicits {
+class SparkExecutor(master: String = "local[4]",checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
+                    appName: String = "Gilbert",
+parallelism: Int = 4, outputPath: Option[String], jars: Seq[String] = Seq[String]()) extends Executor with
+SubmatrixImplicits with SubvectorImplicits {
 
   type Matrix = RDD[Submatrix]
   type BooleanMatrix = RDD[BooleanSubmatrix]
@@ -106,6 +107,10 @@ SubvectorImplicits {
     set("spark.cores.max", parallelism.toString)
 
   @transient private val sc = new SparkContext(conf)
+
+  if(!checkpointDir.isEmpty) {
+    sc.setCheckpointDir(checkpointDir)
+  }
 
   private var tempFileCounter = 0
 
@@ -1155,6 +1160,11 @@ SubvectorImplicits {
                   break
                 }
               }
+
+              if(iterationsUntilCheckpoint > 0 && iteration % iterationsUntilCheckpoint == iterationsUntilCheckpoint -
+                1){
+                iterationStateMatrix.checkpoint()
+              }
             }
           }
 
@@ -1188,6 +1198,16 @@ SubvectorImplicits {
 
                 if(converged){
                   break
+                }
+              }
+
+              if(iterationsUntilCheckpoint > 0 && iteration % iterationsUntilCheckpoint ==
+                iterationsUntilCheckpoint-1) {
+                iterationStateCellArray foreach {
+                  f =>
+                    if (f.isInstanceOf[RDD[_]]) {
+                      f.asInstanceOf[RDD[_]].checkpoint()
+                    }
                 }
               }
             }

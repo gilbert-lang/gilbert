@@ -25,6 +25,9 @@ import eu.stratosphere.api.scala.ScalaPlan
 import eu.stratosphere.api.scala.ScalaSink
 import Executables._
 import eu.stratosphere.client.{RemoteExecutor, LocalExecutor}
+import org.gilbertlang.runtimeMacros.linalg.MatrixFactory
+import org.gilbertlang.runtimeMacros.linalg.breeze.{BreezeBooleanMatrixFactory, BreezeDoubleMatrixFactory}
+import org.gilbertlang.runtimeMacros.linalg.mahout.{MahoutBooleanMatrixFactory, MahoutDoubleMatrixFactory}
 import scala.collection.JavaConverters._
 
 object local {
@@ -44,18 +47,21 @@ object local {
 
 object withSpark {
   class ExecutorWrapper(executable: Executable){
-    def local(numWorkerThreads: Int = 4, appName: String = "Gilbert", outputPath: Option[String] = None) {
+    def local(numWorkerThreads: Int = 4, checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
+              appName: String = "Gilbert", outputPath: Option[String] = None) {
       val master = "local[" + numWorkerThreads + "]";
-      val sparkExecutor = new SparkExecutor(master, appName, numWorkerThreads, outputPath);
+      val sparkExecutor = new SparkExecutor(master, checkpointDir, iterationsUntilCheckpoint,appName, numWorkerThreads, outputPath);
 
       sparkExecutor.run(executable);
 
       sparkExecutor.stop()
     }
 
-    def remote(master: String, appName: String = "Gilbert",parallelism: Int,
+    def remote(master: String, checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
+               appName: String = "Gilbert",parallelism: Int,
                outputPath: Option[String] = None, jars: Seq[String] = Seq[String]()) {
-      val sparkExecutor = new SparkExecutor(master, appName, parallelism,outputPath, jars);
+      val sparkExecutor = new SparkExecutor(master, checkpointDir, iterationsUntilCheckpoint, appName, parallelism,outputPath,
+        jars);
 
       sparkExecutor.run(executable);
 
@@ -120,5 +126,19 @@ object withStratosphere{
     }
 
     new ExecutorWrapper(writeExecutable);
+  }
+}
+
+object withMahout{
+  def apply() {
+    MatrixFactory.doubleMatrixFactory = MahoutDoubleMatrixFactory
+    MatrixFactory.booleanMatrixFactory = MahoutBooleanMatrixFactory
+  }
+}
+
+object withBreeze{
+  def apply() {
+    MatrixFactory.doubleMatrixFactory = BreezeDoubleMatrixFactory
+    MatrixFactory.booleanMatrixFactory = BreezeBooleanMatrixFactory
   }
 }

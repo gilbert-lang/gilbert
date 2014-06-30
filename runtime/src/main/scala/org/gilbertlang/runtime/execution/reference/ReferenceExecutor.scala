@@ -23,13 +23,11 @@ import breeze.linalg.{min, max, norm, *}
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
-import org.gilbertlang.runtimeMacros.linalg.breeze.{BreezeBooleanMatrixFactory, BreezeDoubleMatrixFactory}
-import org.gilbertlang.runtimeMacros.linalg.mahout.{MahoutDoubleMatrixFactory, MahoutBooleanMatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BreezeMatrixOps}
 import org.gilbertlang.runtimeMacros.linalg.operators.{DoubleVectorImplicits, DoubleMatrixImplicits}
 import scala.io.Source
 import org.gilbertlang.runtime.shell.PlanPrinter
-import org.gilbertlang.runtimeMacros.linalg.{DoubleMatrix, Configuration, DoubleMatrixFactory}
+import org.gilbertlang.runtimeMacros.linalg.{MatrixFactory, DoubleMatrix, Configuration, DoubleMatrixFactory}
 import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
 import org.gilbertlang.runtimeMacros.linalg.breeze.operators.BreezeMatrixRegistries
 import util.control.Breaks.{break, breakable}
@@ -51,8 +49,8 @@ with DoubleVectorImplicits {
   var convergenceCurrentStateCellArray: CellArray = null
   var convergencePreviousStateCellArray: CellArray = null
 
-  implicit var doubleMatrixFacotry = MahoutDoubleMatrixFactory
-  implicit var booleanMatrixFactory = MahoutBooleanMatrixFactory
+  implicit var doubleMatrixFacotry = MatrixFactory.doubleMatrixFactory
+  implicit var booleanMatrixFactory = MatrixFactory.booleanMatrixFactory
 
   protected def execute(executable: Executable): Any = {
 
