@@ -232,15 +232,23 @@ SubvectorImplicits  {
                 executable,
                 { exec => (evaluate[Scalar[Boolean]](exec.scalar), evaluate[BooleanMatrix](exec.matrix))},
                 { case (_, (scalar, matrix)) =>
-                  logicOperation match {
+                  val result = logicOperation match {
                     case And | SCAnd =>
                       val result = scalar cross matrix map { (scalar, submatrix) => submatrix :& scalar }
                       result.setName("SM: Logical And")
+                      result
                     case Or | SCOr =>
                       val result = scalar cross matrix map { (scalar, submatrix) => submatrix :| scalar }
                       result.setName("SM: Logical Or")
                       result
                   }
+                  if(Configuration.COMPILERHINTS) {
+                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                    result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns))
+                  }
+                  result
                 })
           case operation: ArithmeticOperation =>
             handle[ScalarMatrixTransformation, (Scalar[Double], Matrix)](
@@ -248,7 +256,7 @@ SubvectorImplicits  {
           { exec => (evaluate[Scalar[Double]](exec.scalar), evaluate[Matrix](exec.matrix)) },
           {
             case (_, (scalarDS, matrixDS)) =>
-              operation match {
+              val result = operation match {
                 case Addition =>
                   val result = scalarDS cross matrixDS map { (scalar, submatrix) => submatrix + scalar }
                   result.setName("SM: Addition")
@@ -280,6 +288,12 @@ SubvectorImplicits  {
                   result.setName("SM: CellwiseExponentiation")
                   result
               }
+              if(Configuration.COMPILERHINTS) {
+                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
+              }
+              result
           })
           case operation: ComparisonOperation =>
             handle[ScalarMatrixTransformation, (Scalar[Double], Matrix)](
@@ -287,7 +301,7 @@ SubvectorImplicits  {
             { exec => (evaluate[Scalar[Double]](exec.scalar), evaluate[Matrix](exec.matrix)) },
             {
               case (_, (scalar, matrix)) =>
-                operation match {
+                val result = operation match {
                   case GreaterThan =>
                     val result = scalar cross matrix map { (scalar, submatrix) => submatrix :< scalar }
                     result.setName("SM: Greater than")
@@ -313,6 +327,13 @@ SubvectorImplicits  {
                     result.setName("SM: Not equals")
                     result
                 }
+                if(Configuration.COMPILERHINTS) {
+                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                }
+                result
             })
 
         }
@@ -324,7 +345,7 @@ SubvectorImplicits  {
                 executable,
                 {exec => (evaluate[BooleanMatrix](exec.matrix), evaluate[Scalar[Boolean]](exec.scalar))},
                 { case (_, (matrix, scalar)) =>
-                  logicOperation match {
+                  val result = logicOperation match {
                     case And | SCAnd =>
                       val result = matrix cross scalar map { (submatrix, scalar) => submatrix :& scalar }
                       result.setName("MS: Logical And")
@@ -334,6 +355,13 @@ SubvectorImplicits  {
                       result.setName("MS: Logical Or")
                       result
                   }
+                  if(Configuration.COMPILERHINTS) {
+                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                    result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns))
+                  }
+                  result
                 })
           case operation : ArithmeticOperation =>
             handle[MatrixScalarTransformation, (Matrix, Scalar[Double])](
@@ -341,7 +369,7 @@ SubvectorImplicits  {
           { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.scalar)) },
           {
             case (_, (matrixDS, scalarDS)) =>
-              operation match {
+              val result = operation match {
                 case Addition =>
                   val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix + scalar }
                   result.setName("MS: Addition")
@@ -363,6 +391,13 @@ SubvectorImplicits  {
                   result.setName("MS: Exponentiation")
                   result
               }
+              if(Configuration.COMPILERHINTS) {
+                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns))
+              }
+              result
           })
           case operation : ComparisonOperation =>
             handle[MatrixScalarTransformation, (Matrix, Scalar[Double])](
@@ -370,7 +405,7 @@ SubvectorImplicits  {
             { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.scalar)) },
             {
               case (_, (matrix, scalar)) =>
-                operation match {
+                val result = operation match {
                   case GreaterThan =>
                     val result = matrix cross scalar map { (submatrix, scalar) => submatrix :> scalar }
                     result.setName("MS: Greater than")
@@ -396,6 +431,13 @@ SubvectorImplicits  {
                     result.setName("MS: Not equals")
                     result
                 }
+                if(Configuration.COMPILERHINTS){
+                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                }
+                result
             })
         }
 
@@ -576,7 +618,7 @@ SubvectorImplicits  {
           { exec => evaluate[Matrix](exec.matrix) },
           { (exec, matrixDS) =>
             {
-              exec.operation match {
+              val result = exec.operation match {
                 case Minus =>
                   matrixDS map { submatrix => submatrix * -1.0}
                 case Binarize =>
@@ -588,6 +630,13 @@ SubvectorImplicits  {
                 case Abs =>
                   matrixDS map { submatrix => submatrix.mapActiveValues( value => math.abs(value))}
               }
+              if(Configuration.COMPILERHINTS){
+                result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
+                result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns))
+              }
+              result
             }
           })
 
@@ -598,7 +647,7 @@ SubvectorImplicits  {
                 executable,
                 { exec => (evaluate[BooleanMatrix](exec.left), evaluate[BooleanMatrix](exec.right))},
                 { case (_, (left, right)) =>
-                  logicOperation match {
+                  val result = logicOperation match {
                     case And | SCAnd =>
                       val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
@@ -612,6 +661,16 @@ SubvectorImplicits  {
                       result.setName("MM: Logical Or")
                       result
                   }
+                  if(Configuration.COMPILERHINTS){
+                    result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
+                    result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns))
+                    result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns))
+                  }
+                  result
                 })
           case operation: ArithmeticOperation =>
             handle[CellwiseMatrixMatrixTransformation, (Matrix, Matrix)](
@@ -619,7 +678,7 @@ SubvectorImplicits  {
           { exec => (evaluate[Matrix](exec.left), evaluate[Matrix](exec.right)) },
           {
             case (_ , (left, right)) =>
-              operation match {
+              val result = operation match {
                 case Addition =>
                   val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                     { y => (y.rowIndex, y.columnIndex) } map
@@ -654,6 +713,16 @@ SubvectorImplicits  {
                   result.setName("MM: Exponentiation")
                   result
               }
+              if(Configuration.COMPILERHINTS){
+                result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
+                result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns))
+                result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns))
+              }
+              result
           })
           case operation: MinMax =>
             handle[CellwiseMatrixMatrixTransformation, (Matrix, Matrix)](
@@ -661,7 +730,7 @@ SubvectorImplicits  {
             { exec => (evaluate[Matrix](exec.left), evaluate[Matrix](exec.right)) },
             {
               case (_ , (left, right)) =>
-                operation match {
+                val result = operation match {
                   case Maximum =>
                     val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
@@ -679,6 +748,16 @@ SubvectorImplicits  {
                     result.setName("MM: Minimum")
                     result
                 }
+                if(Configuration.COMPILERHINTS){
+                  result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
+                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                }
+                result
             })
           case operation: ComparisonOperation =>
             handle[CellwiseMatrixMatrixTransformation, (Matrix, Matrix)](
@@ -686,7 +765,7 @@ SubvectorImplicits  {
             { exec => (evaluate[Matrix](exec.left), evaluate[Matrix](exec.right)) },
             {
               case (_ , (left, right)) =>
-                operation match {
+                val result = operation match {
                   case GreaterThan =>
                     val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                       { y => (y.rowIndex, y.columnIndex) } map
@@ -724,6 +803,16 @@ SubvectorImplicits  {
                     result.setName("MM: NotEquals")
                     result
                 }
+                if(Configuration.COMPILERHINTS){
+                  result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
+                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                }
+                result
             })
         }
 
@@ -733,12 +822,22 @@ SubvectorImplicits  {
           { exec => (evaluate[Matrix](exec.left), evaluate[Matrix](exec.right)) },
           {
             case (_, (left, right)) =>
-              left join right where { leftElement => leftElement.columnIndex } isEqualTo
+              val joinedBlocks = left join right where { leftElement => leftElement.columnIndex } isEqualTo
                 { rightElement => rightElement.rowIndex } map
                 { (left, right) =>
                   val result = left * right
                   result
-                } groupBy
+                }
+              if(Configuration.COMPILERHINTS){
+                joinedBlocks.left.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), s => (s.rowIndex,
+                  s.rowOffset, s.totalRows))
+                joinedBlocks.left.neglects(s => (s.columnOffset, s.totalColumns))
+                joinedBlocks.right.preserves(s => (s.columnIndex, s.columnOffset, s.totalColumns),
+                  s => (s.columnIndex, s.columnOffset, s.totalColumns))
+                joinedBlocks.right.neglects(s => (s.rowOffset, s.totalRows))
+              }
+
+              val reduced = joinedBlocks groupBy
                 { element => (element.rowIndex, element.columnIndex) } combinableReduceGroup
                 { elements =>
                   {
@@ -748,6 +847,12 @@ SubvectorImplicits  {
                     result
                   }
                 }
+              if(Configuration.COMPILERHINTS){
+                reduced.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                reduced.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
+              }
+              reduced
           })
 
       case executable: Transpose =>
@@ -755,7 +860,14 @@ SubvectorImplicits  {
           executable,
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrixDS) =>
-            matrixDS map { matrix => matrix.t }
+            val result = matrixDS map { matrix => matrix.t }
+            if(Configuration.COMPILERHINTS){
+              result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                s.totalColumns), s => (s.columnIndex, s.rowIndex, s.columnOffset, s.rowOffset, s.totalColumns,
+                s.totalRows))
+            }
+            result
           })
 
       case executable: VectorwiseMatrixTransformation =>
@@ -766,15 +878,22 @@ SubvectorImplicits  {
             {
               exec.operation match {
                 case NormalizeL1 =>
-                  matrix map { submatrix =>
-                    norm(submatrix( * , ::),1)
-                  } groupBy (subvector => subvector.index) combinableReduceGroup {
+                  val blockwiseNorm = matrix map {
+                    submatrix =>
+                      norm(submatrix( * , ::),1)
+                  }
+                  blockwiseNorm.setName("VM: Blockwise L1 norm")
+
+                  val l1norm = blockwiseNorm groupBy (subvector => subvector.index) combinableReduceGroup {
                     subvectors =>
                       {
                         val firstElement = subvectors.next().copy
                         subvectors.foldLeft(firstElement)(_ + _)
                       }
-                  } join
+                  }
+                  l1norm.setName("VM: L1 norm")
+
+                  val normedMatrix =  l1norm join
                     matrix where { l1norm => l1norm.index } isEqualTo { submatrix => submatrix.rowIndex } map
                     { (l1norm, submatrix) =>
                       val result = submatrix.copy
@@ -783,24 +902,89 @@ SubvectorImplicits  {
 
                       result
                     }
+                  normedMatrix.setName("VM: L1 normed matrix")
+
+                  if(Configuration.COMPILERHINTS){
+                    blockwiseNorm.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
+                    blockwiseNorm.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v=>(v.index, v.offset, v.totalEntries))
+
+                    l1norm.uniqueKey(v => v.index)
+                    l1norm.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+
+                    normedMatrix.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                    normedMatrix.left.preserves(v => (v.index, v.offset, v.totalEntries), s=> (s.rowIndex,
+                      s.rowOffset, s.totalRows))
+                    normedMatrix.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                      s.totalRows, s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                      s.totalRows, s.totalColumns))
+                  }
+
+                  normedMatrix
                 case Maximum =>
-                  matrix map { submatrix => max(submatrix(*, ::)) } groupBy
+                  val blockwiseMax = matrix map { submatrix => max(submatrix(*, ::)) }
+                  blockwiseMax.setName("VM: Blockwise maximum")
+
+                  val maximum = blockwiseMax groupBy
                     { subvector => subvector.index } combinableReduceGroup { subvectors =>
                       val firstElement = subvectors.next().copy
                       subvectors.foldLeft(firstElement) { numerics.max(_, _) }
-                    } map { subvector => subvector.asMatrix }
+                    }
+                  maximum.setName("VM: vectorwise maximum")
+
+                  val matrixResult = maximum map { subvector => subvector.asMatrix }
+                  matrixResult.setName("VM: vectorwise maximum matrix form")
+
+                  if(Configuration.COMPILERHINTS){
+                    blockwiseMax.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
+                    blockwiseMax.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
+                      v.totalEntries))
+
+                    maximum.uniqueKey(v => v.index)
+                    maximum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+
+                    matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                    matrixResult.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
+                      s.totalRows))
+                  }
+
+                  matrixResult
                 case Minimum =>
-                  matrix map { submatrix => min(submatrix(*, ::)) } groupBy
+                  val blockwiseMin = matrix map { submatrix => min(submatrix(*, ::)) }
+                  blockwiseMin.setName("VM: Blockwise minimum")
+
+                  val minimum = blockwiseMin groupBy
                     { subvector => subvector.index } combinableReduceGroup { subvectors =>
                       val firstElement = subvectors.next().copy
                       subvectors.foldLeft(firstElement) { numerics.min(_, _) }
-                    } map { subvector => subvector.asMatrix }
+                    }
+                  minimum.setName("VM: Vectorwise minimum")
+
+                  val matrixResult = minimum map { subvector => subvector.asMatrix }
+                  matrixResult.setName("VM: Vectorwise minimum in matrix form")
+
+                  if(Configuration.COMPILERHINTS){
+                    blockwiseMin.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
+                    blockwiseMin.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
+                      v.totalEntries))
+
+                    minimum.uniqueKey(v => v.index)
+                    minimum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+
+                    matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                    matrixResult.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
+                      s.totalRows))
+                  }
+
+                  matrixResult
                 case Norm2 =>
                   val squaredValues = matrix map { submatrix => submatrix :^ 2.0 }
                   squaredValues.setName("VWM: Norm2 squared values")
 
-                  val sumSquaredValues = squaredValues map { submatrix => _root_.breeze.linalg.sum(submatrix(*,
-                    ::)) } groupBy
+                  val blockwiseSum = squaredValues map { submatrix => _root_.breeze.linalg.sum(submatrix(*,
+                    ::)) }
+                  blockwiseSum.setName("VM: Norm2 blockwise sum")
+
+                  val sumSquaredValues = blockwiseSum groupBy
                     { subvector => subvector.index } combinableReduceGroup
                     { subvectors =>
                       val firstSubvector = subvectors.next().copy
@@ -813,6 +997,26 @@ SubvectorImplicits  {
                       sqv.asMatrix mapActiveValues { value => math.sqrt(value) }
                   }
                   result.setName("VWM: Norm2")
+
+                  if(Configuration.COMPILERHINTS){
+                    squaredValues.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                    squaredValues.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                      s.totalRows, s.totalColumns), s=> (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                      s.totalRows, s.totalColumns))
+
+                    blockwiseSum.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
+                    blockwiseSum.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
+                      v.totalEntries))
+
+                    sumSquaredValues.uniqueKey(v => v.index)
+                    sumSquaredValues.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset,
+                      v.totalEntries))
+
+                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                    result.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
+                      s.totalRows))
+                  }
+
                   result
               }
             }
@@ -834,6 +1038,7 @@ SubvectorImplicits  {
               val rowsColsPair = rowsCols map {
                 (rows, cols) => (rows.toInt, cols.toInt)
               }
+              rowsColsPair.setName("LoadMatrix: Rows and Cols pair")
 
               val blocks = rowsColsPair flatMap { case (numRows, numCols) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, numRows, numCols)
@@ -841,14 +1046,17 @@ SubvectorImplicits  {
                   (partition.id, partition)
                 }
               }
+              blocks.setName("LoadMatrix: Partition blocks")
 
               val partitionedData = rowsColsPair cross source map {
                 case ((numRows, numCols), (row, column, value)) =>
                   val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, numRows, numCols)
                   (partitionPlan.partitionId(row-1, column-1), row-1, column-1, value)
               }
+              partitionedData.setName("LoadMatrix: Partitioned data")
 
-              partitionedData cogroup blocks where { entry => entry._1 } isEqualTo { block => block._1 } map {
+              val loadedMatrix = partitionedData cogroup blocks where { entry => entry._1 } isEqualTo { block => block
+              ._1 } map {
                 (entries, blocks) =>
                 if(!blocks.hasNext){
                   throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
@@ -863,6 +1071,19 @@ SubvectorImplicits  {
 
                 Submatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
               }
+              loadedMatrix.setName("LoadMatrix: Loaded matrix")
+
+              if(Configuration.COMPILERHINTS){
+                rowsColsPair.outputCardinality = 1
+
+                blocks.uniqueKey(p => p._1)
+
+                partitionedData.right.preserves(t => t._3, q => q._4)
+
+                loadedMatrix.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
+
+              loadedMatrix
           })
 
       case compound: CompoundExecutable =>
@@ -885,6 +1106,11 @@ SubvectorImplicits  {
               }
 
               result.setName("Ones")
+
+              if(Configuration.COMPILERHINTS){
+                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
+
               result
           })
 
@@ -902,6 +1128,11 @@ SubvectorImplicits  {
               }
 
               result.setName(s"Zeros")
+
+              if(Configuration.COMPILERHINTS){
+                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
+
               result
             })
 
@@ -918,6 +1149,11 @@ SubvectorImplicits  {
                 }
               }
               result.setName("Eye")
+
+              if(Configuration.COMPILERHINTS){
+                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
+
               result
             })
 
@@ -949,6 +1185,15 @@ SubvectorImplicits  {
                 }
 
               randomPartitions.setName("Randn: Random submatrices")
+
+              if(Configuration.COMPILERHINTS){
+                rowsColsDS.outputCardinality = 1
+
+                rowsColsMean.outputCardinality = 1
+
+                randomPartitions.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
+
               randomPartitions
           })
 
@@ -958,9 +1203,20 @@ SubvectorImplicits  {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix map { submatrix =>
+              val result = matrix map { submatrix =>
                 submatrix.mapActiveValues(binarize)
               }
+
+              result.setName("Spones")
+
+              if(Configuration.COMPILERHINTS){
+                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns))
+              }
+
+              result
             }
           })
 
@@ -970,13 +1226,34 @@ SubvectorImplicits  {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(*, ::)) } groupBy
+              val blockwiseSum = matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(*, ::)) }
+              blockwiseSum.setName("SumRow: Blockwise rowwise sum")
+
+              val rowwiseSum = blockwiseSum groupBy
                 { subvector => subvector.index } combinableReduceGroup
                 { subvectors =>
                   val firstSubvector = subvectors.next().copy
                   subvectors.foldLeft(firstSubvector)(_ + _)
-                } map
-                { subvector => subvector.asMatrix }
+                }
+              rowwiseSum.setName("SumRow: Row-wise sum")
+
+              val matrixResult = rowwiseSum map { subvector => subvector.asMatrix }
+              matrixResult.setName("SumRow: Row-wise sum in matrix form")
+
+              if(Configuration.COMPILERHINTS){
+                blockwiseSum.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
+                blockwiseSum.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
+                  v.totalEntries))
+
+                rowwiseSum.uniqueKey(v => v.index)
+                rowwiseSum.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset, v.totalEntries))
+
+                matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                matrixResult.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
+                  s.totalRows))
+              }
+
+              matrixResult
             }
           })
 
@@ -986,12 +1263,29 @@ SubvectorImplicits  {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrix) =>
             {
-              matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(::, *)) } groupBy
+              val blockwiseSum = matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(::, *)) }
+              blockwiseSum.setName("SumCol: Blockwise column sum")
+
+              val colwiseSum = blockwiseSum groupBy
                 { submatrix => submatrix.columnIndex } combinableReduceGroup
                 { subvectors =>
                   val firstSubvector = subvectors.next().copy
                   subvectors.foldLeft(firstSubvector)(_ + _)
                 }
+              colwiseSum.setName("SumCol: Column sum")
+
+              if(Configuration.COMPILERHINTS){
+                blockwiseSum.preserves(s => (s.columnIndex, s.columnOffset, s.totalColumns), s=> (s.columnIndex,
+                  s.columnOffset, s.totalColumns))
+                blockwiseSum.neglects(s => (s.rowIndex, s.rowOffset, s.totalRows))
+
+                colwiseSum.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                colwiseSum.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                  s.totalColumns))
+              }
+
+              colwiseSum
             }
           })
 
@@ -1005,7 +1299,9 @@ SubvectorImplicits  {
                 case (Some(1), _) =>
                   val entries = matrix map
                     { submatrix => (submatrix.columnIndex, submatrix.cols, submatrix.columnOffset) }
-                  entries cross matrix map {
+                  entries.setName("Diag: Row vector input")
+
+                  val result = entries cross matrix map {
                     case ((rowIndex, numRows, rowOffset), submatrix) =>
                       val partition = Partition(-1, rowIndex, submatrix.columnIndex, numRows, submatrix.cols,
                         rowOffset, submatrix.columnOffset, submatrix.totalColumns, submatrix.totalColumns)
@@ -1022,27 +1318,47 @@ SubvectorImplicits  {
                         Submatrix(partition)
                       }
                   }
+                  result.setName("Diag: Result diagonal matrix of a row vector")
+
+                  if(Configuration.COMPILERHINTS){
+                    entries.preserves(s => (s.columnIndex, s.columnOffset), t => (t._1, t._3))
+
+                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                  }
+
+                  result
                 case (_, Some(1)) =>
-                  matrix map { submatrix => (submatrix.rowIndex, submatrix.rows, submatrix.rowOffset) } cross
-                    matrix map {
-                      case ((columnIndex, numColumns, columnOffset), submatrix) =>
-                        val partition = Partition(-1, submatrix.rowIndex, columnIndex, submatrix.rows, numColumns,
-                          submatrix.rowOffset, columnOffset, submatrix.totalRows, submatrix.totalRows)
+                  val entries = matrix map { submatrix => (submatrix.rowIndex, submatrix.rows,
+                  submatrix.rowOffset) }
+                  entries.setName("Diag: Column vector input")
+
+                  val result = entries cross matrix map {
+                    case ((columnIndex, numColumns, columnOffset), submatrix) =>
+                      val partition = Partition(-1, submatrix.rowIndex, columnIndex, submatrix.rows, numColumns,
+                        submatrix.rowOffset, columnOffset, submatrix.totalRows, submatrix.totalRows)
 
 
 
-                        if (submatrix.rowIndex == columnIndex) {
-                          val result = Submatrix(partition, submatrix.rows)
+                      if (submatrix.rowIndex == columnIndex) {
+                        val result = Submatrix(partition, submatrix.rows)
 
-                          for (index <- submatrix.rowRange) {
-                            result.update(index, index, submatrix(index, 0))
-                          }
-
-                          result
-                        }else{
-                          Submatrix(partition)
+                        for (index <- submatrix.rowRange) {
+                          result.update(index, index, submatrix(index, 0))
                         }
-                    }
+
+                        result
+                      }else{
+                        Submatrix(partition)
+                      }
+                  }
+                  result.setName("Diag: Result diagonal matrix of a column vector")
+
+                  if(Configuration.COMPILERHINTS){
+                    entries.preserves(s => (s.columnIndex, s.columnOffset), t => (t._1, t._3))
+
+                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                  }
+                  result
                 case _ =>
                   val partialDiagResults = matrix map { submatrix =>
                     val partition = Partition(-1, submatrix.rowIndex, 0, submatrix.rows, 1, submatrix.rowOffset, 0,
@@ -1061,12 +1377,20 @@ SubvectorImplicits  {
 
                     result
                   }
+                  partialDiagResults.setName("Diag: Extract diagonal")
 
-                  partialDiagResults groupBy { partialResult => partialResult.rowIndex } combinableReduceGroup {
+                  val result = partialDiagResults groupBy { partialResult => partialResult.rowIndex } combinableReduceGroup {
                     results =>
                       val result = results.next().copy
                       results.foldLeft(result)(_ + _)
                   }
+                  result.setName("Diag: ")
+
+                  if(Configuration.COMPILERHINTS){
+                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                  }
+
+                  result
               }
             }
           })
@@ -1109,8 +1433,8 @@ SubvectorImplicits  {
             }else{
               iteration = initialState.iterate(numberIterations, stepFunction)
             }
-
             iteration.setName("Fixpoint iteration")
+
             iteration
           })
 
@@ -1177,16 +1501,36 @@ SubvectorImplicits  {
           { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.dimension)) },
           {
             case (_, (matrix, scalar)) =>
-              scalar cross matrix map { (scalar, submatrix) =>
+              val partialSum = scalar cross matrix map { (scalar, submatrix) =>
                 if (scalar == 1) {
                   (submatrix.columnIndex, _root_.breeze.linalg.sum(submatrix(::, *)))
                 } else {
                   (submatrix.rowIndex, _root_.breeze.linalg.sum(submatrix(*, ::)).asMatrix)
                 }
-              } groupBy { case (group, subvector) => group } combinableReduceGroup { submatrices =>
-                val firstSubvector = submatrices.next()
-                (firstSubvector._1, submatrices.foldLeft(firstSubvector._2.copy)(_ + _._2))
-              } map { case (_, submatrix) => submatrix}
+              }
+              partialSum.setName("Sum: Partial sum")
+
+              val pairIDSubmatrix = partialSum groupBy { case (group, submatrix) => group } combinableReduceGroup {
+                submatrices =>
+                  val firstSubmatrix = submatrices.next()
+                  (firstSubmatrix._1, submatrices.foldLeft(firstSubmatrix._2.copy)(_ + _._2))
+              }
+              pairIDSubmatrix.setName("Sum: (ID, sum)")
+
+              val result = pairIDSubmatrix map { case (_, submatrix) => submatrix}
+              result.setName("Sum: Final result")
+
+              if(Configuration.COMPILERHINTS){
+                pairIDSubmatrix.preserves(p => p._1, r => r._1)
+                pairIDSubmatrix.uniqueKey(p => p._1)
+
+                result.neglects(p => p._1)
+                result.preserves(p => (p._2.rowIndex, p._2.columnIndex, p._2.rowOffset, p._2.columnOffset,
+                  p._2.totalRows, p._2.totalColumns), s=> (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                  s.totalRows, s.totalColumns))
+                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
+              result
           })
 
       case executable: CellArrayExecutable =>
@@ -1357,13 +1701,21 @@ SubvectorImplicits  {
             typeConversion,
             {input => evaluate[BooleanMatrix](input.matrix)},
             {
-              (_, matrix) => matrix map { submatrix =>
-                Submatrix(submatrix.getPartition, submatrix.activeIterator map {
-                  case ((row,col), value) =>
-                    (row,col, if(value) 1.0 else 0.0)
-                  } toSeq
-                )
-              }
+              (_, matrix) =>
+                val result = matrix map { submatrix =>
+                  Submatrix(submatrix.getPartition, submatrix.activeIterator map {
+                    case ((row,col), value) =>
+                      (row,col, if(value) 1.0 else 0.0)
+                    } toSeq
+                  )
+                }
+                result.setName("TypeConversionMatrix")
+
+                if(Configuration.COMPILERHINTS){
+                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                }
+
+                result
             })
         }
 
@@ -1377,6 +1729,7 @@ SubvectorImplicits  {
               {
                 case (_, (matrixDS, rowsMultDS, colsMultDS)) =>
                   val rowsColsMult = rowsMultDS cross colsMultDS map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+                  rowsColsMult.setName("Repmat: Pair rows and cols multiplier")
 
                   val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                     val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
@@ -1393,7 +1746,6 @@ SubvectorImplicits  {
 
                     result.toIterator
                   }
-
                   newBlocks.setName("Repmat: New blocks")
 
                   val repmatEntries = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
@@ -1425,6 +1777,12 @@ SubvectorImplicits  {
                       Submatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
                   }
                   result.setName("Repmat: Repeated matrix")
+
+                  if(Configuration.COMPILERHINTS){
+                    rowsColsMult.outputCardinality = 1;
+                    newBlocks.uniqueKey(p => p._1)
+                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                  }
                   result
 
               }
@@ -1437,6 +1795,7 @@ SubvectorImplicits  {
             {
               case (_, (matrixDS, rowsMultDS, colsMultDS)) =>
                 val rowsColsMult = rowsMultDS cross colsMultDS map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+                rowsColsMult.setName("Repmat: Pair rows and cols multiplier")
 
                 val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
                   val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rowsMult*matrix.totalRows,
@@ -1485,6 +1844,12 @@ SubvectorImplicits  {
                     BooleanSubmatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
                 }
                 result.setName("Repmat: Repeated matrix")
+
+                if(Configuration.COMPILERHINTS){
+                  rowsColsMult.outputCardinality = 1;
+                  newBlocks.uniqueKey(p => p._1)
+                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                }
                 result
 
             }
@@ -1516,6 +1881,13 @@ SubvectorImplicits  {
             result
           }
           result.setName("Linspace: Linear spaced matrix")
+
+          if(Configuration.COMPILERHINTS){
+            startEnd.outputCardinality = 1
+            blocks.uniqueKey(p => p.id)
+            result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+          }
+
           result
 
         }
@@ -1638,6 +2010,11 @@ SubvectorImplicits  {
               minValues.union(minIndices)
               val result = minValues union minIndices
               result.setName("MinWithIndex: Cell array")
+
+              if(Configuration.COMPILERHINTS){
+                newBlocks.uniqueKey(p => p._1)
+              }
+
               result
 
           }
@@ -1677,6 +2054,10 @@ SubvectorImplicits  {
                   summedDiffs :^ 0.5
               }
               pdist2.setName("Pdist2: pair wise distance matrix")
+
+              if(Configuration.COMPILERHINTS){
+                pdist2.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
               pdist2
           }
         )
