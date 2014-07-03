@@ -152,6 +152,24 @@ abstract class DagWalker {
         visit(transformation.std)
         onLeave(transformation)
 
+      case transformation: sprand =>
+        onArrival(transformation)
+        visit(transformation.numRows)
+        visit(transformation.numCols)
+        visit(transformation.mean)
+        visit(transformation.std)
+        visit(transformation.level)
+        onLeave(transformation)
+
+      case transformation: adaptiveRand =>
+        onArrival(transformation)
+        visit(transformation.numRows)
+        visit(transformation.numColumns)
+        visit(transformation.mean)
+        visit(transformation.std)
+        visit(transformation.level)
+        onLeave(transformation)
+
       case transformation: spones =>
         onArrival(transformation)
         visit(transformation.matrix)

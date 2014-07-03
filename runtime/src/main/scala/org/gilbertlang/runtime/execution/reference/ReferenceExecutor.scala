@@ -27,8 +27,7 @@ import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BreezeMatrixOps}
 import org.gilbertlang.runtimeMacros.linalg.operators.{DoubleVectorImplicits, DoubleMatrixImplicits}
 import scala.io.Source
 import org.gilbertlang.runtime.shell.PlanPrinter
-import org.gilbertlang.runtimeMacros.linalg.{MatrixFactory, DoubleMatrix, Configuration, DoubleMatrixFactory}
-import org.gilbertlang.runtime.execution.stratosphere.GaussianRandom
+import org.gilbertlang.runtimeMacros.linalg.{BooleanMatrix, MatrixFactory, DoubleMatrix, Configuration}
 import org.gilbertlang.runtimeMacros.linalg.breeze.operators.BreezeMatrixRegistries
 import util.control.Breaks.{break, breakable}
 import org.gilbertlang.runtime.RuntimeTypes.{MatrixType, DoubleType, BooleanType}
@@ -38,7 +37,6 @@ import scala.language.postfixOps
 class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixRegistries with DoubleMatrixImplicits
 with DoubleVectorImplicits {
 
-  type Matrix[T] = breeze.linalg.Matrix[T]
   type CellArray = List[Any]
 
   //TODO fix this
@@ -48,9 +46,6 @@ with DoubleVectorImplicits {
   var iterationStateCellArray: CellArray = null
   var convergenceCurrentStateCellArray: CellArray = null
   var convergencePreviousStateCellArray: CellArray = null
-
-  implicit var doubleMatrixFacotry = MatrixFactory.doubleMatrixFactory
-  implicit var booleanMatrixFactory = MatrixFactory.booleanMatrixFactory
 
   protected def execute(executable: Executable): Any = {
 
@@ -72,8 +67,7 @@ with DoubleVectorImplicits {
             val entries = itEntries.toSeq
             val dense = entries.length.toDouble/(numRows* numColumns) > Configuration.DENSITYTHRESHOLD
 
-            val factory = implicitly[DoubleMatrixFactory]
-            factory.create(numRows, numColumns, entries, dense)
+            MatrixFactory.getDouble.create(numRows, numColumns, entries, dense)
           })
 
       case (transformation: FixpointIterationMatrix) =>
@@ -170,9 +164,9 @@ with DoubleVectorImplicits {
       case transformation: CellwiseMatrixMatrixTransformation =>
         transformation.operation match {
           case logicOperation: LogicOperation =>
-            handle[CellwiseMatrixMatrixTransformation, (Matrix[Boolean], Matrix[Boolean])](
+            handle[CellwiseMatrixMatrixTransformation, (BooleanMatrix, BooleanMatrix)](
             transformation,
-            { input => (evaluate[Matrix[Boolean]](input.left), evaluate[Matrix[Boolean]](input.right))},
+            { input => (evaluate[BooleanMatrix](input.left), evaluate[BooleanMatrix](input.right))},
             { case (_, (left, right)) =>
               logicOperation match {
                 case And | SCAnd =>
@@ -206,7 +200,8 @@ with DoubleVectorImplicits {
                 case Addition => left + right
                 case Subtraction => left - right
                 case Multiplication => left :* right
-                case Division => left / right
+                case Division =>
+                  left / right
                 case Exponentiation => left :^ right
               }
             }
@@ -258,9 +253,9 @@ with DoubleVectorImplicits {
       case executable: ScalarMatrixTransformation =>
         executable.operation match {
           case logicOperation: LogicOperation =>
-            handle[ScalarMatrixTransformation, (Boolean, Matrix[Boolean])](
+            handle[ScalarMatrixTransformation, (Boolean, BooleanMatrix)](
             executable,
-            { exec => (evaluate[Boolean](exec.scalar), evaluate[Matrix[Boolean]](exec.matrix))},
+            { exec => (evaluate[Boolean](exec.scalar), evaluate[BooleanMatrix](exec.matrix))},
             { case (_, (scalar, matrix)) =>
               logicOperation match {
                 case And | SCAnd =>
@@ -304,12 +299,10 @@ with DoubleVectorImplicits {
                   case Multiplication =>
                     matrix * scalar
                   case Division =>
-                    val factory = implicitly[DoubleMatrixFactory]
-                    val dividend = factory.init(matrix.rows, matrix.cols, scalar, dense = true)
+                    val dividend = MatrixFactory.getDouble.init(matrix.rows, matrix.cols, scalar, dense = true)
                     dividend / matrix
                   case Exponentiation =>
-                    val factory = implicitly[DoubleMatrixFactory]
-                    val basis = factory.init(matrix.rows, matrix.cols, scalar,dense = true)
+                    val basis = MatrixFactory.getDouble.init(matrix.rows, matrix.cols, scalar,dense = true)
                     basis :^ matrix
                 }
             })
@@ -318,9 +311,9 @@ with DoubleVectorImplicits {
       case executable: MatrixScalarTransformation =>
         executable.operation match {
           case logicOperation: LogicOperation =>
-            handle[MatrixScalarTransformation, (Matrix[Boolean], Boolean)](
+            handle[MatrixScalarTransformation, (BooleanMatrix, Boolean)](
             executable,
-            {exec => (evaluate[Matrix[Boolean]](exec.matrix), evaluate[Boolean](exec.scalar))},
+            {exec => (evaluate[BooleanMatrix](exec.matrix), evaluate[Boolean](exec.scalar))},
             { case (_, (matrix, scalar)) =>
               logicOperation match {
                 case And | SCAnd =>
@@ -403,8 +396,7 @@ with DoubleVectorImplicits {
           { transformation => (evaluate[Double](transformation.numRows).toInt,
               evaluate[Double](transformation.numColumns).toInt) },
           { case (_, (numRows, numColumns)) =>
-            val factory = implicitly[DoubleMatrixFactory]
-            factory.init(numRows, numColumns, 1.0, dense = true)
+            MatrixFactory.getDouble.init(numRows, numColumns, 1.0, dense = true)
           })
 
       case (transformation: eye) =>
@@ -412,8 +404,8 @@ with DoubleVectorImplicits {
           transformation,
           { trans => (evaluate[Double](trans.numRows).toInt, evaluate[Double](trans.numCols).toInt)},
           { case (_, (rows, cols)) =>
-            val factory = implicitly[DoubleMatrixFactory]
-            factory.eye(rows, cols, math.min(rows, cols).toDouble/(rows*cols) > Configuration.DENSITYTHRESHOLD)
+            MatrixFactory.getDouble.eye(rows, cols, math.min(rows, cols).toDouble/(rows*cols) > Configuration
+              .DENSITYTHRESHOLD)
           }
         )
 
@@ -423,8 +415,7 @@ with DoubleVectorImplicits {
             {transformation => (evaluate[Double](transformation.numRows).toInt,
                 evaluate[Double](transformation.numCols).toInt)},
             { case (_, (rows, cols)) =>
-              val factory = implicitly[DoubleMatrixFactory]
-              factory.create(rows, cols, dense = false)
+              MatrixFactory.getDouble.create(rows, cols, dense = false)
             })
 
       case (transformation: randn) =>
@@ -434,11 +425,38 @@ with DoubleVectorImplicits {
               (evaluate[Double](transformation.numRows).toInt, evaluate[Double](transformation.numColumns).toInt,
                   evaluate[Double](transformation.mean), evaluate[Double](transformation.std)) },
           { case (_, (numRows, numColumns, mean, std)) =>
-            val random = new GaussianRandom(mean, std)
             val rand = new Gaussian(mean, std)
-            val factory = implicitly[DoubleMatrixFactory]
-            factory.rand(numRows, numColumns, rand)
+            MatrixFactory.getDouble.rand(numRows, numColumns, rand)
           })
+
+      case (transformation: sprand) =>
+        handle[sprand, (Int, Int, Double, Double, Double)](transformation,
+        { transformation =>
+          (evaluate[Double](transformation.numRows).toInt, evaluate[Double](transformation.numCols).toInt,
+            evaluate[Double](transformation.mean), evaluate[Double](transformation.std),
+            evaluate[Double](transformation.level))
+        },
+        {
+          case (_, (numRows, numCols, mean, std, level)) =>
+            val random = new Gaussian(mean, std)
+            MatrixFactory.getDouble.sprand(numRows, numCols, random, level)
+        }
+        )
+
+      case transformation: adaptiveRand =>
+        handle[adaptiveRand, (Int, Int, Double, Double, Double)](
+        transformation,
+        { input =>
+          (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numColumns).toInt,
+            evaluate[Double](input.mean), evaluate[Double](input.std), evaluate[Double](input.level))
+        },
+        {
+          case (_, (rows, cols, mean, std, level)) =>
+            val random = new Gaussian(mean, std)
+            MatrixFactory.getDouble.adaptiveRand(rows, cols, random, level, Configuration.DENSITYTHRESHOLD)
+
+        }
+        )
 
       case transformation: spones =>
         handle[spones, DoubleMatrix](transformation,
@@ -481,19 +499,18 @@ with DoubleVectorImplicits {
                 case (1, x) =>
                   val entries = (matrix.activeIterator map { case ((row, col), value) => (col, col,
                     value)}).toArray[(Int, Int, Double)]
-                  val factory = implicitly[DoubleMatrixFactory]
-                  factory.create(x,x, entries, entries.length.toDouble/(x*x) > Configuration.DENSITYTHRESHOLD)
+                  MatrixFactory.getDouble.create(x,x, entries, entries.length.toDouble/(x*x) > Configuration
+                    .DENSITYTHRESHOLD)
                 case (x, 1) =>
                   val entries = (matrix.activeIterator map { case ((row, col), value) => (row, row,
                     value)}).toArray[(Int, Int, Double)]
-                  val factory = implicitly[DoubleMatrixFactory]
-                  factory.create(x,x, entries, entries.length.toDouble/(x*x) > Configuration.DENSITYTHRESHOLD)
+                  MatrixFactory.getDouble.create(x,x, entries, entries.length.toDouble/(x*x) > Configuration
+                    .DENSITYTHRESHOLD)
                 case (x:Int,y:Int) =>
                   val minimum = math.min(x,y)
-                  val factory = implicitly[DoubleMatrixFactory]
                   val itEntries = for(idx <- 0 until minimum) yield (0,idx,matrix(idx,idx))
                   val entries = itEntries.toSeq
-                  factory.create(minimum, 1, entries, dense = true)
+                  MatrixFactory.getDouble.create(minimum, 1, entries, dense = true)
               }
             }})
 
@@ -502,10 +519,12 @@ with DoubleVectorImplicits {
           case MatrixType(DoubleType, _, _) =>
             handle[WriteMatrix, DoubleMatrix](transformation,
             { transformation => evaluate[DoubleMatrix](transformation.matrix) },
-            { (_, matrix) => println(matrix) })
+            { (_, matrix) =>
+              println(matrix)
+            })
           case MatrixType(BooleanType, _,_) =>
-            handle[WriteMatrix, Matrix[Boolean]](transformation,
-            { transformation => evaluate[Matrix[Boolean]](transformation.matrix) },
+            handle[WriteMatrix, BooleanMatrix](transformation,
+            { transformation => evaluate[BooleanMatrix](transformation.matrix) },
             { (_, matrix) => println(matrix) })
         }
 
@@ -632,7 +651,7 @@ with DoubleVectorImplicits {
         {(ref, cellArray) =>
           ref.getType match {
             case MatrixType(DoubleType, _, _) => cellArray(ref.reference).asInstanceOf[DoubleMatrix]
-            case MatrixType(BooleanType, _, _) => cellArray(ref.reference).asInstanceOf[Matrix[Boolean]]
+            case MatrixType(BooleanType, _, _) => cellArray(ref.reference).asInstanceOf[BooleanMatrix]
             case tpe => throw new LocalExecutionError(s"Cannot reference matrix of type $tpe.")
           }
         }
@@ -648,11 +667,14 @@ with DoubleVectorImplicits {
       case typeConversion: TypeConversionMatrix =>
         (typeConversion.sourceType, typeConversion.targetType) match {
           case (MatrixType(BooleanType, _, _), MatrixType(DoubleType, _, _)) =>
-            handle[TypeConversionMatrix, Matrix[Boolean]](
+            handle[TypeConversionMatrix, BooleanMatrix](
             typeConversion,
-            {input => evaluate[Matrix[Boolean]](input.matrix)},
+            {input => evaluate[BooleanMatrix](input.matrix)},
             {(_, matrix) =>
-              matrix mapValues { value => if(value) 1.0 else 0.0}
+              val entries = (matrix.activeIterator map { case ((row, col), value) => (row, col,
+                if(value) 1.0 else 0.0)}).toTraversable
+              val dense = entries.size.toDouble/(matrix.rows* matrix.cols) > Configuration.DENSITYTHRESHOLD
+              MatrixFactory.getDouble.create(matrix.rows, matrix.cols, entries , dense)
             }
             )
           case (srcType, targetType) => throw new LocalExecutionError(s"Cannot convert matrix value of type $srcType " +
@@ -677,10 +699,9 @@ with DoubleVectorImplicits {
         {input => (evaluate[Double](input.start), evaluate[Double](input.end), evaluate[Double](input.numPoints)
           .toInt)},
         {case (_, (start, end, numPoints)) =>
-          val factory = implicitly[DoubleMatrixFactory]
           val spacing = (end-start)/(numPoints-1)
           val entries = for(numPoint <- 0 until numPoints) yield(0, numPoint, start + numPoint*spacing)
-          factory.create(1,numPoints, entries, true)
+          MatrixFactory.getDouble.create(1,numPoints, entries, true)
         }
         )
 
@@ -689,7 +710,6 @@ with DoubleVectorImplicits {
         minWithIdx,
         {input => (evaluate[DoubleMatrix](input.matrix), evaluate[Double](input.dimension).toInt)},
         {case (_, (matrix, dimension)) =>
-          val factory = implicitly[DoubleMatrixFactory]
           val (minimum, minIdx) = dimension match {
             case 1 =>
               val minValues = for(column <- 0 until matrix.cols) yield {
@@ -699,7 +719,8 @@ with DoubleVectorImplicits {
 
               val (minEntries, minIdxEntries) = ((minimum zipWithIndex) map { case (value, idx) => (0, idx,value)},
                 (minIdx zipWithIndex) map { case (value, idx) => (0, idx, (value+1).toDouble)})
-              (factory.create(1, matrix.cols, minEntries, true), factory.create(1, matrix.cols, minIdxEntries, true))
+              (MatrixFactory.getDouble.create(1, matrix.cols, minEntries, true), MatrixFactory.getDouble.create(1,
+                matrix.cols, minIdxEntries, true))
             case 2 =>
               val minValues = for(row <- 0 until matrix.rows) yield {
                 matrix(row, ::).iterator.minBy{case (_, value) => value }
@@ -708,7 +729,8 @@ with DoubleVectorImplicits {
               val(minIdx, minimum) = minValues.unzip
               val (minEntries, minIdxEntries) = ((minimum zipWithIndex) map { case (value, idx) => (idx, 0, value)},
                 (minIdx zipWithIndex) map { case ((_, value), idx) => (idx, 0, (value+1).toDouble)})
-              (factory.create(matrix.rows, 1, minEntries, true), factory.create(matrix.rows, 1, minIdxEntries,true))
+              (MatrixFactory.getDouble.create(matrix.rows, 1, minEntries, true),
+                MatrixFactory.getDouble.create(matrix.rows, 1, minIdxEntries,true))
             case dim => throw new LocalExecutionError(s"Cannot execute minWithIndex for dimension $dim.")
           }
           List(minimum, minIdx)
@@ -720,15 +742,12 @@ with DoubleVectorImplicits {
         pairDistance,
         {input => (evaluate[DoubleMatrix](input.matrixA), evaluate[DoubleMatrix](input.matrixB))},
         {case (_, (matrixA, matrixB)) =>
-          val factory = implicitly[DoubleMatrixFactory]
           val entries = for(rowA <- 0 until matrixA.rows; rowB <- 0 until matrixB.rows) yield {
             val value = math.sqrt(breeze.linalg.sum((matrixA(rowA, ::) - matrixB(rowB, ::)):^2.0))
             (rowA, rowB, value)
           }
 
-          val temp = entries.toArray[(Int,Int,Double)]
-
-          factory.create(matrixA.rows, matrixB.rows, entries, true)
+          MatrixFactory.getDouble.create(matrixA.rows, matrixB.rows, entries, true)
         }
         )
 
@@ -739,7 +758,6 @@ with DoubleVectorImplicits {
         {input => (evaluate[DoubleMatrix](input.matrix), evaluate[Double](input.numRows).toInt,
           evaluate[Double](input.numCols).toInt)},
         { case (_, (matrix, rowsMult, colsMult)) =>
-          val factory = implicitly[DoubleMatrixFactory]
 
           val entries = matrix.activeIterator flatMap {
             case ((row, col),value) =>
@@ -752,8 +770,9 @@ with DoubleVectorImplicits {
           val newCols = matrix.cols*colsMult
           val newSize = newRows* newCols
           val seqEntries = entries.toSeq
-          factory.create(newRows, newCols, seqEntries, seqEntries.length.toDouble/(newSize) > Configuration.
-            DENSITYTHRESHOLD)
+
+          MatrixFactory.getDouble.create(newRows, newCols, seqEntries, seqEntries.length.toDouble/(newSize) >
+            Configuration.DENSITYTHRESHOLD)
         }
         )
 

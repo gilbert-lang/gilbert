@@ -239,6 +239,8 @@ trait Compiler {
       case "ones$DD" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
       case "rand$DDDD" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
         ScalarParameter(3)))
+      case "rand$DDDDD" => function(5,adaptiveRand(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
+        ScalarParameter(3), ScalarParameter(4)))
       case "zeros$DD" => function(2, zeros(ScalarParameter(0), ScalarParameter(1)))
       case "eye$DD" => function(2, eye(ScalarParameter(0), ScalarParameter(1)))
       case "binarize$M" => function(1, CellwiseMatrixTransformation(MatrixParameter(0), Binarize))
@@ -300,6 +302,9 @@ trait Compiler {
         function(1, CellwiseMatrixTransformation(MatrixParameter(0), Abs))
       case "abs$D" =>
         function(1, UnaryScalarTransformation(ScalarParameter(0), Abs))
+      case "sprand$DDDDD" =>
+        function(5, sprand(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2), ScalarParameter(3),
+          ScalarParameter(4)))
     }
   }
 

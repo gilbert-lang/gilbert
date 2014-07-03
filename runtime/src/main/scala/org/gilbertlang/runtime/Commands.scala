@@ -48,24 +48,28 @@ object local {
 object withSpark {
   class ExecutorWrapper(executable: Executable){
     def local(numWorkerThreads: Int = 4, checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
-              appName: String = "Gilbert", outputPath: Option[String] = None) {
+              appName: String = "Gilbert", outputPath: Option[String] = None) = {
       val master = "local[" + numWorkerThreads + "]";
       val sparkExecutor = new SparkExecutor(master, checkpointDir, iterationsUntilCheckpoint,appName, numWorkerThreads, outputPath);
 
-      sparkExecutor.run(executable);
+      val result = sparkExecutor.run(executable);
 
       sparkExecutor.stop()
+
+      result
     }
 
     def remote(master: String, checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
-               appName: String = "Gilbert",parallelism: Int,
-               outputPath: Option[String] = None, jars: Seq[String] = Seq[String]()) {
+               appName: String = "Gilbert",parallelism: Int, outputPath: Option[String] = None,
+               jars: Seq[String] = Seq[String]()) = {
       val sparkExecutor = new SparkExecutor(master, checkpointDir, iterationsUntilCheckpoint, appName, parallelism,outputPath,
         jars);
 
-      sparkExecutor.run(executable);
+      val result = sparkExecutor.run(executable);
 
       sparkExecutor.stop();
+
+      result
     }
   }
 
@@ -101,14 +105,16 @@ object withStratosphere{
       plan.setDefaultParallelism(degreeOfParallelism)
       plan
     }
-    def local(degreeOfParallelism: Int, outputPath: Option[String] = None){
+    def local(degreeOfParallelism: Int, outputPath: Option[String] = None) = {
       val path = outputPath.getOrElse("file://" + System.getProperty("user.dir"))
       val plan = compile(path, degreeOfParallelism)
 
-      LocalExecutor.execute(plan);
+      val exec = new LocalExecutor
+      exec.setDefaultOverwriteFiles(true)
+      exec.executePlan(plan);
     }
 
-    def remote(jobmanager: String, port: Int, degreeOfParallelism: Int, outputPath: String, jars: List[String]){
+    def remote(jobmanager: String, port: Int, degreeOfParallelism: Int, outputPath: String, jars: List[String]) = {
       val plan = compile(outputPath, degreeOfParallelism)
       val executor = new RemoteExecutor(jobmanager, port, jars.asJava);
 

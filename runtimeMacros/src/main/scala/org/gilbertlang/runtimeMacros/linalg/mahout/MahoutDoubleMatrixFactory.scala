@@ -78,4 +78,31 @@ object MahoutDoubleMatrixFactory extends DoubleMatrixFactory {
 
     MahoutDoubleMatrix(result)
   }
+
+  def sprand(rows: Int, cols: Int, rand: Rand[Double], level: Double): MahoutDoubleMatrix = {
+    val result = new SparseMatrix(rows, cols)
+    val uniform = Rand.uniform
+
+    for(r <- 0 until rows; c <- 0 until cols){
+      if(uniform.draw() < level) {
+        result.setQuick(r, c, rand.draw())
+      }
+    }
+
+    MahoutDoubleMatrix(result)
+  }
+
+  def adaptiveRand(rows: Int, cols: Int, rand: Rand[Double], level: Double,
+                   denseThreshold: Double): MahoutDoubleMatrix = {
+    val uniform = Rand.uniform
+
+    val coordinates = for(r <- 0 until rows; c <- 0 until cols) yield {
+      (r, c)
+    }
+
+    val entries = coordinates zip (uniform.sample(rows*cols)) filter { t => t._2 < level } map { case ((row, col),
+    _) => (row, col,rand.draw())}
+
+    create(rows, cols, entries, (entries.size.toDouble/(rows*cols))> denseThreshold)
+  }
 }

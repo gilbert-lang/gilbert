@@ -1,8 +1,9 @@
 package org.gilbertlang.runtimeMacros.linalg
 
+
 import java.io._
 
-import eu.stratosphere.types.Value
+import eu.stratosphere.types.{Value}
 import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
 class DoubleMatrixValue(var matrix: DoubleMatrix) extends Value {

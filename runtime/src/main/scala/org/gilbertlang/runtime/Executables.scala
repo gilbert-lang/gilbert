@@ -407,6 +407,32 @@ object Executables {
     def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
   }
 
+  case class adaptiveRand(numRows: ScalarRef, numColumns: ScalarRef, mean: ScalarRef, std: ScalarRef,
+                          level: ScalarRef) extends FunctionMatrixTransformation {
+    def instantiate(args: Executable*): adaptiveRand = {
+      var anyInstantiated = false
+      val instantiatedRows = numRows.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedCols = numColumns.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedMean = mean.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedStd = std.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedLevel = level.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        adaptiveRand(instantiatedRows, instantiatedCols, instantiatedMean, instantiatedStd, instantiatedLevel)
+      }else{
+        this
+      }
+    }
+
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
+  }
+
   case class randn(numRows: ScalarRef, numColumns: ScalarRef, mean: ScalarRef = scalar(0), std: ScalarRef = scalar(1))
     extends FunctionMatrixTransformation {
 
@@ -429,6 +455,33 @@ object Executables {
     }
 
     def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
+  }
+
+  case class sprand(numRows: ScalarRef, numCols: ScalarRef, mean: ScalarRef, std: ScalarRef,
+                    level: ScalarRef) extends FunctionMatrixTransformation {
+
+    def instantiate(args: Executable*): sprand = {
+      var anyInstantiated = false
+      val instantiatedRows = numRows.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedCols = numCols.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedMean = mean.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedStd = std.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedLevel = level.instantiate(args: _*)
+      anyInstantiated |= Executable.instantiated
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        sprand(instantiatedRows, instantiatedCols, instantiatedMean, instantiatedStd, instantiatedLevel)
+      }else{
+        this
+      }
+    }
+
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numCols))
   }
 
   case class spones(matrix: Matrix) extends FunctionMatrixTransformation {

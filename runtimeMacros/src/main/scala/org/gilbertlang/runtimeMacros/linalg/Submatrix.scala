@@ -23,7 +23,9 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
   def rowRange = rowOffset until (rowOffset + rows)
   def colRange = columnOffset until (columnOffset + cols)
 
-  def apply(i: Int, j: Int): Double = matrix(i-rowOffset, j-columnOffset)
+  def apply(i: Int, j: Int): Double = {
+    matrix(i - rowOffset, j - columnOffset)
+  }
   def apply[Slice1, Slice2, Result](slice1: Slice1, slice2: Slice2)(implicit canSlice: CanSlice2[Submatrix, Slice1,
     Slice2, Result]): Result = {
     canSlice(this, slice1, slice2)
@@ -142,44 +144,47 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
 }
 
 object Submatrix extends SubmatrixImplicits {
-  var matrixFactory: DoubleMatrixFactory = MatrixFactory.doubleMatrixFactory
 
-  def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,Double)]): Submatrix = {
+  def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,
+    Double)])(implicit factory: DoubleMatrixFactory):
+  Submatrix = {
     import partitionInformation._
     val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
 
     val dense = adjustedEntries.size.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
 
-    val matrix = matrixFactory.create(numRows, numColumns, adjustedEntries, dense)
+    val matrix = factory.create(numRows, numColumns, adjustedEntries, dense)
     Submatrix(matrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
   }
 
 
-  def apply(partitionInformation: Partition, numNonZeroElements: Int = 0): Submatrix = {
+  def apply(partitionInformation: Partition, numNonZeroElements: Int = 0)(implicit factory: DoubleMatrixFactory):
+  Submatrix = {
       import partitionInformation._
 
       val dense = numNonZeroElements.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
 
-      Submatrix(matrixFactory.create(numRows, numColumns, dense), rowIndex, columnIndex, rowOffset,
+      Submatrix(factory.create(numRows, numColumns, dense), rowIndex, columnIndex, rowOffset,
           columnOffset, numTotalRows, numTotalColumns)
     }
-    
-    def init(partitionInformation: Partition, initialValue: Double): Submatrix = {
+
+    def init(partitionInformation: Partition, initialValue: Double)(implicit factory: DoubleMatrixFactory): Submatrix
+    = {
       import partitionInformation._
-      Submatrix(matrixFactory.init(numRows, numColumns, initialValue, dense = true), rowIndex, columnIndex,
+      Submatrix(factory.init(numRows, numColumns, initialValue, dense = true), rowIndex, columnIndex,
         rowOffset, columnOffset, numTotalRows, numTotalColumns)
     }
-    
-    def eye(partitionInformation: Partition): Submatrix = {
+
+    def eye(partitionInformation: Partition)(implicit factory: DoubleMatrixFactory): Submatrix = {
       import partitionInformation._
 
       val matrix = containsDiagonal(partitionInformation) match {
-        case None => matrixFactory.create(numRows, numColumns, dense = false)
+        case None => factory.create(numRows, numColumns, dense = false)
         case Some(startIdx) =>
           val (startRow, startColumn) = (startIdx - rowOffset, startIdx - columnOffset)
           val dense = math.min(numRows-startRow, numColumns-startColumn).toDouble/(numRows*numColumns) >
             Configuration.DENSITYTHRESHOLD
-          matrixFactory.eye(numRows, numColumns, startRow, startColumn, dense)
+          factory.eye(numRows, numColumns, startRow, startColumn, dense)
       }
 
       Submatrix(matrix, rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,
@@ -199,11 +204,27 @@ object Submatrix extends SubmatrixImplicits {
         }
       }
     }
-    
-    def rand(partition: Partition, random: Rand[Double] = new Uniform(0,1)): Submatrix = {
+
+    def rand(partition: Partition, random: Rand[Double] = new Uniform(0,1))(implicit factory: DoubleMatrixFactory):
+    Submatrix = {
       import partition._
-      Submatrix(matrixFactory.rand(numRows, numColumns, random), rowIndex, columnIndex, rowOffset, columnOffset,
-          numTotalRows, numTotalColumns)
+      Submatrix(factory.rand(numRows, numColumns, random), rowIndex, columnIndex, rowOffset,
+        columnOffset, numTotalRows, numTotalColumns)
+    }
+
+    def sprand(partition: Partition, random: Rand[Double], level: Double)(implicit factory: DoubleMatrixFactory):
+    Submatrix = {
+      import partition._
+      Submatrix(factory.sprand(numRows, numColumns, random, level), rowIndex, columnIndex, rowOffset, columnOffset,
+        numTotalRows, numTotalColumns)
+    }
+
+    def adaptiveRand(partition: Partition, rand: Rand[Double], level: Double,
+                     densityThreshold: Double)(implicit factory: DoubleMatrixFactory):
+    Submatrix = {
+      import partition._
+      Submatrix(factory.adaptiveRand(numRows, numColumns, rand, level, densityThreshold), rowIndex,
+        columnIndex, rowOffset, columnOffset, numTotalRows, numTotalColumns)
     }
   
   def outputFormatter(elementDelimiter: String, fieldDelimiter: String) = {

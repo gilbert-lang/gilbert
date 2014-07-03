@@ -8,6 +8,26 @@ trait PartitionPlan extends Iterable[Partition]{
   def partitionId(row: Int, column: Int):Int
   def getPartition(id: Int): Partition
   def getPartition(rowIndex: Int, columnIndex: Int): Partition
+
+  def iterator(part: Int, total: Int): Iterator[Partition] = {
+    val slice = maxId.toDouble/total
+
+    val start = (slice * part).toInt
+    val end = (slice*(part+1)).toInt
+
+    new Iterator[Partition]{
+      var counter = start
+
+      override def hasNext: Boolean = counter < end
+
+      override def next(): Partition = {
+        val result = getPartition(counter)
+        counter += 1
+        result
+      }
+    }
+
+  }
   
   override def iterator: Iterator[Partition] = {
     new Iterator[Partition]{

@@ -65,6 +65,9 @@ object Optimizer {
         case linspace(start, end, num) => linspace(tpS(start), tpS(end), tpS(num))
         case ones(rows, cols) => ones(tpS(rows), tpS(cols))
         case randn(rows, cols, mean, std) => randn(tpS(rows), tpS(cols), tpS(mean), tpS(std))
+        case sprand(rows, cols, mean, std, level) => sprand(tpS(rows), tpS(cols), tpS(mean), tpS(std), tpS(level))
+        case adaptiveRand(rows, cols, mean, std, level) => adaptiveRand(tpS(rows), tpS(cols), tpS(mean), tpS(std),
+          tpS(level))
         case pdist2(a,b) => pdist2(tpM(a), tpM(b))
         case repmat(m, a,b) => repmat(tpM(m), tpS(a), tpS(b))
         case spones(m) => spones(tpM(m))
@@ -186,6 +189,9 @@ object Optimizer {
           case linspace(start, end, num) => linspace(mmS(start), mmS(end), mmS(num))
           case ones(rows, cols) => ones(mmS(rows), mmS(cols))
           case randn(rows, cols, mean, std) => randn(mmS(rows), mmS(cols), mmS(mean), mmS(std))
+          case sprand(rows, cols, mean, std, level) => sprand(mmS(rows), mmS(cols), mmS(mean), mmS(std), mmS(level))
+          case adaptiveRand(rows, cols, mean, std, level) => adaptiveRand(mmS(rows), mmS(cols), mmS(mean), mmS(std),
+            mmS(level))
           case pdist2(a,b) => pdist2(mmM(a), mmM(b))
           case repmat(m, a,b) => repmat(mmM(m), mmS(a), mmS(b))
           case spones(m) => spones(mmM(m))

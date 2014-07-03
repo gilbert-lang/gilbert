@@ -86,8 +86,8 @@ import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 
 class SparkExecutor(master: String = "local[4]",checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
-                    appName: String = "Gilbert",
-parallelism: Int = 4, outputPath: Option[String], jars: Seq[String] = Seq[String]()) extends Executor with
+                    appName: String = "Gilbert", parallelism: Int = 4, outputPath: Option[String],
+                    jars: Seq[String] = Seq[String]()) extends Executor with
 SubmatrixImplicits with SubvectorImplicits {
 
   type Matrix = RDD[Submatrix]
@@ -96,6 +96,9 @@ SubmatrixImplicits with SubvectorImplicits {
 
   val WRITE_TO_OUTPUT = !outputPath.isDefined
   val path = outputPath.getOrElse("")
+
+  implicit val doubleMatrixFactory = MatrixFactory.getDouble
+  implicit val booleanMatrixFactory = MatrixFactory.getBoolean
 
 //  private val numWorkerThreads = 4
 //  private val degreeOfParallelism = 2*numWorkerThreads
@@ -813,6 +816,45 @@ SubmatrixImplicits with SubvectorImplicits {
         }
         )
 
+      case r: sprand =>
+        handle[sprand, (Int, Int, Double, Double, Double)](
+        r,
+        { input => (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numCols).toInt,
+          evaluate[Double](input.mean), evaluate[Double](input.std), evaluate[Double](input.level))
+        },
+        {
+          case (_, (rows, cols, mean, std, level)) =>
+            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+            val bcMean = sc.broadcast(mean)
+            val bcStd = sc.broadcast(std)
+            val bcLevel = sc.broadcast(level)
+
+            sc.parallelize(partitionPlan.toSeq) map { partition =>
+              val rand=  Gaussian(bcMean.value, bcStd.value)
+              Submatrix.sprand(partition, rand, bcLevel.value)
+            }
+        }
+        )
+
+      case r: adaptiveRand =>
+        handle[adaptiveRand, (Int, Int, Double, Double, Double)](
+        r,
+        { input => (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numColumns).toInt,
+          evaluate[Double](input.mean), evaluate[Double](input.std), evaluate[Double](input.level))},
+        {
+          case (_,(rows, cols, mean, std, level)) =>
+            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+            val bcMean = sc.broadcast(mean)
+            val bcStd = sc.broadcast(std)
+            val bcLevel = sc.broadcast(level)
+
+            sc.parallelize(partitionPlan.toSeq) map { partition =>
+              Submatrix.adaptiveRand(partition, new Gaussian(bcMean.value, bcStd.value), bcLevel.value,
+                Configuration.DENSITYTHRESHOLD)
+            }
+        }
+        )
+
       case s: sum =>
         handle[sum, (Matrix, Int)](
         s,
@@ -1011,7 +1053,7 @@ SubmatrixImplicits with SubvectorImplicits {
 
             val partition = blocks.head
 
-            require(blocks.isEmpty, "There can only be one block for a partition id.")
+            require(blocks.tail.isEmpty, "There can only be one block for a partition id.")
             Submatrix(partition, entries)
           }
         }
@@ -1052,7 +1094,7 @@ SubmatrixImplicits with SubvectorImplicits {
                 require(blocks.nonEmpty, "There has to be at least one block for a partition id.")
                 val partition = blocks.head
 
-                require(blocks.isEmpty, "There can only be one block for a partition id.")
+                require(blocks.tail.isEmpty, "There can only be one block for a partition id.")
 
                 val minValueEntries = minIdxValues map { case(minRow, col, minValue) =>
                   (0, col, minValue)
@@ -1065,7 +1107,7 @@ SubmatrixImplicits with SubvectorImplicits {
                 require(blocks.nonEmpty, "There has to be at least one block for a partition id.")
                 val partition = blocks.head
 
-                require(blocks.isEmpty, "There can only be one block for a partition id.")
+                require(blocks.tail.isEmpty, "There can only be one block for a partition id.")
 
                 val minIdxEntries = minIdxValues map { case(minRow, col, minValue) =>
                   (0, col, (minRow+1).toDouble)
@@ -1104,7 +1146,7 @@ SubmatrixImplicits with SubvectorImplicits {
 
                 val partition = blocks.head
 
-                require(blocks.isEmpty, "There can only be one block for a partition id.")
+                require(blocks.tail.isEmpty, "There can only be one block for a partition id.")
 
                 val minValueEntries = entries map { case(row, minCol, minValue) =>
                   (row, 0, minValue)
@@ -1118,7 +1160,7 @@ SubmatrixImplicits with SubvectorImplicits {
 
                 val partition = blocks.head
 
-                require(blocks.isEmpty, "There can only be one block for a partition id.")
+                require(blocks.tail.isEmpty, "There can only be one block for a partition id.")
 
                 val minIdxEntries = entries map { case(row, minCol, minValue) =>
                   (row, 0, (minCol+1).toDouble)

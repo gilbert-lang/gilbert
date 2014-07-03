@@ -3,6 +3,7 @@ package org.gilbertlang.runtimeMacros.linalg.breeze
 import breeze.stats.distributions.Rand
 import org.gilbertlang.runtimeMacros.linalg.{BooleanMatrix, BooleanMatrixFactory}
 
+@SerialVersionUID(1)
 object BreezeBooleanMatrixFactory extends BooleanMatrixFactory{
   def create(rows: Int, cols: Int, dense: Boolean): BooleanMatrix = {
     Bitmatrix.zeros(rows, cols)

@@ -4,6 +4,7 @@ import breeze.stats.distributions.Rand
 import org.gilbertlang.runtimeMacros.linalg.{DoubleMatrix, DoubleMatrixFactory}
 import breeze.linalg.{DenseMatrix => BreezeDenseMatrix, CSCMatrix => BreezeSparseMatrix}
 
+@SerialVersionUID(1)
 object BreezeDoubleMatrixFactory extends DoubleMatrixFactory {
   def create(rows: Int, cols: Int, dense: Boolean): DoubleMatrix = {
     if(dense){
@@ -78,4 +79,33 @@ object BreezeDoubleMatrixFactory extends DoubleMatrixFactory {
   def rand(rows: Int, cols: Int, rand: Rand[Double]) = {
     BreezeDenseMatrix.rand[Double](rows, cols, rand)
   }
+
+  def sprand(rows: Int, cols: Int, rand: Rand[Double], level: Double) = {
+    val builder = new BreezeSparseMatrix.Builder[Double](rows, cols, (level*rows*cols).toInt)
+    val uniform = Rand.uniform
+    for(r <- 0 until rows; c <- 0 until cols){
+      if(uniform.draw() < level){
+        builder.add(r, c, rand.draw())
+      }
+    }
+
+    builder.result
+  }
+
+  def adaptiveRand(rows: Int, cols: Int, rand: Rand[Double], level: Double,
+                   denseThreshold: Double): BreezeDoubleMatrix = {
+    val uniform = Rand.uniform
+
+    uniform.sample(rows*cols).filter( d => d < level)
+
+    val coordinates = for(r <- 0 until rows; c <- 0 until cols) yield {
+        (r, c)
+    }
+
+    val entries = coordinates zip (uniform.sample(rows*cols)) filter { t => t._2 < level } map { case ((row, col),
+    _) => (row, col,rand.draw())}
+
+    create(rows, cols, entries, (entries.size.toDouble/(rows*cols)) >= denseThreshold)
+  }
+
 }

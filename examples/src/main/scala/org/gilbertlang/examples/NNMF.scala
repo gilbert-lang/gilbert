@@ -1,7 +1,7 @@
 package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
-import org.gilbertlang.runtime.{withSpark, local, withStratosphere}
+import org.gilbertlang.runtime._
 
 import java.util.logging.{ConsoleHandler, Level, Logger}
 
@@ -19,17 +19,22 @@ object NNMF {
     val executable = Gilbert.compileRessource("nnmf.gb")
 
     val jarFiles = List("runtime/target/runtime-0.1-SNAPSHOT.jar", "runtimeMacros/target/runtimeMacros-0.1-SNAPSHOT" +
-      ".jar", "/Users/till/.m2/repository/org/scalanlp/breeze_2.10/0.6-SNAPSHOT/breeze_2.10-0.6-SNAPSHOT.jar",
+      ".jar", "/Users/till/.m2/repository/org/scalanlp/breeze_2.10/0.8.1/breeze_2.10-0.8.1.jar",
       "/Users/till/.m2/repository/com/github/fommil/netlib/native_ref-java/1.1/native_ref-java-1.1.jar",
-      "/Users/till/.m2/repository/com/github/fommil/netlib/core/1.1.1/core-1.1.1.jar",
+      "/Users/till/.m2/repository/com/github/fommil/netlib/core/1.1.2/core-1.1.2.jar",
       "/Users/till/.m2/repository/com/github/fommil/jniloader/1.1/jniloader-1.1.jar",
       "/Users/till/.m2/repository/com/github/fommil/netlib/netlib-native_system-linux-x86_64/1" +
         ".1/netlib-native_system-linux-x86_64-1.1-natives.jar",
       "/Users/till/.m2/repository/com/github/fommil/netlib/netlib-native_ref-linux-x86_64/1" +
-        ".1/netlib-native_ref-linux-x86_64-1.1-natives.jar");
+        ".1/netlib-native_ref-linux-x86_64-1.1-natives.jar",
+      "/Users/till/.m2/repository/org/apache/mahout/mahout-math/1.0-SNAPSHOT/mahout-math-1.0-SNAPSHOT.jar",
+      "/Users/till/.m2/repository/eu/stratosphere/stratosphere-core/0.6-patched/stratosphere-core-0.6-patched.jar");
 
-    //withStratosphere(executable).remote("node1", 6123, dop, outputPath, jarFiles)
-    withSpark(executable).remote("spark://node1:7077",checkpointDir = "", appName="NNMF",parallelism=dop,
+    withMahout()
+//    withStratosphere(executable).remote("node1", 6123, dop, path, jarFiles)
+    val result = withSpark(executable).remote("spark://node1:7077",checkpointDir = "", appName="NNMF",parallelism=dop,
       outputPath = None,jars = jarFiles)
+
+    println(result)
   }
 }

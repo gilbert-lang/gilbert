@@ -47,6 +47,12 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   val minWithIndex = Symbol("minWithIndex", minWithIndexType)
   val pdist2 = Symbol("pdist2", pdist2Type)
   val abs = Symbol("abs", absType)
+  val sprand = Symbol("sprand", sprandType)
+
+  def sprandType = {
+    FunctionType((DoubleType, DoubleType, DoubleType, DoubleType, DoubleType), MatrixType(DoubleType,
+      ReferenceValue(0), ReferenceValue(1)))
+  }
 
   def absType = {
     val nt = newNumericTV()
@@ -88,8 +94,12 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
   }
   
   def randType = {
-    FunctionType((DoubleType, DoubleType, DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0),
-        ReferenceValue(1)))
+    PolymorphicType(List(
+      FunctionType((DoubleType, DoubleType, DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0),
+          ReferenceValue(1))),
+      FunctionType((DoubleType, DoubleType, DoubleType, DoubleType, DoubleType), MatrixType(DoubleType,
+        ReferenceValue(0), ReferenceValue(1)))
+    ))
   }
 
   def loadType = {

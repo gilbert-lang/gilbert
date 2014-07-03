@@ -30,6 +30,15 @@ class MahoutBooleanMatrix(var matrix: Matrix) extends BooleanMatrix {
     MahoutBooleanMatrix(matrix.copy().assign{x:Double => x * b2D(op)})
   }
 
+  def :|(sc: Boolean): BooleanMatrix = {
+    MahoutBooleanMatrix(matrix.copy().assign{x: Double => math.min(1.0,b2D(sc) + b2D(d2B(x)))})
+  }
+
+  def :|(op: BooleanMatrix): BooleanMatrix = {
+    MahoutBooleanMatrix(matrix.copy().assign(op.matrix, (x: Double, y: Double) => math.min(1.0,
+      b2D(d2B(x)) + b2D(d2B(y)))))
+  }
+
   def t: MahoutBooleanMatrix = {
     MahoutBooleanMatrix(matrix.transpose())
   }

@@ -19,6 +19,14 @@ class BreezeBooleanMatrix(var matrix: Bitmatrix) extends BooleanMatrix {
     matrix & sc
   }
 
+  def :|(op: BooleanMatrix): BooleanMatrix = {
+    matrix :| op.matrix
+  }
+
+  def :|(sc: Boolean): BooleanMatrix = {
+    matrix :| sc
+  }
+
   def t: BooleanMatrix = {
     matrix.t
   }

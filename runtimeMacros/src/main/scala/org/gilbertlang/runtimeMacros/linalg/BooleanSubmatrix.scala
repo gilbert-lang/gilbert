@@ -62,32 +62,28 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
     totalColumns = in.readInt()
   }
 
-  implicit def matrix2Submatrix(matrix: BooleanMatrix): BooleanSubmatrix = {
-    BooleanSubmatrix(matrix, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
-  }
-
   def &(operand: Boolean): BooleanSubmatrix = {
-    matrix & operand
+    BooleanSubmatrix(matrix & operand, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
   }
 
   def &(operand: BooleanSubmatrix): BooleanSubmatrix = {
-    matrix & operand.matrix
+    BooleanSubmatrix(matrix & operand.matrix, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
   }
 
   def :&(operand: Boolean): BooleanSubmatrix = {
-    matrix & operand
+    BooleanSubmatrix(matrix & operand, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
   }
 
   def :&(operand: BooleanSubmatrix): BooleanSubmatrix = {
-    matrix :& operand.matrix
+    BooleanSubmatrix(matrix & operand.matrix, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
   }
 
   def :|(operand: Boolean): BooleanSubmatrix = {
-    matrix :| operand
+    BooleanSubmatrix(matrix :| operand, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
   }
 
   def :|(operand: BooleanSubmatrix): BooleanSubmatrix = {
-    matrix :| operand.matrix
+    BooleanSubmatrix(matrix :| operand.matrix, rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns)
   }
 
   def t: BooleanSubmatrix = {
@@ -97,40 +93,42 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
 
 object BooleanSubmatrix {
 
-  var matrixFactory:BooleanMatrixFactory = MatrixFactory.booleanMatrixFactory
 
-    def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Boolean)]): BooleanSubmatrix = {
+    def apply(partitionInformation: Partition, entries: Seq[(Int,Int,Boolean)])(implicit factory:
+    BooleanMatrixFactory): BooleanSubmatrix = {
       import partitionInformation._
       val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
       val dense = adjustedEntries.size.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
-      val m = matrixFactory.create(numRows, numColumns, adjustedEntries, dense)
+      val m = factory.create(numRows, numColumns, adjustedEntries, dense)
       BooleanSubmatrix(m, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
     }
   
-    def apply(partitionInformation: Partition, numNonZeroElements: Int = 0): BooleanSubmatrix = {
+    def apply(partitionInformation: Partition, numNonZeroElements: Int = 0)(implicit factory: BooleanMatrixFactory):
+    BooleanSubmatrix = {
       import partitionInformation._
       val dense = numNonZeroElements.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
-      val m = matrixFactory.create(numRows, numColumns, dense)
+      val m = factory.create(numRows, numColumns, dense)
       BooleanSubmatrix(m, rowIndex, columnIndex, rowOffset,
           columnOffset, numTotalRows, numTotalColumns)
     }
     
-    def init(partitionInformation: Partition, initialValue: Boolean): BooleanSubmatrix = {
+    def init(partitionInformation: Partition, initialValue: Boolean)(implicit factory: BooleanMatrixFactory):
+    BooleanSubmatrix = {
       import partitionInformation._
-      val m = matrixFactory.init(numRows, numColumns, initialValue, dense=true)
+      val m = factory.init(numRows, numColumns, initialValue, dense=true)
       BooleanSubmatrix(m, rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows, numTotalColumns)
     }
 
-  def eye(partitionInformation: Partition): BooleanSubmatrix = {
+  def eye(partitionInformation: Partition)(implicit factory: BooleanMatrixFactory): BooleanSubmatrix = {
     import partitionInformation._
 
     val matrix = containsDiagonal(partitionInformation) match {
-      case None => matrixFactory.create(numRows, numColumns, dense = false)
+      case None => factory.create(numRows, numColumns, dense = false)
       case Some(startIdx) =>
         val (startRow, startColumn) = (startIdx - rowOffset, startIdx - columnOffset)
         val dense = math.min(numRows-startRow, numColumns-startColumn).toDouble/(numRows*numColumns) >
           Configuration.DENSITYTHRESHOLD
-        matrixFactory.eye(numRows, numColumns, startRow, startColumn, dense)
+        factory.eye(numRows, numColumns, startRow, startColumn, dense)
     }
 
     BooleanSubmatrix(matrix, rowIndex, columnIndex, rowOffset, columnOffset, numTotalRows,

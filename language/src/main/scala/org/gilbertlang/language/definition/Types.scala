@@ -137,5 +137,9 @@ object Types {
     def apply(parameters: (Type, Type, Type, Type), value: Type) = {
       new FunctionType(List(parameters._1, parameters._2, parameters._3, parameters._4), value)
     }
+
+    def apply(parameters: (Type, Type, Type, Type, Type), value: Type) = {
+      new FunctionType(List(parameters._1, parameters._2, parameters._3, parameters._4, parameters._5), value)
+    }
   }
 }

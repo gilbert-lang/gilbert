@@ -101,7 +101,7 @@ trait DoubleMatrixImplicits extends BreezeMatrixImplicits with MahoutMatrixImpli
 
   implicit def canSliceRowDM: CanSlice2[DoubleMatrix, Int, ::.type, DoubleMatrix] = {
     new CanSlice2[DoubleMatrix, Int, ::.type, DoubleMatrix]{
-      override def apply(matrix: DoubleMatrix, row: Int, igonred: ::.type) = {
+      override def apply(matrix: DoubleMatrix, row: Int, ignored: ::.type) = {
         matrix match {
           case m: BreezeDoubleMatrix =>
             m.matrix(row, ::)

@@ -127,6 +127,22 @@ object PlanPrinter {
         print(op.mean, depth + 1)
         print(op.std, depth + 1)
 
+      case op: sprand =>
+        printIndented(depth, op, "sprand")
+        print(op.numRows, depth + 1)
+        print(op.numCols, depth + 1)
+        print(op.mean, depth + 1)
+        print(op.std, depth + 1)
+        print(op.level, depth + 1)
+
+      case op: adaptiveRand =>
+        printIndented(depth, op, "adaptiveRand")
+        print(op.numRows, depth+ 1)
+        print(op.numColumns, depth + 1)
+        print(op.mean, depth + 1)
+        print(op.std, depth + 1)
+        print(op.level, depth + 1)
+
       case op: spones =>
         printIndented(depth, op, "spones")
         print(op.matrix, depth +  1)

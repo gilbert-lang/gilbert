@@ -17,6 +17,10 @@ trait BooleanMatrix extends Value {
 
   def &(op: BooleanMatrix): BooleanMatrix
   def &(op: Boolean): BooleanMatrix
+  def :&(op: BooleanMatrix): BooleanMatrix = this.&(op)
+  def :&(op: Boolean): BooleanMatrix = this.&(op)
+  def :|(op: BooleanMatrix): BooleanMatrix
+  def :|(op: Boolean): BooleanMatrix
 
   def t: BooleanMatrix
 

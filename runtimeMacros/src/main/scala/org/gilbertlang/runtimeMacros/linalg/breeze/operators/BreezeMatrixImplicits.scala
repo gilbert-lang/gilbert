@@ -105,7 +105,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     new CanSlice2[Matrix[T], Int, ::.type, Matrix[T]]{
       override def apply(matrix: Matrix[T], row: Int, ignored: ::.type) = {
         matrix match {
-          case x: DenseMatrix[T] => x(row, ::)(DenseMatrix.canSliceRow).inner.asDenseMatrix.t
+          case x: DenseMatrix[T] => x(row, ::)(DenseMatrix.canSliceRow).inner.asDenseMatrix
           case x: CSCMatrix[T] => x(row, ::)(canSliceRowSparseMatrix)
           case x =>
             val result = DenseMatrix.zeros[T](1, x.cols)

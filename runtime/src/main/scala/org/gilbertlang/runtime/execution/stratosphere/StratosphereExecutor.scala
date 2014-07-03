@@ -70,6 +70,7 @@ import org.gilbertlang.runtime.Executables.WriteString
 import scala.language.postfixOps
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 
+@SerialVersionUID(1)
 class StratosphereExecutor(val path: String) extends Executor with WrapAsScala with SubmatrixImplicits with
 SubvectorImplicits  {
   import ImplicitConversions._
@@ -85,7 +86,10 @@ SubvectorImplicits  {
   private var convergenceCurrentStateValue: Option[Matrix] = None
   private var convergenceCurrentStateCellArrayValue: Option[CellArray] = None
   private var convergencePreviousStateCellArrayValue: Option[CellArray] = None
-  
+
+  implicit val doubleMatrixFactory = MatrixFactory.getDouble
+  implicit val booleanMatrixFactory = MatrixFactory.getBoolean
+
   def getCWD: String = System.getProperty("user.dir")
 
   def newTempFileName(): String = {
@@ -598,19 +602,43 @@ SubvectorImplicits  {
         handle[scalar, Unit](
           executable,
           { _ => },
-          { (exec, _) => CollectionDataSource(List(exec.value)) })
+          { (exec, _) =>
+            val result = CollectionDataSource(List(exec.value))
+
+            if(Configuration.COMPILERHINTS){
+              result.outputCardinality = 1
+            }
+
+            result
+
+          })
 
       case executable: boolean =>
         handle[boolean, Unit](
             executable,
             {_ => },
-            { (exec, _) => CollectionDataSource(List(exec.value)) })
+            { (exec, _) =>
+              val result = CollectionDataSource(List(exec.value))
+
+              if(Configuration.COMPILERHINTS){
+                result.outputCardinality = 1
+              }
+
+              result
+            })
 
       case executable: string =>
         handle[string, Unit](
           executable,
           { _ => },
-          { (exec, _) => CollectionDataSource(List(exec.value))})
+          { (exec, _) =>
+            val result = CollectionDataSource(List(exec.value))
+            if(Configuration.COMPILERHINTS){
+              result.outputCardinality = 1
+            }
+
+            result
+          })
 
       case executable: CellwiseMatrixTransformation =>
         handle[CellwiseMatrixTransformation, Matrix](
@@ -828,14 +856,6 @@ SubvectorImplicits  {
                   val result = left * right
                   result
                 }
-              if(Configuration.COMPILERHINTS){
-                joinedBlocks.left.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), s => (s.rowIndex,
-                  s.rowOffset, s.totalRows))
-                joinedBlocks.left.neglects(s => (s.columnOffset, s.totalColumns))
-                joinedBlocks.right.preserves(s => (s.columnIndex, s.columnOffset, s.totalColumns),
-                  s => (s.columnIndex, s.columnOffset, s.totalColumns))
-                joinedBlocks.right.neglects(s => (s.rowOffset, s.totalRows))
-              }
 
               val reduced = joinedBlocks groupBy
                 { element => (element.rowIndex, element.columnIndex) } combinableReduceGroup
@@ -863,9 +883,6 @@ SubvectorImplicits  {
             val result = matrixDS map { matrix => matrix.t }
             if(Configuration.COMPILERHINTS){
               result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                s.totalColumns), s => (s.columnIndex, s.rowIndex, s.columnOffset, s.rowOffset, s.totalColumns,
-                s.totalRows))
             }
             result
           })
@@ -905,15 +922,10 @@ SubvectorImplicits  {
                   normedMatrix.setName("VM: L1 normed matrix")
 
                   if(Configuration.COMPILERHINTS){
-                    blockwiseNorm.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
-                    blockwiseNorm.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v=>(v.index, v.offset, v.totalEntries))
-
                     l1norm.uniqueKey(v => v.index)
                     l1norm.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
 
                     normedMatrix.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    normedMatrix.left.preserves(v => (v.index, v.offset, v.totalEntries), s=> (s.rowIndex,
-                      s.rowOffset, s.totalRows))
                     normedMatrix.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
                       s.totalRows, s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
                       s.totalRows, s.totalColumns))
@@ -935,16 +947,11 @@ SubvectorImplicits  {
                   matrixResult.setName("VM: vectorwise maximum matrix form")
 
                   if(Configuration.COMPILERHINTS){
-                    blockwiseMax.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
-                    blockwiseMax.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
-                      v.totalEntries))
 
                     maximum.uniqueKey(v => v.index)
                     maximum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
 
                     matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    matrixResult.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
-                      s.totalRows))
                   }
 
                   matrixResult
@@ -963,16 +970,10 @@ SubvectorImplicits  {
                   matrixResult.setName("VM: Vectorwise minimum in matrix form")
 
                   if(Configuration.COMPILERHINTS){
-                    blockwiseMin.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
-                    blockwiseMin.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
-                      v.totalEntries))
-
                     minimum.uniqueKey(v => v.index)
                     minimum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
 
                     matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    matrixResult.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
-                      s.totalRows))
                   }
 
                   matrixResult
@@ -1004,17 +1005,11 @@ SubvectorImplicits  {
                       s.totalRows, s.totalColumns), s=> (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
                       s.totalRows, s.totalColumns))
 
-                    blockwiseSum.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
-                    blockwiseSum.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
-                      v.totalEntries))
-
                     sumSquaredValues.uniqueKey(v => v.index)
                     sumSquaredValues.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset,
                       v.totalEntries))
 
                     result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    result.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
-                      s.totalRows))
                   }
 
                   result
@@ -1078,8 +1073,6 @@ SubvectorImplicits  {
 
                 blocks.uniqueKey(p => p._1)
 
-                partitionedData.right.preserves(t => t._3, q => q._4)
-
                 loadedMatrix.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
 
@@ -1097,13 +1090,17 @@ SubvectorImplicits  {
           { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numColumns)) },
           {
             case (_, (rows, columns)) =>
-              val result = rows cross columns flatMap { (rows, columns) =>
+              val partitions = rows cross columns flatMap { (rows, columns) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, columns.toInt)
-
-                for (matrixPartition <- partitionPlan.iterator) yield {
-                  Submatrix.init(matrixPartition, 1.0)
-                }
+                partitionPlan.iterator
               }
+              partitions.setName("Ones: Partitions")
+
+              //reduceGroup to distributed the partitions across the worker nodes
+              val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ps => ps.next}
+              distributedPartitions.setName("Ones: Distributed partitions")
+
+              val result = distributedPartitions map { p => Submatrix.init(p, 1.0) }
 
               result.setName("Ones")
 
@@ -1119,17 +1116,24 @@ SubvectorImplicits  {
             executable,
             { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numCols))},
             { case (_, (rows, columns)) =>
-              val result = rows cross columns flatMap { (rows, columns) =>
+              val partitions = rows cross columns flatMap { (rows, columns) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, columns.toInt)
 
-                for(matrixPartition <- partitionPlan.iterator) yield {
-                  Submatrix(matrixPartition)
-                }
+                partitionPlan.iterator
               }
+              partitions.setName("Zeros: Partitions")
+
+              //reduceGroup to distribute the partitions across the worker nodes
+              val distributedPartitions = partitions.groupBy(p => p.id).reduceGroup(ps => ps.next)
+              distributedPartitions.setName("Zeros: Distributed partitions")
+
+              val result = distributedPartitions map { p => Submatrix(p)}
 
               result.setName(s"Zeros")
 
               if(Configuration.COMPILERHINTS){
+                partitions.uniqueKey(p => p.id)
+                distributedPartitions.uniqueKey(p => p.id)
                 result.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
 
@@ -1141,16 +1145,23 @@ SubvectorImplicits  {
             executable,
             { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numCols))},
             { case (_, (rows, columns)) =>
-              val result = rows cross columns flatMap { (rows, columns) =>
+              val partitions = rows cross columns flatMap { (rows, columns) =>
                 val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, columns.toInt)
-
-                for(matrixPartition <- partitionPlan.iterator) yield {
-                  Submatrix.eye(matrixPartition)
-                }
+                partitionPlan.iterator
               }
+              partitions.setName("Eye: Partitions")
+
+              //reduceGroup to distribute partitions across worker nodes
+              val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ps => ps.next}
+              distributedPartitions.setName("Eye: Distributed partitions")
+
+              val result = distributedPartitions.map{p => Submatrix.eye(p)}
+
               result.setName("Eye")
 
               if(Configuration.COMPILERHINTS){
+                partitions.uniqueKey(p => p.id)
+                distributedPartitions.uniqueKey(p => p.id)
                 result.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
 
@@ -1166,36 +1177,132 @@ SubvectorImplicits  {
           },
           {
             case (_, (rowsDS, colsDS, meanDS, stdDS)) =>
-              val rowsColsDS = rowsDS cross colsDS map { (rows, cols) => (rows, cols) }
-              rowsColsDS.setName("Randn: Rows and cols combined")
+              val partitions = rowsDS cross colsDS flatMap {
+                (rows, cols) =>
+                  val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt,
+                    cols.toInt)
+                  partitionPlan.iterator
+              }
+              partitions.setName("Randn: Partitions")
 
-              val rowsColsMean = rowsColsDS cross meanDS map { case ((rows, cols), mean) => (rows, cols, mean) }
-              rowsColsMean.setName("Randn: Rows, cols and mean combined")
+              //reduceGroup to distribute the partitions across the worker nodes
+              val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ ps => ps.next}
+              distributedPartitions.setName("Randn: Distributed partitions")
 
-              val randomPartitions = rowsColsMean cross stdDS flatMap
-                {
-                  case ((rows, cols, mean), std) =>
-                    val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, cols.toInt)
+              val meanStd = meanDS cross stdDS map { (mean, std) => (mean, std) }
+              meanStd.setName("Randn: mean and std pair")
 
-                    val result = for (partition <- partitionPlan.iterator) yield {
-                      Submatrix.rand(partition, Gaussian(mean, std))
-                    }
+              val randomBlocks = distributedPartitions cross meanStd map {
+                case (partition, (mean, std)) =>
+                  Submatrix.rand(partition, Gaussian(mean, std))
 
-                    result
-                }
-
-              randomPartitions.setName("Randn: Random submatrices")
-
-              if(Configuration.COMPILERHINTS){
-                rowsColsDS.outputCardinality = 1
-
-                rowsColsMean.outputCardinality = 1
-
-                randomPartitions.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
 
-              randomPartitions
+              randomBlocks.setName("Randn: Random submatrices")
+
+              if(Configuration.COMPILERHINTS){
+                partitions.uniqueKey{p => p.id}
+                distributedPartitions.uniqueKey(p => p.id)
+                meanStd.outputCardinality = 1
+
+                randomBlocks.uniqueKey(s => (s.rowIndex, s.columnIndex))
+              }
+
+              randomBlocks
           })
+
+      case executable: sprand =>
+        handle[sprand, (Scalar[Double], Scalar[Double], Scalar[Double], Scalar[Double], Scalar[Double])](
+        executable,
+        { exec =>
+          (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numCols),
+            evaluate[Scalar[Double]](exec.mean), evaluate[Scalar[Double]](exec.std),
+            evaluate[Scalar[Double]](exec.level))
+        },
+        {
+          case (_, (rowsDS, colsDS, meanDS, stdDS, levelDS)) =>
+            val partitions = rowsDS cross colsDS flatMap { (rows, cols) =>
+              val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, cols.toInt)
+
+              partitionPlan.iterator
+            }
+            partitions.setName("Sprand: Random partitions")
+
+            //reduceGroup to distribute the partitions across the worker nodes
+            val distributedPartitions = partitions.groupBy(p => p.id).reduceGroup(ps => ps.next)
+            distributedPartitions.setName("Sprand: Disitributed partitions")
+
+            val meanStd = meanDS cross stdDS map { case (mean, std) => (mean, std)}
+            meanStd.setName("Sprand: mean and std combined")
+
+            val meanStdLevel = meanStd cross stdDS map { case ((mean, std), level) => (mean, std, level)}
+            meanStdLevel.setName("Sprand: Mean, std and level combined")
+
+            val randomSparseBlocks = distributedPartitions cross meanStdLevel map {
+              case (partition, (mean, std, level)) =>
+                val rand = Gaussian(mean, std)
+                Submatrix.sprand(partition, rand, level)
+            }
+
+            randomSparseBlocks.setName("Sprand: Sparse random blocks")
+
+            if(Configuration.COMPILERHINTS){
+              meanStd.outputCardinality = 1
+              meanStdLevel.outputCardinality = 1
+
+              partitions.uniqueKey(p => p.id)
+              distributedPartitions.uniqueKey(p => p.id)
+
+              randomSparseBlocks.uniqueKey(s => (s.rowIndex, s.columnIndex))
+            }
+
+            randomSparseBlocks
+        }
+        )
+
+      case executable: adaptiveRand =>
+        handle[adaptiveRand, (Scalar[Double], Scalar[Double], Scalar[Double], Scalar[Double], Scalar[Double])](
+        executable,
+        { input =>
+          (evaluate[Scalar[Double]](input.numRows), evaluate[Scalar[Double]](input.numColumns),
+            evaluate[Scalar[Double]](input.mean), evaluate[Scalar[Double]](input.std),
+            evaluate[Scalar[Double]](input.level))
+        },
+        {
+          case (_, (rowsDS, colsDS, meanDS, stdDS, levelDS)) =>
+            val partitions = rowsDS cross colsDS flatMap { (rows, cols) =>
+              val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows.toInt, cols.toInt)
+              partitionPlan.iterator
+            }
+            partitions.setName("AdaptiveRand: Partitions")
+
+            //reduceGroup to distribute the partitions explicitely across the worker nodes
+            val distributedPartitions = partitions.groupBy(p => p.id).reduceGroup(ps => ps.next)
+            distributedPartitions.setName("AdaptiveRand: Distributed partitions")
+
+            val meanStd = meanDS cross stdDS map {(mean, std) => (mean, std)}
+            meanStd.setName("AdaptiveRand: Mean and std pair")
+
+            val meanStdLevel = meanStd cross levelDS map { case ((mean, std), level) => (mean, std, level)}
+            meanStdLevel.setName("AdaptiveRand: Mean, std and level triple")
+
+            val result = distributedPartitions cross meanStdLevel map {
+              case (partition, (mean, std, level)) =>
+                val random = Gaussian(mean, std)
+                Submatrix.adaptiveRand(partition, random, level, Configuration.DENSITYTHRESHOLD)
+            }
+
+            if(Configuration.COMPILERHINTS){
+              partitions.uniqueKey(p => p.id)
+              distributedPartitions.uniqueKey(p => p.id)
+              meanStd.outputCardinality = 1
+              meanStdLevel.outputCardinality = 1
+              result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+            }
+
+            result
+        }
+        )
 
       case executable: spones =>
         handle[spones, Matrix](
@@ -1241,16 +1348,11 @@ SubvectorImplicits  {
               matrixResult.setName("SumRow: Row-wise sum in matrix form")
 
               if(Configuration.COMPILERHINTS){
-                blockwiseSum.neglects(s => (s.columnIndex, s.columnOffset, s.totalColumns))
-                blockwiseSum.preserves(s => (s.rowIndex, s.rowOffset, s.totalRows), v => (v.index, v.offset,
-                  v.totalEntries))
 
                 rowwiseSum.uniqueKey(v => v.index)
                 rowwiseSum.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset, v.totalEntries))
 
                 matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                matrixResult.preserves(v => (v.index, v.offset, v.totalEntries), s => (s.rowIndex, s.rowOffset,
-                  s.totalRows))
               }
 
               matrixResult
@@ -1277,7 +1379,6 @@ SubvectorImplicits  {
               if(Configuration.COMPILERHINTS){
                 blockwiseSum.preserves(s => (s.columnIndex, s.columnOffset, s.totalColumns), s=> (s.columnIndex,
                   s.columnOffset, s.totalColumns))
-                blockwiseSum.neglects(s => (s.rowIndex, s.rowOffset, s.totalRows))
 
                 colwiseSum.uniqueKey(s => (s.rowIndex, s.columnIndex))
                 colwiseSum.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
@@ -1321,15 +1422,15 @@ SubvectorImplicits  {
                   result.setName("Diag: Result diagonal matrix of a row vector")
 
                   if(Configuration.COMPILERHINTS){
-                    entries.preserves(s => (s.columnIndex, s.columnOffset), t => (t._1, t._3))
-
                     result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
 
                   result
                 case (_, Some(1)) =>
-                  val entries = matrix map { submatrix => (submatrix.rowIndex, submatrix.rows,
-                  submatrix.rowOffset) }
+                  val entries = matrix map {
+                    submatrix =>
+                      (submatrix.rowIndex, submatrix.rows, submatrix.rowOffset)
+                  }
                   entries.setName("Diag: Column vector input")
 
                   val result = entries cross matrix map {
@@ -1354,8 +1455,6 @@ SubvectorImplicits  {
                   result.setName("Diag: Result diagonal matrix of a column vector")
 
                   if(Configuration.COMPILERHINTS){
-                    entries.preserves(s => (s.columnIndex, s.columnOffset), t => (t._1, t._3))
-
                     result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
                   result
@@ -1455,12 +1554,7 @@ SubvectorImplicits  {
             iterationStatePlaceholderValueCellArray = Some(partialSolution)
             val result = evaluate[CellArray](exec.updatePlan)
             iterationStatePlaceholderValueCellArray = oldStatePlaceholderValue
-            /*
-             * Iteration mechanism requires that there is some kind of operation in the step function.
-             * Therefore it is not possible to use the identity function!!! A workaround for this situation
-             * would be to apply an explicit mapping operation with the identity function.
-            */
-            result
+            result map { x => x }
           }
 
           var iteration: CellArray = null
@@ -1517,7 +1611,10 @@ SubvectorImplicits  {
               }
               pairIDSubmatrix.setName("Sum: (ID, sum)")
 
-              val result = pairIDSubmatrix map { case (_, submatrix) => submatrix}
+              val result = pairIDSubmatrix map {
+                case (_, submatrix) =>
+                  submatrix
+              }
               result.setName("Sum: Final result")
 
               if(Configuration.COMPILERHINTS){
@@ -1525,9 +1622,6 @@ SubvectorImplicits  {
                 pairIDSubmatrix.uniqueKey(p => p._1)
 
                 result.neglects(p => p._1)
-                result.preserves(p => (p._2.rowIndex, p._2.columnIndex, p._2.rowOffset, p._2.columnOffset,
-                  p._2.totalRows, p._2.totalColumns), s=> (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                  s.totalRows, s.totalColumns))
                 result.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
               result
@@ -1543,7 +1637,7 @@ SubvectorImplicits  {
           }else{
             val cellArrayEntries:List[DataSet[CellEntry]] = elements.zipWithIndex.map {
               case (element, index) =>
-                exec.elements(index).getType match {
+                val result = exec.elements(index).getType match {
                   case DoubleType =>
                     element.asInstanceOf[Scalar[Double]] map { entry =>
                       CellEntry(index, ValueWrapper(entry))}
@@ -1571,10 +1665,13 @@ SubvectorImplicits  {
                     MatrixType(_,_,_) =>
                     throw new StratosphereExecutionError("Cannot create cell array from given type.")
                 }
+                result.setName(s"CellEntry($index)")
+                result
             }
 
             val firstEntry = cellArrayEntries.head
             val result = cellArrayEntries.tail.foldLeft(firstEntry)(_ union _)
+            result.setName("CellArray")
 
             result
           }
