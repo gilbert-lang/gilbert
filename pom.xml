@@ -10,6 +10,7 @@
         <module>runtimeMacros</module>
         <module>runtime</module>
         <module>examples</module>
+        <module>evaluation</module>
     </modules>
     <packaging>pom</packaging>
 

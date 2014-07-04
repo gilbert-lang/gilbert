@@ -1,0 +1,3 @@
+A = rand($rowsA, $colsA, 0, 1, $level);
+B = rand($colsA, $colsB, 0, 1, $level);
+A*B

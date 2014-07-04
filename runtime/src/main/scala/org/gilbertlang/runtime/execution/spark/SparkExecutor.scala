@@ -85,35 +85,15 @@ import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
 
-class SparkExecutor(master: String = "local[4]",checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
-                    appName: String = "Gilbert", parallelism: Int = 4, outputPath: Option[String],
-                    jars: Seq[String] = Seq[String]()) extends Executor with
-SubmatrixImplicits with SubvectorImplicits {
+class SparkExecutor(@transient val sc: SparkContext) extends
+Executor with SubmatrixImplicits with SubvectorImplicits {
 
   type Matrix = RDD[Submatrix]
   type BooleanMatrix = RDD[BooleanSubmatrix]
   type CellArray = List[Any]
 
-  val WRITE_TO_OUTPUT = !outputPath.isDefined
-  val path = outputPath.getOrElse("")
-
   implicit val doubleMatrixFactory = MatrixFactory.getDouble
   implicit val booleanMatrixFactory = MatrixFactory.getBoolean
-
-//  private val numWorkerThreads = 4
-//  private val degreeOfParallelism = 2*numWorkerThreads
-
-  @transient private val conf = new SparkConf().
-    setMaster(master).
-    setAppName(appName).
-    setJars(jars).
-    set("spark.cores.max", parallelism.toString)
-
-  @transient private val sc = new SparkContext(conf)
-
-  if(!checkpointDir.isEmpty) {
-    sc.setCheckpointDir(checkpointDir)
-  }
 
   private var tempFileCounter = 0
 
@@ -124,16 +104,14 @@ SubmatrixImplicits with SubvectorImplicits {
   private var convergencePreviousStateCellArray: CellArray = null
   private var convergenceCurrentStateCellArray: CellArray = null
 
-  def stop() {
-    sc.stop()
-  }
+  def this() = this(null)
 
   def getCWD: String = System.getProperty("user.dir")
 
   def newTempFileName(): String = {
     tempFileCounter += 1
-    val separator = if(path.endsWith("/")) "" else "/"
-    path + separator + "gilbert" + tempFileCounter + ".output"
+    val separator = if(configuration.outputPath.getOrElse("").endsWith("/")) "" else "/"
+    configuration.outputPath.getOrElse("") + separator + "gilbert" + tempFileCounter + ".output"
   }
 
   protected def execute(executable: Executable): Any = {
@@ -152,7 +130,7 @@ SubmatrixImplicits with SubvectorImplicits {
         {input => (evaluate[String](input.path), evaluate[Double](input.numRows).toInt,
           evaluate[Double](input.numColumns).toInt)},
         { case (_, (path, rows, cols)) =>
-          val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+          val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
           val bcPartitionPlan = sc.broadcast(partitionPlan)
 
           val entries = sc.textFile(path) map { line =>
@@ -251,7 +229,7 @@ SubmatrixImplicits with SubvectorImplicits {
             writeMatrix,
             {input => evaluate[Matrix](input.matrix)},
             {(_, matrixRDD) =>
-              if(WRITE_TO_OUTPUT){
+              if(configuration.outputPath.isDefined){
                 matrixRDD foreach { matrix => println(matrix)}
               }else{
                 val path = newTempFileName()
@@ -265,7 +243,7 @@ SubmatrixImplicits with SubvectorImplicits {
             writeMatrix,
             {input => evaluate[BooleanMatrix](input.matrix)},
             {(_, matrixRDD) =>
-              if(WRITE_TO_OUTPUT){
+              if(configuration.outputPath.isDefined){
                 matrixRDD foreach { matrix => println(matrix)}
               }else{
                 val path = newTempFileName()
@@ -282,7 +260,7 @@ SubmatrixImplicits with SubvectorImplicits {
         writeString,
         {input => evaluate[String](writeString.string)},
         {(_, stringValue) =>
-          if(WRITE_TO_OUTPUT){
+          if(configuration.outputPath.isDefined){
             println(stringValue)
           }else{
             val path = newTempFileName()
@@ -298,7 +276,7 @@ SubmatrixImplicits with SubvectorImplicits {
             writeScalar,
             {input => evaluate[Double](input.scalar)},
             {(_, scalarValue) =>
-              if(WRITE_TO_OUTPUT){
+              if(configuration.outputPath.isDefined){
                 println(scalarValue)
               }else{
                 val path = newTempFileName()
@@ -311,7 +289,7 @@ SubmatrixImplicits with SubvectorImplicits {
             writeScalar,
             {input => evaluate[Boolean](input.scalar)},
             {(_, booleanValue) =>
-              if(WRITE_TO_OUTPUT){
+              if(configuration.outputPath.isDefined){
                 println(booleanValue)
               }else{
                 val path = newTempFileName()
@@ -333,7 +311,7 @@ SubmatrixImplicits with SubvectorImplicits {
 
           for(idx <- 0 until cellArrayType.elementTypes.length){
 
-            if(WRITE_TO_OUTPUT){
+            if(configuration.outputPath.isDefined){
               cellArrayType.elementTypes(idx) match {
                 case ScalarType => println(cellArray(idx))
                 case MatrixType(_, _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach { println }
@@ -774,7 +752,7 @@ SubmatrixImplicits with SubvectorImplicits {
         z,
         { input => (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numCols).toInt)},
         { case (_, (rows, cols)) =>
-          val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+          val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
           sc.parallelize(partitionPlan.toSeq) map { partition => Submatrix(partition)}
         }
         )
@@ -784,7 +762,7 @@ SubmatrixImplicits with SubvectorImplicits {
         o,
         { input => (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numColumns).toInt)},
         { case (_, (rows, cols)) =>
-          val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+          val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
           sc.parallelize(partitionPlan.toSeq) map { partition => Submatrix.init(partition, 1.0)}
         }
         )
@@ -794,7 +772,7 @@ SubmatrixImplicits with SubvectorImplicits {
         e,
         { input => (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numCols).toInt)},
         { case (_, (rows, cols)) =>
-          val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+          val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
 
           sc.parallelize(partitionPlan.toSeq) map { partition => Submatrix.eye(partition) }
         }
@@ -806,7 +784,7 @@ SubmatrixImplicits with SubvectorImplicits {
         { input => (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numColumns).toInt,
           evaluate[Double](input.mean), evaluate[Double](input.std))},
         { case (_,(rows, cols, mean, std)) =>
-          val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+          val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
           val bcMean = sc.broadcast(mean)
           val bcStd = sc.broadcast(std)
           sc.parallelize(partitionPlan.toSeq) map { partition =>
@@ -824,7 +802,7 @@ SubmatrixImplicits with SubvectorImplicits {
         },
         {
           case (_, (rows, cols, mean, std, level)) =>
-            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+            val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
             val bcMean = sc.broadcast(mean)
             val bcStd = sc.broadcast(std)
             val bcLevel = sc.broadcast(level)
@@ -843,14 +821,14 @@ SubmatrixImplicits with SubvectorImplicits {
           evaluate[Double](input.mean), evaluate[Double](input.std), evaluate[Double](input.level))},
         {
           case (_,(rows, cols, mean, std, level)) =>
-            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+            val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
             val bcMean = sc.broadcast(mean)
             val bcStd = sc.broadcast(std)
             val bcLevel = sc.broadcast(level)
 
             sc.parallelize(partitionPlan.toSeq) map { partition =>
               Submatrix.adaptiveRand(partition, new Gaussian(bcMean.value, bcStd.value), bcLevel.value,
-                Configuration.DENSITYTHRESHOLD)
+                configuration.densityThreshold)
             }
         }
         )
@@ -967,7 +945,7 @@ SubmatrixImplicits with SubvectorImplicits {
         { input => (evaluate[Double](input.start), evaluate[Double](input.end), evaluate[Double](input.numPoints)
           .toInt)},
         { case (_, (start, end, numPoints)) =>
-          val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, 1, numPoints)
+          val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, 1, numPoints)
           val bcStepWidth = sc.broadcast((end-start)/(numPoints-1))
           val bcStart = sc.broadcast(start)
 
@@ -992,7 +970,7 @@ SubmatrixImplicits with SubvectorImplicits {
           val keyedMB = matrixBRDD map { matrix => (matrix.columnIndex, matrix)}
 
           val blockwiseDist = keyedMA join keyedMB map { case (_, (matrixA, matrixB)) =>
-            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, matrixA.totalRows,
+            val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, matrixA.totalRows,
               matrixB.totalRows)
 
             val entries = for(rowA <- matrixA.rowRange; rowB <- matrixB.rowRange) yield {
@@ -1021,7 +999,7 @@ SubmatrixImplicits with SubvectorImplicits {
           val bcMultCols = sc.broadcast(multCols)
 
           val newBlocks = matrixRDD flatMap { matrix =>
-            val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
+            val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize,
               matrix.totalRows*bcMultRows.value, matrix.totalColumns*bcMultCols.value)
 
             val rowStride = matrix.totalRows
@@ -1035,7 +1013,7 @@ SubmatrixImplicits with SubvectorImplicits {
           }
 
           val newEntries = matrixRDD flatMap { matrix =>
-            val newPartitionPlan = SquareBlockPartitionPlan(Configuration.BLOCKSIZE,
+            val newPartitionPlan = SquareBlockPartitionPlan(configuration.blocksize,
               matrix.totalRows* bcMultRows.value, matrix.totalColumns* bcMultCols.value)
 
             matrix.activeIterator flatMap { case ((row, col), value) =>
@@ -1070,7 +1048,7 @@ SubmatrixImplicits with SubvectorImplicits {
               val bcRows = sc.broadcast(rows)
               val bcCols = sc.broadcast(cols)
 
-              val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+              val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
               val newBlocks = sc.parallelize(partitionPlan.toSeq) map { partition => (partition.id,
                 partition)}
 
@@ -1084,7 +1062,7 @@ SubmatrixImplicits with SubvectorImplicits {
               val minIdxValues = blockwiseMinIdxValues.reduceByKey{ (a,b) => if(a._2 < b._2) a else b }
 
               val partitionedMinIdxValues = minIdxValues map { case (col, (row, value)) =>
-                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, bcRows.value, bcCols.value)
+                val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, bcRows.value, bcCols.value)
                 val partitionId = partitionPlan.partitionId(0, col)
                 (partitionId, (row, col, value))
               }
@@ -1122,7 +1100,7 @@ SubmatrixImplicits with SubvectorImplicits {
               val bcRows = sc.broadcast(rows)
               val bcCols = sc.broadcast(cols)
 
-              val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, rows, cols)
+              val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
               val newBlocks = sc.parallelize(partitionPlan.toSeq) map { partition => (partition.id, partition)}
 
               val blockwiseMinIdxValues = matrixRDD flatMap { matrix =>
@@ -1136,7 +1114,7 @@ SubmatrixImplicits with SubvectorImplicits {
               val minIdxValues = blockwiseMinIdxValues.reduceByKey{(a,b) => if(a._2 < b._2) a else b}
 
               val partitionedMinIdxValues = minIdxValues map { case (row, (minCol, minValue)) =>
-                val partitionPlan = new SquareBlockPartitionPlan(Configuration.BLOCKSIZE, bcRows.value, bcCols.value)
+                val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, bcRows.value, bcCols.value)
                 val partitionId = partitionPlan.partitionId(row, 0)
                 (partitionId, (row, minCol, minValue))
               }
@@ -1203,8 +1181,8 @@ SubmatrixImplicits with SubvectorImplicits {
                 }
               }
 
-              if(iterationsUntilCheckpoint > 0 && iteration % iterationsUntilCheckpoint == iterationsUntilCheckpoint -
-                1){
+              if(configuration.iterationsUntilCheckpoint > 0 && iteration % configuration.iterationsUntilCheckpoint ==
+                configuration.iterationsUntilCheckpoint - 1){
                 iterationStateMatrix.checkpoint()
               }
             }
@@ -1243,8 +1221,8 @@ SubmatrixImplicits with SubvectorImplicits {
                 }
               }
 
-              if(iterationsUntilCheckpoint > 0 && iteration % iterationsUntilCheckpoint ==
-                iterationsUntilCheckpoint-1) {
+              if(configuration.iterationsUntilCheckpoint > 0 && iteration % configuration.iterationsUntilCheckpoint ==
+                configuration.iterationsUntilCheckpoint-1) {
                 iterationStateCellArray foreach {
                   f =>
                     if (f.isInstanceOf[RDD[_]]) {

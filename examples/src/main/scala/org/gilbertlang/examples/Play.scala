@@ -21,13 +21,14 @@ package org.gilbertlang.examples
 import org.gilbertlang.runtime.GilbertFunctions.{norm2, fixpoint, binarize, load}
 import org.gilbertlang.runtime.Executables.{ones, randn}
 import org.gilbertlang.runtime.local
+import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
 
 object Play {
 
   def main(args: Array[String]): Unit = {
-
-    local(Algorithms.pageRank())
+    val runtimeConfig = RuntimeConfiguration()
+    local().execute(Algorithms.pageRank(), runtimeConfig)
   }
 
 }

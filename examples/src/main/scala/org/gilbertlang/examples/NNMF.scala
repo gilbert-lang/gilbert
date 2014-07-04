@@ -1,20 +1,20 @@
 package org.gilbertlang.examples
 
+import java.io.{OutputStream}
+
+import org.apache.log4j._
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.runtime._
 
-import java.util.logging.{ConsoleHandler, Level, Logger}
+import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
+
+import scala.util.matching.Regex
 
 object NNMF {
 
   def main(args:Array[String]){
-    val logger = Logger.getLogger("com.github.fommil.jni.JniLoader");
-    val handler = new ConsoleHandler();
     val dop = 4;
     val path = "hdfs://node1.stsffap.org:54310/user/hduser/"
-    handler.setLevel(Level.FINEST);
-    logger.addHandler(handler)
-    logger.setLevel(Level.FINEST);
 
     val executable = Gilbert.compileRessource("nnmf.gb")
 
@@ -28,13 +28,26 @@ object NNMF {
       "/Users/till/.m2/repository/com/github/fommil/netlib/netlib-native_ref-linux-x86_64/1" +
         ".1/netlib-native_ref-linux-x86_64-1.1-natives.jar",
       "/Users/till/.m2/repository/org/apache/mahout/mahout-math/1.0-SNAPSHOT/mahout-math-1.0-SNAPSHOT.jar",
-      "/Users/till/.m2/repository/eu/stratosphere/stratosphere-core/0.6-patched/stratosphere-core-0.6-patched.jar");
+      "/Users/till/.m2/repository/eu/stratosphere/stratosphere-core/0.6-patched/stratosphere-core-0.6-patched.jar",
+      "/Users/till/.m2/repository/org/apache/commons/commons-math3/3.3/commons-math3-3.3.jar");
 
-    withMahout()
-//    withStratosphere(executable).remote("node1", 6123, dop, path, jarFiles)
-    val result = withSpark(executable).remote("spark://node1:7077",checkpointDir = "", appName="NNMF",parallelism=dop,
-      outputPath = None,jars = jarFiles)
+    val runtimeConfiguration = RuntimeConfiguration(blocksize =  5, outputPath = Some(path))
+    val sparkConfiguration = EngineConfiguration(appName = "NNMF",master = "node1", port = 7077, jars = jarFiles,
+      parallelism = dop)
+    val stratosphereConfiguration = EngineConfiguration(appName = "NNMF", master = "node1", port = 6123,
+      parallelism = dop,
+      jars =jarFiles)
+
+    withBreeze()
+//    val result = withStratosphere.remote(stratosphereConfiguration).execute(executable, runtimeConfiguration)
+
+
+    val result = withSpark.remote(sparkConfiguration).execute(executable, runtimeConfiguration)
 
     println(result)
+
   }
 }
+
+
+

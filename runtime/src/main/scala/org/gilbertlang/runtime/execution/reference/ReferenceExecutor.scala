@@ -27,15 +27,15 @@ import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BreezeMatrixOps}
 import org.gilbertlang.runtimeMacros.linalg.operators.{DoubleVectorImplicits, DoubleMatrixImplicits}
 import scala.io.Source
 import org.gilbertlang.runtime.shell.PlanPrinter
-import org.gilbertlang.runtimeMacros.linalg.{BooleanMatrix, MatrixFactory, DoubleMatrix, Configuration}
+import org.gilbertlang.runtimeMacros.linalg.{BooleanMatrix, MatrixFactory, DoubleMatrix, RuntimeConfiguration}
 import org.gilbertlang.runtimeMacros.linalg.breeze.operators.BreezeMatrixRegistries
 import util.control.Breaks.{break, breakable}
 import org.gilbertlang.runtime.RuntimeTypes.{MatrixType, DoubleType, BooleanType}
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 import scala.language.postfixOps
 
-class ReferenceExecutor extends Executor with BreezeMatrixOps with BreezeMatrixRegistries with DoubleMatrixImplicits
-with DoubleVectorImplicits {
+class ReferenceExecutor extends Executor with BreezeMatrixOps with
+BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
 
   type CellArray = List[Any]
 
@@ -65,7 +65,7 @@ with DoubleVectorImplicits {
               (splits(0).toInt-1, splits(1).toInt-1, splits(2).toDouble)
             }
             val entries = itEntries.toSeq
-            val dense = entries.length.toDouble/(numRows* numColumns) > Configuration.DENSITYTHRESHOLD
+            val dense = entries.length.toDouble/(numRows* numColumns) > configuration.densityThreshold
 
             MatrixFactory.getDouble.create(numRows, numColumns, entries, dense)
           })
@@ -404,8 +404,8 @@ with DoubleVectorImplicits {
           transformation,
           { trans => (evaluate[Double](trans.numRows).toInt, evaluate[Double](trans.numCols).toInt)},
           { case (_, (rows, cols)) =>
-            MatrixFactory.getDouble.eye(rows, cols, math.min(rows, cols).toDouble/(rows*cols) > Configuration
-              .DENSITYTHRESHOLD)
+            MatrixFactory.getDouble.eye(rows, cols, math.min(rows, cols).toDouble/(rows*cols) > configuration
+              .densityThreshold)
           }
         )
 
@@ -453,7 +453,7 @@ with DoubleVectorImplicits {
         {
           case (_, (rows, cols, mean, std, level)) =>
             val random = new Gaussian(mean, std)
-            MatrixFactory.getDouble.adaptiveRand(rows, cols, random, level, Configuration.DENSITYTHRESHOLD)
+            MatrixFactory.getDouble.adaptiveRand(rows, cols, random, level, configuration.densityThreshold)
 
         }
         )
@@ -499,13 +499,13 @@ with DoubleVectorImplicits {
                 case (1, x) =>
                   val entries = (matrix.activeIterator map { case ((row, col), value) => (col, col,
                     value)}).toArray[(Int, Int, Double)]
-                  MatrixFactory.getDouble.create(x,x, entries, entries.length.toDouble/(x*x) > Configuration
-                    .DENSITYTHRESHOLD)
+                  MatrixFactory.getDouble.create(x,x, entries, entries.length.toDouble/(x*x) > configuration
+                    .densityThreshold)
                 case (x, 1) =>
                   val entries = (matrix.activeIterator map { case ((row, col), value) => (row, row,
                     value)}).toArray[(Int, Int, Double)]
-                  MatrixFactory.getDouble.create(x,x, entries, entries.length.toDouble/(x*x) > Configuration
-                    .DENSITYTHRESHOLD)
+                  MatrixFactory.getDouble.create(x,x, entries, entries.length.toDouble/(x*x) > configuration
+                    .densityThreshold)
                 case (x:Int,y:Int) =>
                   val minimum = math.min(x,y)
                   val itEntries = for(idx <- 0 until minimum) yield (0,idx,matrix(idx,idx))
@@ -673,7 +673,7 @@ with DoubleVectorImplicits {
             {(_, matrix) =>
               val entries = (matrix.activeIterator map { case ((row, col), value) => (row, col,
                 if(value) 1.0 else 0.0)}).toTraversable
-              val dense = entries.size.toDouble/(matrix.rows* matrix.cols) > Configuration.DENSITYTHRESHOLD
+              val dense = entries.size.toDouble/(matrix.rows* matrix.cols) > configuration.densityThreshold
               MatrixFactory.getDouble.create(matrix.rows, matrix.cols, entries , dense)
             }
             )
@@ -772,7 +772,7 @@ with DoubleVectorImplicits {
           val seqEntries = entries.toSeq
 
           MatrixFactory.getDouble.create(newRows, newCols, seqEntries, seqEntries.length.toDouble/(newSize) >
-            Configuration.DENSITYTHRESHOLD)
+            configuration.densityThreshold)
         }
         )
 

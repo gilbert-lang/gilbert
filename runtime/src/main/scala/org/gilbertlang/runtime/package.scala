@@ -19,6 +19,8 @@
 package org.gilbertlang
 
 import java.lang.String
+import org.gilbertlang.runtime.Executables._
+
 import scala.language.implicitConversions
 
 package object runtime {
@@ -50,6 +52,16 @@ package object runtime {
     scalarRef match {
       case scalar(value) => Some(value.toInt)
       case _ => None
+    }
+  }
+
+  def terminateExecutable(program: Executable): Executable = {
+    program match {
+      case matrix: Matrix => WriteMatrix(matrix)
+      case scalar: ScalarRef => WriteScalar(scalar)
+      case string: StringRef => WriteString(string)
+      case function: FunctionRef => WriteFunction(function)
+      case _ => program
     }
   }
 }

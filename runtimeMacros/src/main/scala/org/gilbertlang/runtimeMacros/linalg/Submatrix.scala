@@ -146,23 +146,24 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
 object Submatrix extends SubmatrixImplicits {
 
   def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,
-    Double)])(implicit factory: DoubleMatrixFactory):
+    Double)])(implicit factory: DoubleMatrixFactory, configuration: RuntimeConfiguration):
   Submatrix = {
     import partitionInformation._
     val adjustedEntries = entries map { case (row, col, value) => (row - rowOffset, col - columnOffset, value)}
 
-    val dense = adjustedEntries.size.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
+    val dense = adjustedEntries.size.toDouble/(numRows*numColumns) > configuration.densityThreshold
 
     val matrix = factory.create(numRows, numColumns, adjustedEntries, dense)
     Submatrix(matrix, rowIndex, columnIndex, rowOffset,columnOffset, numTotalRows, numTotalColumns)
   }
 
 
-  def apply(partitionInformation: Partition, numNonZeroElements: Int = 0)(implicit factory: DoubleMatrixFactory):
+  def apply(partitionInformation: Partition, numNonZeroElements: Int = 0)(implicit factory: DoubleMatrixFactory,
+                                                                          configuration: RuntimeConfiguration):
   Submatrix = {
       import partitionInformation._
 
-      val dense = numNonZeroElements.toDouble/(numRows*numColumns) > Configuration.DENSITYTHRESHOLD
+      val dense = numNonZeroElements.toDouble/(numRows*numColumns) > configuration.densityThreshold
 
       Submatrix(factory.create(numRows, numColumns, dense), rowIndex, columnIndex, rowOffset,
           columnOffset, numTotalRows, numTotalColumns)
@@ -175,7 +176,8 @@ object Submatrix extends SubmatrixImplicits {
         rowOffset, columnOffset, numTotalRows, numTotalColumns)
     }
 
-    def eye(partitionInformation: Partition)(implicit factory: DoubleMatrixFactory): Submatrix = {
+    def eye(partitionInformation: Partition)(implicit factory: DoubleMatrixFactory,
+                                             configuration: RuntimeConfiguration): Submatrix = {
       import partitionInformation._
 
       val matrix = containsDiagonal(partitionInformation) match {
@@ -183,7 +185,7 @@ object Submatrix extends SubmatrixImplicits {
         case Some(startIdx) =>
           val (startRow, startColumn) = (startIdx - rowOffset, startIdx - columnOffset)
           val dense = math.min(numRows-startRow, numColumns-startColumn).toDouble/(numRows*numColumns) >
-            Configuration.DENSITYTHRESHOLD
+            configuration.densityThreshold
           factory.eye(numRows, numColumns, startRow, startColumn, dense)
       }
 

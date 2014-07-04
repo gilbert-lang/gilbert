@@ -1,8 +1,6 @@
 package org.gilbertlang.language
 
-import java.io.Reader
-import java.io.InputStreamReader
-import java.io.FileReader
+import java.io.{StringReader, Reader, InputStreamReader, FileReader}
 import org.apache.commons.io.IOUtils
 import org.gilbertlang.optimizer.Optimizer
 import org.gilbertlang.runtime.Executables.Executable
@@ -34,6 +32,10 @@ object Gilbert {
     }finally{
       IOUtils.closeQuietly(inputReader)
     }
+  }
+
+  def compileString(program: String): Executable = {
+    compile(new StringReader(program))
   }
   
   def compile(inputReader: Reader): Executable = {

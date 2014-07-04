@@ -18,6 +18,9 @@
 
 package org.gilbertlang.runtime
 
+import eu.stratosphere.api.common.PlanExecutor
+import org.apache.log4j.{WriterAppender, SimpleLayout, Level, Logger}
+import org.apache.spark.{SparkContext, SparkConf}
 import org.gilbertlang.runtime.execution.reference.ReferenceExecutor
 import org.gilbertlang.runtime.execution.spark.SparkExecutor
 import org.gilbertlang.runtime.execution.stratosphere.StratosphereExecutor
@@ -25,76 +28,92 @@ import eu.stratosphere.api.scala.ScalaPlan
 import eu.stratosphere.api.scala.ScalaSink
 import Executables._
 import eu.stratosphere.client.{RemoteExecutor, LocalExecutor}
-import org.gilbertlang.runtimeMacros.linalg.MatrixFactory
+import org.gilbertlang.runtimeMacros.linalg.{RuntimeConfiguration, MatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.breeze.{BreezeBooleanMatrixFactory, BreezeDoubleMatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.mahout.{MahoutBooleanMatrixFactory, MahoutDoubleMatrixFactory}
 import scala.collection.JavaConverters._
 
 object local {
-  def apply(executable: Executable) = {
+  class LocalExecutionEngine extends ExecutionEngine{
+    val executor = new ReferenceExecutor()
+    def stop() {}
 
-    val write = executable match {
-      case matrix: Matrix => WriteMatrix(matrix)
-      case scalar: ScalarRef => WriteScalar(scalar)
-      case string: StringRef => WriteString(string)
-      case function: FunctionRef => WriteFunction(function)
-      case _ => executable
+    def execute(program: Executable, configuration: RuntimeConfiguration): Double = {
+      val finalProgram = terminateExecutable(program)
+
+      val start = System.nanoTime()
+
+      executor.run(finalProgram, configuration)
+
+      (System.nanoTime() - start) / 1e9
     }
-
-    new ReferenceExecutor().run(write)
   }
+
+  def apply(): ExecutionEngine = new LocalExecutionEngine()
 }
 
 object withSpark {
-  class ExecutorWrapper(executable: Executable){
-    def local(numWorkerThreads: Int = 4, checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
-              appName: String = "Gilbert", outputPath: Option[String] = None) = {
-      val master = "local[" + numWorkerThreads + "]";
-      val sparkExecutor = new SparkExecutor(master, checkpointDir, iterationsUntilCheckpoint,appName, numWorkerThreads, outputPath);
+  class SparkExecutionEngine(config: SparkConf) extends ExecutionEngine{
+    val sc = new SparkContext(config)
 
-      val result = sparkExecutor.run(executable);
+    val sparkExecutor = new SparkExecutor(sc)
 
-      sparkExecutor.stop()
-
-      result
+    def stop(){
+      sc.stop
     }
 
-    def remote(master: String, checkpointDir: String = "", iterationsUntilCheckpoint: Int = 0,
-               appName: String = "Gilbert",parallelism: Int, outputPath: Option[String] = None,
-               jars: Seq[String] = Seq[String]()) = {
-      val sparkExecutor = new SparkExecutor(master, checkpointDir, iterationsUntilCheckpoint, appName, parallelism,outputPath,
-        jars);
+    def execute(program: Executable, config: RuntimeConfiguration): Double = {
+      val finalProgram = terminateExecutable(program)
 
-      val result = sparkExecutor.run(executable);
+      val pattern = """Job finished: [^,]*, took ([0-9\.]*) s""".r
+      val sparkLogger = Logger.getLogger("org.apache.spark.SparkContext")
+      sparkLogger.setLevel(Level.INFO)
+      val gilbertTimer = new GilbertTimer(pattern)
+      sparkLogger.addAppender(new WriterAppender(new SimpleLayout(), gilbertTimer))
 
-      sparkExecutor.stop();
+      config.checkpointDir foreach { dir => sparkExecutor.sc.setCheckpointDir(dir) }
 
-      result
+      sparkExecutor.run(finalProgram, config)
+
+      gilbertTimer.totalTime
     }
   }
 
-  def apply(executable: Executable) = {
+  def local(engineConfiguration: EngineConfiguration): ExecutionEngine = {
+    val master = "local[" + engineConfiguration.parallelism + "]"
 
-    val writeExecutable = executable match {
-      case matrix: Matrix => WriteMatrix(matrix)
-      case scalar: ScalarRef => WriteScalar(scalar)
-      case string: StringRef => WriteString(string)
-      case function: FunctionRef => WriteFunction(function)
-      case _ => executable
-    }
+    createSparkExecutionEngine(master, engineConfiguration)
+  }
 
-    new ExecutorWrapper(writeExecutable);
+  def remote(engineConfiguration: EngineConfiguration): ExecutionEngine = {
+    val master = "spark://" + engineConfiguration.master +":" + engineConfiguration.port
+
+    createSparkExecutionEngine(master, engineConfiguration)
+  }
+
+  def createSparkExecutionEngine(master: String, engineConfiguration: EngineConfiguration): ExecutionEngine = {
+    val sparkConf = new SparkConf().
+      setMaster(master).
+      setAppName(engineConfiguration.appName).
+      setJars(engineConfiguration.jars).
+      set("spark.cores.max", engineConfiguration.parallelism.toString).
+      set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+
+    new SparkExecutionEngine(sparkConf)
   }
 }
 
 object withStratosphere{
-  class ExecutorWrapper(executable: Executable){
-    def compile(outputPath: String, degreeOfParallelism: Int) = {
-      val executor = new StratosphereExecutor(outputPath)
+  class StratosphereExecutionEngine(val executor: PlanExecutor, val appName: String, val parallelism: Int) extends
+  ExecutionEngine {
+    val translator = new StratosphereExecutor()
 
-      val result = executor.execute(executable)
+    def stop() {}
 
-      val plan = result match {
+    def execute(program: Executable, configuration: RuntimeConfiguration): Double = {
+      val finalProgram = terminateExecutable(program)
+
+      val plan = translator.run(finalProgram, configuration) match {
         case x:ScalaPlan => x
         case x:ScalaSink[_] => new ScalaPlan(Seq(x))
         case x:List[_] =>
@@ -102,36 +121,28 @@ object withStratosphere{
           new ScalaPlan(sinks)
       }
 
-      plan.setDefaultParallelism(degreeOfParallelism)
-      plan
-    }
-    def local(degreeOfParallelism: Int, outputPath: Option[String] = None) = {
-      val path = outputPath.getOrElse("file://" + System.getProperty("user.dir"))
-      val plan = compile(path, degreeOfParallelism)
+      plan.setDefaultParallelism(parallelism)
+      plan.setJobName(appName)
 
-      val exec = new LocalExecutor
-      exec.setDefaultOverwriteFiles(true)
-      exec.executePlan(plan);
-    }
+      val result = executor.executePlan(plan)
 
-    def remote(jobmanager: String, port: Int, degreeOfParallelism: Int, outputPath: String, jars: List[String]) = {
-      val plan = compile(outputPath, degreeOfParallelism)
-      val executor = new RemoteExecutor(jobmanager, port, jars.asJava);
-
-      executor.executePlan(plan)
+      result.getNetRuntime
     }
   }
 
-  def apply(executable: Executable) = {
-    val writeExecutable = executable match {
-      case matrix: Matrix => WriteMatrix(matrix)
-      case scalar: ScalarRef => WriteScalar(scalar)
-      case string: StringRef => WriteString(string)
-      case function: FunctionRef => WriteFunction(function)
-      case _ => executable
-    }
+  def local(engineConfiguration: EngineConfiguration): ExecutionEngine = {
+    val executor = new LocalExecutor
+    executor.setDefaultOverwriteFiles(true)
 
-    new ExecutorWrapper(writeExecutable);
+    new StratosphereExecutionEngine(executor, engineConfiguration.appName, engineConfiguration.parallelism)
+  }
+
+  def remote(engineConfiguration: EngineConfiguration): ExecutionEngine = {
+
+    val executor = new RemoteExecutor(engineConfiguration.master, engineConfiguration.port,
+      engineConfiguration.jars.asJava)
+
+    new StratosphereExecutionEngine(executor, engineConfiguration.appName, engineConfiguration.parallelism)
   }
 }
 

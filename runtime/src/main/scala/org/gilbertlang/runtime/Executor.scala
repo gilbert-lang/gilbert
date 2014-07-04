@@ -22,30 +22,29 @@ package org.gilbertlang.runtime
 import org.gilbertlang.runtime.optimization.VolatileExpressionDetector
 import org.gilbertlang.runtime.shell.printPlan
 import Executables._
+import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
 @SerialVersionUID(1l)
 trait Executor extends Serializable {
   @transient private var symbolTable = Map[Int, Any]()
-
   @transient private var volatileExpressions = Set[Int]()
+
+  implicit var configuration: RuntimeConfiguration = null
   
   protected def clear() {
     symbolTable = Map[Int,Any]()
     volatileExpressions = Set[Int]()
   }
 
-  def run(executable: Executable) = {
-
+  def run(executable: Executable, configuration: RuntimeConfiguration) = {
+    this.configuration = configuration
+    symbolTable = Map[Int, Any]()
     volatileExpressions = new VolatileExpressionDetector().find(executable)
 
     printPlan(executable)
 
     val result = execute(executable)
-    
-    //TODO: Workaround for serialization problem with symbolTable and volatileExpressions, at the moment there is no
-    //way to declare them transient in Scala 2.10
-    clear()
-    
+
     result
   }
 
