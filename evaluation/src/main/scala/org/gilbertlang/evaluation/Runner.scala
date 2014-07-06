@@ -329,7 +329,7 @@ object Runner {
     this.port = configSection.get("port", classOf[Int],DEFAULT_JOBMANAGER_PORT)
     this.appName = configSection.get("appName", "Evaluation")
     this.libraryPath = configSection.get("libraryPath", new File(this.getClass().getProtectionDomain().getCodeSource
-      ().getLocation().getFile()).getParent()+"lib/")
+      ().getLocation().getFile()).getParent()+"/lib/")
     setOutputPath(configSection.get("outputPath"))
     setCheckpointDir(configSection.get("checkpointDir"))
     setJars(configSection.get("jars"))
