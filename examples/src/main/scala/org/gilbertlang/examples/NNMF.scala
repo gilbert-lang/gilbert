@@ -2,18 +2,15 @@ package org.gilbertlang.examples
 
 import java.io.{OutputStream}
 
-import org.apache.log4j._
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.runtime._
 
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
-import scala.util.matching.Regex
-
 object NNMF {
 
   def main(args:Array[String]){
-    val dop = 4;
+    val dop = 2;
     val path = "hdfs://node1.stsffap.org:54310/user/hduser/"
 
     val executable = Gilbert.compileRessource("nnmf.gb")
@@ -31,7 +28,7 @@ object NNMF {
       "/Users/till/.m2/repository/eu/stratosphere/stratosphere-core/0.6-patched/stratosphere-core-0.6-patched.jar",
       "/Users/till/.m2/repository/org/apache/commons/commons-math3/3.3/commons-math3-3.3.jar");
 
-    val runtimeConfiguration = RuntimeConfiguration(blocksize =  5, outputPath = Some(path))
+    val runtimeConfiguration = RuntimeConfiguration(blocksize = 5, outputPath = Some(path), compilerHints = true)
     val sparkConfiguration = EngineConfiguration(appName = "NNMF",master = "node1", port = 7077, jars = jarFiles,
       parallelism = dop)
     val stratosphereConfiguration = EngineConfiguration(appName = "NNMF", master = "node1", port = 6123,
@@ -40,9 +37,9 @@ object NNMF {
 
     withBreeze()
 //    val result = withStratosphere.remote(stratosphereConfiguration).execute(executable, runtimeConfiguration)
+//    val result = local().execute(executable, runtimeConfiguration)
 
-
-    val result = withSpark.remote(sparkConfiguration).execute(executable, runtimeConfiguration)
+    val result = withSpark.remote(sparkConfiguration).execute(executable, runtimeConfiguration.copy(outputPath = None))
 
     println(result)
 

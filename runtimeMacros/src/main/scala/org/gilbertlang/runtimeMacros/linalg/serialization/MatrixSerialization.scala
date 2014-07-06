@@ -82,7 +82,7 @@ object MatrixSerialization {
         out.writeInt(m.cols)
         out.writeInt(m.activeSize)
 
-        for(((row, col), value) <- m.iterator){
+        for(((row, col), value) <- m.activeIterator){
           out.writeInt(row)
           out.writeInt(col)
           out.writeDouble(value)

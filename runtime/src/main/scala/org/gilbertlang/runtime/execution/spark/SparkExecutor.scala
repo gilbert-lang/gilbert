@@ -229,7 +229,7 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeMatrix,
             {input => evaluate[Matrix](input.matrix)},
             {(_, matrixRDD) =>
-              if(configuration.outputPath.isDefined){
+              if(!configuration.outputPath.isDefined){
                 matrixRDD foreach { matrix => println(matrix)}
               }else{
                 val path = newTempFileName()
@@ -243,7 +243,7 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeMatrix,
             {input => evaluate[BooleanMatrix](input.matrix)},
             {(_, matrixRDD) =>
-              if(configuration.outputPath.isDefined){
+              if(!configuration.outputPath.isDefined){
                 matrixRDD foreach { matrix => println(matrix)}
               }else{
                 val path = newTempFileName()
@@ -260,7 +260,7 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
         writeString,
         {input => evaluate[String](writeString.string)},
         {(_, stringValue) =>
-          if(configuration.outputPath.isDefined){
+          if(!configuration.outputPath.isDefined){
             println(stringValue)
           }else{
             val path = newTempFileName()
@@ -276,7 +276,7 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeScalar,
             {input => evaluate[Double](input.scalar)},
             {(_, scalarValue) =>
-              if(configuration.outputPath.isDefined){
+              if(!configuration.outputPath.isDefined){
                 println(scalarValue)
               }else{
                 val path = newTempFileName()
@@ -289,7 +289,7 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeScalar,
             {input => evaluate[Boolean](input.scalar)},
             {(_, booleanValue) =>
-              if(configuration.outputPath.isDefined){
+              if(!configuration.outputPath.isDefined){
                 println(booleanValue)
               }else{
                 val path = newTempFileName()
@@ -311,7 +311,7 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
 
           for(idx <- 0 until cellArrayType.elementTypes.length){
 
-            if(configuration.outputPath.isDefined){
+            if(!configuration.outputPath.isDefined){
               cellArrayType.elementTypes(idx) match {
                 case ScalarType => println(cellArray(idx))
                 case MatrixType(_, _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach { println }

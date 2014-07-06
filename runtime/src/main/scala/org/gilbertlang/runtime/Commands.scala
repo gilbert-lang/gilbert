@@ -54,15 +54,15 @@ object local {
 
 object withSpark {
   class SparkExecutionEngine(config: SparkConf) extends ExecutionEngine{
-    val sc = new SparkContext(config)
-
-    val sparkExecutor = new SparkExecutor(sc)
+    var sc: SparkContext = null
 
     def stop(){
-      sc.stop
+      if(sc != null){
+        sc.stop
+      }
     }
 
-    def execute(program: Executable, config: RuntimeConfiguration): Double = {
+    def execute(program: Executable, runtimeConfig: RuntimeConfiguration): Double = {
       val finalProgram = terminateExecutable(program)
 
       val pattern = """Job finished: [^,]*, took ([0-9\.]*) s""".r
@@ -71,9 +71,10 @@ object withSpark {
       val gilbertTimer = new GilbertTimer(pattern)
       sparkLogger.addAppender(new WriterAppender(new SimpleLayout(), gilbertTimer))
 
-      config.checkpointDir foreach { dir => sparkExecutor.sc.setCheckpointDir(dir) }
-
-      sparkExecutor.run(finalProgram, config)
+      sc = new SparkContext(config)
+      val sparkExecutor = new SparkExecutor(sc)
+      runtimeConfig.checkpointDir foreach { dir => sparkExecutor.sc.setCheckpointDir(dir) }
+      sparkExecutor.run(finalProgram, runtimeConfig)
 
       gilbertTimer.totalTime
     }
@@ -92,14 +93,21 @@ object withSpark {
   }
 
   def createSparkExecutionEngine(master: String, engineConfiguration: EngineConfiguration): ExecutionEngine = {
+    val sparkDeps = getSparkDependencies(engineConfiguration.libraryPath)
     val sparkConf = new SparkConf().
       setMaster(master).
       setAppName(engineConfiguration.appName).
-      setJars(engineConfiguration.jars).
+      setJars(engineConfiguration.jars ++ sparkDeps).
       set("spark.cores.max", engineConfiguration.parallelism.toString).
       set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 
     new SparkExecutionEngine(sparkConf)
+  }
+
+  def getSparkDependencies(root: String): List[String] = {
+    val jars = List("runtime-0.1-SNAPSHOT.jar", "runtimeMacros-0.1-SNAPSHOT.jar", "stratosphere-core-0.6-patched.jar")
+
+    jars map { jar => root + jar}
   }
 }
 
@@ -113,7 +121,11 @@ object withStratosphere{
     def execute(program: Executable, configuration: RuntimeConfiguration): Double = {
       val finalProgram = terminateExecutable(program)
 
-      val plan = translator.run(finalProgram, configuration) match {
+
+      val config = configuration.copy(outputPath = Some(configuration.outputPath.getOrElse("file://" +
+        System.getProperty("user.dir"))))
+
+      val plan = translator.run(finalProgram, config) match {
         case x:ScalaPlan => x
         case x:ScalaSink[_] => new ScalaPlan(Seq(x))
         case x:List[_] =>
@@ -126,7 +138,8 @@ object withStratosphere{
 
       val result = executor.executePlan(plan)
 
-      result.getNetRuntime
+      val netTime= result.getNetRuntime
+      netTime.toDouble/1000
     }
   }
 
@@ -139,10 +152,19 @@ object withStratosphere{
 
   def remote(engineConfiguration: EngineConfiguration): ExecutionEngine = {
 
+    val stratosphereDependencies: List[String] = getStratosphereDependencies(engineConfiguration.libraryPath)
+
     val executor = new RemoteExecutor(engineConfiguration.master, engineConfiguration.port,
-      engineConfiguration.jars.asJava)
+      (engineConfiguration.jars ++ stratosphereDependencies).asJava)
 
     new StratosphereExecutionEngine(executor, engineConfiguration.appName, engineConfiguration.parallelism)
+  }
+
+  private def getStratosphereDependencies(root: String): List[String] = {
+    val jars = List("runtime-0.1-SNAPSHOT.jar", "runtimeMacros-0.1-SNAPSHOT.jar", "breeze_2.10-0.8.1.jar",
+      "mahout-math-1.0-SNAPSHOT.jar", "commons-math3-3.2.jar")
+
+    jars map { jar => root + jar}
   }
 }
 

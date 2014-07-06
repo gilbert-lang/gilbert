@@ -247,10 +247,12 @@ SubmatrixImplicits with SubvectorImplicits  {
                       result
                   }
                   if(configuration.compilerHints) {
+                    if(configuration.preserveHint){
+                      result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                        s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                        s.totalColumns))
+                    }
                     result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns))
                   }
                   result
                 })
@@ -293,9 +295,11 @@ SubmatrixImplicits with SubvectorImplicits  {
                   result
               }
               if(configuration.compilerHints) {
+                if(configuration.preserveHint){
+                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
+                }
                 result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
               }
               result
           })
@@ -332,10 +336,12 @@ SubmatrixImplicits with SubvectorImplicits  {
                     result
                 }
                 if(configuration.compilerHints) {
+                  if(configuration.preserveHint){
+                    result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns))
+                  }
                   result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
                 }
                 result
             })
@@ -360,10 +366,12 @@ SubmatrixImplicits with SubvectorImplicits  {
                       result
                   }
                   if(configuration.compilerHints) {
+                    if(configuration.preserveHint){
+                      result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                        s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                        s.totalColumns))
+                    }
                     result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns))
                   }
                   result
                 })
@@ -396,10 +404,12 @@ SubmatrixImplicits with SubvectorImplicits  {
                   result
               }
               if(configuration.compilerHints) {
+                if(configuration.preserveHint){
+                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                }
                 result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns))
               }
               result
           })
@@ -436,10 +446,12 @@ SubmatrixImplicits with SubvectorImplicits  {
                     result
                 }
                 if(configuration.compilerHints){
+                  if(configuration.preserveHint){
+                    result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                      s.totalColumns))
+                  }
                   result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
                 }
                 result
             })
@@ -659,10 +671,12 @@ SubmatrixImplicits with SubvectorImplicits  {
                   matrixDS map { submatrix => submatrix.mapActiveValues( value => math.abs(value))}
               }
               if(configuration.compilerHints){
+                if(configuration.preserveHint){
+                  result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                }
                 result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
-                result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns))
               }
               result
             }
@@ -691,12 +705,6 @@ SubmatrixImplicits with SubvectorImplicits  {
                   }
                   if(configuration.compilerHints){
                     result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
-                    result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns))
-                    result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns))
                   }
                   result
                 })
@@ -711,7 +719,8 @@ SubmatrixImplicits with SubvectorImplicits  {
                   val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
                     { y => (y.rowIndex, y.columnIndex) } map
                     { (left, right) =>
-                      left + right
+                      val result = left + right
+                      result
                     }
                   result.setName("MM: Addition")
                   result
@@ -743,12 +752,6 @@ SubmatrixImplicits with SubvectorImplicits  {
               }
               if(configuration.compilerHints){
                 result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
-                result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns))
-                result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns))
               }
               result
           })
@@ -778,12 +781,6 @@ SubmatrixImplicits with SubvectorImplicits  {
                 }
                 if(configuration.compilerHints){
                   result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
-                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
-                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
                 }
                 result
             })
@@ -833,12 +830,6 @@ SubmatrixImplicits with SubvectorImplicits  {
                 }
                 if(configuration.compilerHints){
                   result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
-                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
-                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
                 }
                 result
             })
@@ -868,9 +859,11 @@ SubmatrixImplicits with SubvectorImplicits  {
                   }
                 }
               if(configuration.compilerHints){
+                if(configuration.preserveHint){
+                  reduced.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
+                }
                 reduced.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                reduced.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
               }
               reduced
           })
@@ -922,13 +915,15 @@ SubmatrixImplicits with SubvectorImplicits  {
                   normedMatrix.setName("VM: L1 normed matrix")
 
                   if(configuration.compilerHints){
-                    l1norm.uniqueKey(v => v.index)
-                    l1norm.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+                    if(configuration.preserveHint){
+                      l1norm.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
 
+                      normedMatrix.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                        s.totalRows, s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                        s.totalRows, s.totalColumns))
+                    }
+                    l1norm.uniqueKey(v => v.index)
                     normedMatrix.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    normedMatrix.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                      s.totalRows, s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                      s.totalRows, s.totalColumns))
                   }
 
                   normedMatrix
@@ -947,9 +942,10 @@ SubmatrixImplicits with SubvectorImplicits  {
                   matrixResult.setName("VM: vectorwise maximum matrix form")
 
                   if(configuration.compilerHints){
-
+                    if(configuration.preserveHint){
+                      maximum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+                    }
                     maximum.uniqueKey(v => v.index)
-                    maximum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
 
                     matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
@@ -970,9 +966,10 @@ SubmatrixImplicits with SubvectorImplicits  {
                   matrixResult.setName("VM: Vectorwise minimum in matrix form")
 
                   if(configuration.compilerHints){
+                    if(configuration.preserveHint){
+                      minimum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+                    }
                     minimum.uniqueKey(v => v.index)
-                    minimum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
-
                     matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
 
@@ -1000,14 +997,19 @@ SubmatrixImplicits with SubvectorImplicits  {
                   result.setName("VWM: Norm2")
 
                   if(configuration.compilerHints){
+                    if(configuration.preserveHint){
+                      squaredValues.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                        s.totalRows, s.totalColumns), s=> (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
+                        s.totalRows, s.totalColumns))
+
+                      sumSquaredValues.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset,
+                        v.totalEntries))
+                    }
+
                     squaredValues.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                    squaredValues.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                      s.totalRows, s.totalColumns), s=> (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                      s.totalRows, s.totalColumns))
+
 
                     sumSquaredValues.uniqueKey(v => v.index)
-                    sumSquaredValues.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset,
-                      v.totalEntries))
 
                     result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
@@ -1100,7 +1102,9 @@ SubmatrixImplicits with SubvectorImplicits  {
               val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ps => ps.next}
               distributedPartitions.setName("Ones: Distributed partitions")
 
-              val result = distributedPartitions map { p => Submatrix.init(p, 1.0) }
+              val result = distributedPartitions map { p =>
+                Submatrix.init(p, 1.0)
+              }
 
               result.setName("Ones")
 
@@ -1151,10 +1155,18 @@ SubmatrixImplicits with SubvectorImplicits  {
               partitions.setName("Eye: Partitions")
 
               //reduceGroup to distribute partitions across worker nodes
-              val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ps => ps.next}
+              val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{
+                ps =>
+                  val result = ps.next
+                  val s = ps.size
+                  result
+              }
               distributedPartitions.setName("Eye: Distributed partitions")
 
-              val result = distributedPartitions.map{p => Submatrix.eye(p)}
+              val result = distributedPartitions.map{
+                p =>
+                  Submatrix.eye(p)
+              }
 
               result.setName("Eye")
 
@@ -1313,9 +1325,6 @@ SubmatrixImplicits with SubvectorImplicits  {
 
               if(configuration.compilerHints){
                 result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns))
               }
 
               result
@@ -1372,13 +1381,16 @@ SubmatrixImplicits with SubvectorImplicits  {
               colwiseSum.setName("SumCol: Column sum")
 
               if(configuration.compilerHints){
-                blockwiseSum.preserves(s => (s.columnIndex, s.columnOffset, s.totalColumns), s=> (s.columnIndex,
-                  s.columnOffset, s.totalColumns))
+                if(configuration.preserveHint){
+                  blockwiseSum.preserves(s => (s.columnIndex, s.columnOffset, s.totalColumns), s=> (s.columnIndex,
+                    s.columnOffset, s.totalColumns))
+
+                  colwiseSum.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
+                    s.totalColumns))
+                }
 
                 colwiseSum.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                colwiseSum.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                  s.totalColumns))
               }
 
               colwiseSum
@@ -1613,7 +1625,9 @@ SubmatrixImplicits with SubvectorImplicits  {
               result.setName("Sum: Final result")
 
               if(configuration.compilerHints){
-                pairIDSubmatrix.preserves(p => p._1, r => r._1)
+                if(configuration.preserveHint){
+                  pairIDSubmatrix.preserves(p => p._1, r => r._1)
+                }
                 pairIDSubmatrix.uniqueKey(p => p._1)
 
                 result.neglects(p => p._1)

@@ -520,12 +520,17 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
             handle[WriteMatrix, DoubleMatrix](transformation,
             { transformation => evaluate[DoubleMatrix](transformation.matrix) },
             { (_, matrix) =>
-              println(matrix)
+              for(((row, col), value) <- matrix.activeIterator){
+                println(s"$row $col $value")
+              }
             })
           case MatrixType(BooleanType, _,_) =>
             handle[WriteMatrix, BooleanMatrix](transformation,
             { transformation => evaluate[BooleanMatrix](transformation.matrix) },
-            { (_, matrix) => println(matrix) })
+            { (_, matrix) => for(((row, col), value) <- matrix.activeIterator){
+              println(s"$row $col $value")
+            }
+            })
         }
 
 
