@@ -1,5 +1,6 @@
 package org.gilbertlang.evaluation
 
+import java.io.File
 import java.io._
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.optimizer.Optimizer
@@ -327,7 +328,8 @@ object Runner {
     this.master = configSection.get("master", DEFAULT_JOBMANAGER)
     this.port = configSection.get("port", classOf[Int],DEFAULT_JOBMANAGER_PORT)
     this.appName = configSection.get("appName", "Evaluation")
-    this.libraryPath = configSection.get("libraryPath", "")
+    this.libraryPath = configSection.get("libraryPath", new File(this.getClass().getProtectionDomain().getCodeSource()
+      .getLocation().getPath().toURI())+"lib/")
     setOutputPath(configSection.get("outputPath"))
     setCheckpointDir(configSection.get("checkpointDir"))
     setJars(configSection.get("jars"))
