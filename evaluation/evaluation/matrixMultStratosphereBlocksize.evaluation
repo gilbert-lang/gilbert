@@ -1,0 +1,25 @@
+[config]
+master=node1
+template = matrixMult.gb.template
+engine = Stratosphere
+blocksize = 1, 10, 50, 100, 500, 1000
+compilerHints = true
+optimization.TP = true
+optimization.MMReordering = true
+densityThreshold = 0.5
+outputFile = matrixMultStratosphereBlocksize
+tries = 20
+parallelism = 16
+outputPath = hdfs://node1.stsffap.org:54310/trohrmann/
+checkpointDir =
+iterationUntilCheckpoint = 0
+math = Breeze
+
+[data]
+rowsA = 1000
+colsA = 1000
+colsB = 1000
+level = 0.1
+
+[header]
+header = Blocksize:blocksize Time:time Error:error

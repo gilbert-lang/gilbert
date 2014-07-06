@@ -1,25 +1,25 @@
 [config]
-jobmanager=node1.stsffap.org
-template = evaluation/src/main/resources/matrixMult.gb.template
+master=node1.stsffap.org
+template = target/classes/matrixMult.gb.template
 engine = Stratosphere
 blocksize = 10
 compilerHints = true
 optimization.TP = true
 optimization.MMReordering = true
 densityThreshold = 0.6
-output = matrixMult
-tries = 10
-parallelism = 4
-outputPath = ""
-checkpointDir = ""
+outputFile = matrixMultBreeze
+tries = 3
+parallelism = 2
+outputPath =
+checkpointDir =
 iterationUntilCheckpoint = 0
 math = Breeze
 
 [data]
-rowsA = 1000, 10000, 100000
-colsA = 1000, 10000, 100000
-colsB = 1000, 10000, 100000
-level = 0.5
+rowsA = 10, 100, 1000
+colsA = 10, 100, 1000
+colsB = 10, 100, 1000
+level = 0.1
 
 [header]
 header = RowsA:rowsA ColsA:colsA ColsB:colsB Time:time Error:error

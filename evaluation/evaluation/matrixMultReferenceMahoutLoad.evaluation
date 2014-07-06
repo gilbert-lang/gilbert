@@ -1,0 +1,25 @@
+[config]
+master=node1
+template = matrixMult.gb.template
+engine = Local
+blocksize = 100
+compilerHints = true
+optimization.TP = true
+optimization.MMReordering = true
+densityThreshold = 0.5
+outputFile = matrixMultReferenceMahoutLoad
+tries = 20
+parallelism =
+outputPath =
+checkpointDir =
+iterationUntilCheckpoint =matrixMultReferenceLoad.evaluation
+math = Mahout
+
+[data]
+rowsA = 100, 500, 1000
+colsA = 100, 500, 1000
+colsB = 100, 500, 1000
+level = 0.1
+
+[header]
+header = RowsA:rowsA ColsA:colsA ColsB:colsB Time:time Error:error

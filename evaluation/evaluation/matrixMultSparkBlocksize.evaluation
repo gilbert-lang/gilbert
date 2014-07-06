@@ -1,0 +1,25 @@
+[config]
+master=node1
+template = matrixMult.gb.template
+engine = Spark
+blocksize = 1, 10, 50, 100, 500, 1000
+compilerHints = true
+optimization.TP = true
+optimization.MMReordering = true
+densityThreshold = 0.5
+outputFile = matrixMultSparkBlocksize
+tries = 20
+parallelism = 16
+outputPath =
+checkpointDir =
+iterationUntilCheckpoint = 0
+math = Breeze
+
+[data]
+rowsA = 1000
+colsA = 1000
+colsB = 1000
+level = 0.1
+
+[header]
+header = Blocksize:blocksize Time:time Error:error

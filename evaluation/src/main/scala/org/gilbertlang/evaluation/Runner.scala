@@ -3,21 +3,23 @@ package org.gilbertlang.evaluation
 import java.io._
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.optimizer.Optimizer
-import org.gilbertlang.runtime.{withSpark, local, withStratosphere}
+import org.gilbertlang.runtime._
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
+import scala.language.postfixOps
 
 import collection.JavaConversions._
 
 import org.ini4j.{Ini}
 
 import scala.collection.mutable.ListBuffer
-;
+
 
 object Runner {
   val DEFAULT_JOBMANAGER = "node1.stsffap.org"
   val DEFAULT_JOBMANAGER_PORT = -1;
   val DEFAULT_JOBMANAGER_PORT_SPARK = 7077
   val DEFAULT_JOBMANAGER_PORT_STRATOSPHERE = 6123
+  val DEFAULT_SEPARATOR = " "
 
   val data =  collection.mutable.HashMap[String, List[String]]()
   var outputFile: String = null
@@ -35,8 +37,12 @@ object Runner {
   var outputPath: String = null
   var checkpointDir: String = null
   var iterationUntilCheckpoint: Int = 0
-  var jobmanager: String = ""
-  var jobmanagerPort: Int = 0
+  var master: String = ""
+  var port: Int = 0
+  var appName: String = ""
+  var mathBackend: MathBackend.Value = null
+  var jars: List[String] = null
+  var libraryPath: String = ""
 
   var datapoints: ListBuffer[DatapointEntry] = ListBuffer()
 
@@ -44,7 +50,7 @@ object Runner {
     if(args.length < 1){
       printUsage
     }else {
-      val file = new File("evaluation/src/main/resources/exampleConfig.evalution")
+      val file = new File(args(0))
       val ini = new Ini(file)
 
       processData(ini)
@@ -58,7 +64,74 @@ object Runner {
           throw new RuntimeException("The settings have not been set properly.", e)
       }
 
-      runEvaluation
+      runEvaluation()
+
+      printOutput()
+    }
+  }
+
+  def printOutput() {
+    val file = new File(outputFile)
+    val printer = new PrintWriter(file)
+
+    printInfo(printer)
+    printHeader(printer, DEFAULT_SEPARATOR)
+    printDatapoints(printer, DEFAULT_SEPARATOR)
+
+    printer.close()
+  }
+
+  def printInfo(printer: PrintWriter){
+    printer.println("# Engine: " + this.engine +"; Math-Backend: " + this.mathBackend)
+    printer.println("# Template: " + this.template)
+    printer.println("# App-Name: " + this.appName)
+    printer.println("# Compiler Hints: " + this.compilerHints)
+    printer.println("# Optimization: TP: " + this.optimizationTP + "; MM Reorder: " + this.optimizationMMReordering)
+    printer.println("# tries: " + this.tries)
+    printer.println("# checkpointDir: " + this.checkpointDir + ";" + this
+      .iterationUntilCheckpoint)
+    val additional = "#" + (if(!headerReferences.contains("parallelism")) " parallelism: " + parallelism.get(0) else
+      "") +
+      (if(!headerReferences.contains("blocksize")) " blocksize: " + blocksizes.get(0) else "") +
+      (if (!headerReferences.contains("densityThreshold")) " densityThreshold: " + densityThresholds.get(0) else "")
+
+    if(additional.length > 1){
+      printer.println(additional)
+    }
+
+    printer.println()
+  }
+
+  def printHeader(printer: PrintWriter, separator: String){
+    for(header <- headerNames){
+      printer.print(header + separator)
+    }
+
+    printer.println()
+  }
+
+  def printDatapoints(printer: PrintWriter, separator: String){
+    for(datapoint <- datapoints){
+      for(reference <- headerReferences){
+        reference match {
+          case "time" => printer.print(datapoint.time)
+          case "error" => printer.print(datapoint.error)
+          case "densityThreshold" => printer.print(datapoint.densityThreshold)
+          case "parallelism" => printer.print(datapoint.dop)
+          case "blocksize" => printer.print(datapoint.blocksize)
+          case _ => printer.print(datapoint.dataset.getOrElse(reference, "NotFound"))
+        }
+        printer.print(separator)
+      }
+      printer.println()
+    }
+  }
+
+  def getParallelisms: List[Int] = {
+    if(headerReferences.contains("parallelism")){
+      this.parallelism
+    }else{
+      this.parallelism.take(1)
     }
   }
 
@@ -116,25 +189,29 @@ object Runner {
     (constants ++ pairs).toMap
   }
 
-  def runEvaluation{
+  def runEvaluation(){
     val dataReferences = headerReferences filter {
       element =>
         element match {
-          case "densityThreshold" | "blocksize" | "time" | "error" => false
+          case "densityThreshold" | "blocksize" | "time" | "error" | "parallelism" => false
           case _ => true
         }
     } toSet
 
     val dataLength = getDataLength(dataReferences)
 
-    for(dop <- parallelism) {
+    for(dop <- getParallelisms) {
       for (blocksize <- getBlocksizes) {
         for (densityThreshold <- getDensityThresholds) {
           for (idx <- 0 until dataLength) {
             val dataSet = getDataSet(dataReferences, idx)
-            val runtimeConfig = RuntimeConfiguration(blocksize, densityThreshold, compilerHints)
-            val engineConfig = EngineConfiguration(dop, engine, jobmanager, jobmanagerPort, optimizationTP,
-              optimizationMMReordering, tries, outputPath, checkpointDir, iterationUntilCheckpoint)
+            val runtimeConfig = RuntimeConfiguration(blocksize, densityThreshold, compilerHints,
+              if(outputPath.isEmpty) None else Some(outputPath), if(checkpointDir.isEmpty) None else Some
+                (checkpointDir),iterationUntilCheckpoint)
+            val engineConfig = EngineConfiguration(master, port, appName, dop, jars, libraryPath)
+            val evaluationConfig = EvaluationConfiguration(this.engine, this.mathBackend, this.tries,
+              this.optimizationMMReordering,
+              this.optimizationTP)
 
             val (time, error) = run(evaluationConfig, runtimeConfig, engineConfig, template, dataSet)
 
@@ -153,31 +230,53 @@ object Runner {
     val program =  instantiateTemplate(new FileReader(new File(template)), dataSet)
     val executable = Gilbert.compileString(program)
 
-    val postMMReordering = if(evaluation.optMMReordering){
+    val postMMReordering = if(evaluationConfig.optMMReordering){
       Optimizer.mmReorder(executable)
     }else{
       executable
     }
 
-    val postTP = if(evaluation.optTP){
+    val postTP = if(evaluationConfig.optTP){
       Optimizer.transposePushdown(postMMReordering)
     }else{
       postMMReordering
     }
 
+    evaluationConfig.mathBackend match {
+      case MathBackend.Mahout => withMahout()
+      case MathBackend.Breeze => withBreeze()
+    }
+
     val executor = evaluationConfig.engine match {
       case Engines.Local => local()
       case Engines.Spark => withSpark.remote(engineConfiguration)
-      case Engines.Stratosphere => withStratosphere().remote(engineConfiguration)
+      case Engines.Stratosphere => withStratosphere.remote(engineConfiguration)
     }
 
 
-    val measurements:List[Double] = for(t <- 0 until tries) yield {
-      executor.execute(postTP)
-    }
 
-    val average = measurements.fold(0)(_+_)/tries
-    val std = if(tries > 1) math.sqrt(1/(tries-1)* measurements.fold(0)(_ + math.pow((_ - average),2))) else 0
+    val measurements =
+      for (t <- 0 until evaluationConfig.tries) yield {
+        try {
+          val t = executor.execute(postTP, runtimeConfig)
+          executor.stop()
+          t
+        } catch {
+          case ex: Exception =>
+            ex.printStackTrace()
+            -1
+        }
+      }
+
+    val cleanedMeasurements = measurements.filter{_ >= 0}
+    val num = cleanedMeasurements.length
+    val average = cleanedMeasurements.fold(0.0)(_+_)/num
+    val std = if(num > 1){
+      math.sqrt(1.0/(num-1)* cleanedMeasurements.
+        foldLeft(0.0){ (s, e) => s + math.pow((e -average),2)})
+    } else{
+      0
+    }
 
     (average, std)
   }
@@ -216,7 +315,7 @@ object Runner {
     val entries = dataSection.keySet()
 
     for(entry <- entries){
-      val entryValues = dataSection.get(entry).split(",")
+      val entryValues = dataSection.get(entry).split(",").map{entry => entry.trim}
       data.put(entry, entryValues.toList)
     }
   }
@@ -225,20 +324,40 @@ object Runner {
     val configSection = ini.get("config")
 
     setParallelism(configSection.get("parallelism").split(",").toList)
-    this.jobmanager = configSection.get("jobmanager", DEFAULT_JOBMANAGER)
-    this.jobmanagerPort = configSection.get("jobmanager.port", classOf[Int],DEFAULT_JOBMANAGER_PORT)
+    this.master = configSection.get("master", DEFAULT_JOBMANAGER)
+    this.port = configSection.get("port", classOf[Int],DEFAULT_JOBMANAGER_PORT)
+    this.appName = configSection.get("appName", "Evaluation")
+    this.libraryPath = configSection.get("libraryPath", "")
     setOutputPath(configSection.get("outputPath"))
     setCheckpointDir(configSection.get("checkpointDir"))
+    setJars(configSection.get("jars"))
     setIterationUntilCheckpoint(configSection.get("iterationUntilCheckpoint"))
     setEngine(configSection.get("engine"))
+    setMathBackend(configSection.get("math"))
     setCompilerHints(configSection.get("compilerHints"))
     setTemplate(configSection.get("template"))
     setBlocksize(configSection.get("blocksize").split(",").toList)
     setDensityThreshold(configSection.get("densityThreshold").split(",").toList)
-    setOutputFile(configSection.get("output"))
+    setOutputFile(configSection.get("outputFile"))
     setTries(configSection.get("tries"))
     setOptMMReordering(configSection.get("optimization.MMReordering"))
     setOptTP(configSection.get("optimization.TP"))
+  }
+
+  def setJars(value: String){
+    if(value == null){
+      this.jars = List()
+    }else{
+      this.jars = value.split(",").toList
+    }
+  }
+
+  def setMathBackend(value: String){
+    value match {
+      case "Mahout" => mathBackend = MathBackend.Mahout
+      case "Breeze" => mathBackend = MathBackend.Breeze
+      case _ => throw new RuntimeException(s"$value is not supported as math backend")
+    }
   }
 
   def setParallelism(dops: List[String]){
@@ -344,8 +463,8 @@ object Runner {
       throw new RuntimeException("Tries not set")
     }
 
-    if(jobmanagerPort < 0){
-      jobmanagerPort = engine match {
+    if(port < 0){
+      port = engine match {
         case Engines.Stratosphere => DEFAULT_JOBMANAGER_PORT_STRATOSPHERE
         case Engines.Spark => DEFAULT_JOBMANAGER_PORT_SPARK
         case _ => -1
