@@ -325,7 +325,7 @@ object Runner {
   def processConfiguration(ini: Ini){
     val configSection = ini.get("config")
 
-    setParallelism(configSection.get("parallelism").split(",").toList)
+    setParallelism(configSection.get("parallelism", "1").split(",").toList)
     this.master = configSection.get("master", DEFAULT_JOBMANAGER)
     this.port = configSection.get("port", classOf[Int],DEFAULT_JOBMANAGER_PORT)
     this.appName = configSection.get("appName", "Evaluation")
@@ -334,7 +334,7 @@ object Runner {
     setOutputPath(configSection.get("outputPath"))
     setCheckpointDir(configSection.get("checkpointDir"))
     setJars(configSection.get("jars"))
-    setIterationUntilCheckpoint(configSection.get("iterationUntilCheckpoint"))
+    setIterationUntilCheckpoint(configSection.get("iterationUntilCheckpoint", "0"))
     setEngine(configSection.get("engine"))
     setMathBackend(configSection.get("math"))
     setCompilerHints(configSection.get("compilerHints"))
