@@ -387,7 +387,7 @@ object Runner {
   }
 
   def setIterationUntilCheckpoint(value: String){
-    this.iterationUntilCheckpoint = if(value == null) 0 else value.toInt
+    this.iterationUntilCheckpoint = if(value == null || value.isEmpty) 0 else value.toInt
   }
 
   def setOptMMReordering(value: String){
