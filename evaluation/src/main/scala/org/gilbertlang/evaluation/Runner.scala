@@ -1,6 +1,5 @@
 package org.gilbertlang.evaluation
 
-import java.io.File
 import java.io._
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.optimizer.Optimizer
@@ -31,6 +30,7 @@ object Runner {
   val DEFAULT_OPTIMIZATION_TP = "true"
   val DEFAULT_TRIES = "10"
   val DEFAULT_VERBOSE_WRITING = "false"
+  val DEFAULT_MEMORY = "20g"
 
   val data =  collection.mutable.HashMap[String, List[String]]()
   var outputFile: String = null
@@ -55,6 +55,7 @@ object Runner {
   var jars: List[String] = null
   var libraryPath: String = ""
   var verboseWriting: Boolean = false;
+  var memory: String = null;
 
   var datapoints: ListBuffer[DatapointEntry] = ListBuffer()
 
@@ -220,7 +221,7 @@ object Runner {
             val runtimeConfig = RuntimeConfiguration(blocksize, densityThreshold, compilerHints,
               if(outputPath.isEmpty) None else Some(outputPath), if(checkpointDir.isEmpty) None else Some
                 (checkpointDir),iterationUntilCheckpoint, verboseWriting)
-            val engineConfig = EngineConfiguration(master, port, appName, dop, jars, libraryPath)
+            val engineConfig = EngineConfiguration(master, port, appName, dop, jars, libraryPath, Some(memory))
             val evaluationConfig = EvaluationConfiguration(this.engine, this.mathBackend, this.tries,
               this.optimizationMMReordering,
               this.optimizationTP)
@@ -356,6 +357,7 @@ object Runner {
     setOptMMReordering(configSection.get("optimization.MMReordering", DEFAULT_OPTIMIZATION_MMREORDERING))
     setOptTP(configSection.get("optimization.TP", DEFAULT_OPTIMIZATION_TP))
     this.verboseWriting = configSection.get("verboseWriting", DEFAULT_VERBOSE_WRITING).toBoolean
+    this.memory = configSection.get("memory", DEFAULT_MEMORY)
   }
 
   def setJars(value: String){
