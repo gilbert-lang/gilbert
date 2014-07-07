@@ -13,13 +13,13 @@ object SimpleExecutor {
 
     val runtimeConfig =new RuntimeConfiguration(blocksize = 100,
       checkpointDir = Some("/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/spark"),
-      iterationsUntilCheckpoint = 3)
+      iterationsUntilCheckpoint = 3, outputPath = Some("/tmp/gilbert/"), verboseWrite = false)
     val engineConfiguration = EngineConfiguration(parallelism=4)
 
 //    withMahout()
     withBreeze()
-    local().execute(optimized, runtimeConfig)
-//    withSpark.local(engineConfiguration).execute(optimized, runtimeConfig)
+//    local().execute(optimized, runtimeConfig)
+    withSpark.local(engineConfiguration).execute(optimized, runtimeConfig)
 //    withStratosphere.local(engineConfiguration).execute(optimized, runtimeConfig)
   }
 }

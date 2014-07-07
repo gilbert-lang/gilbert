@@ -88,16 +88,15 @@ object withSpark {
 
   def remote(engineConfiguration: EngineConfiguration): ExecutionEngine = {
     val master = "spark://" + engineConfiguration.master +":" + engineConfiguration.port
-
-    createSparkExecutionEngine(master, engineConfiguration)
+    val sparkDeps = getSparkDependencies(engineConfiguration.libraryPath)
+    createSparkExecutionEngine(master, engineConfiguration.copy(jars = engineConfiguration.jars ++ sparkDeps))
   }
 
   def createSparkExecutionEngine(master: String, engineConfiguration: EngineConfiguration): ExecutionEngine = {
-    val sparkDeps = getSparkDependencies(engineConfiguration.libraryPath)
     val sparkConf = new SparkConf().
       setMaster(master).
       setAppName(engineConfiguration.appName).
-      setJars(engineConfiguration.jars ++ sparkDeps).
+      setJars(engineConfiguration.jars).
       set("spark.cores.max", engineConfiguration.parallelism.toString).
       set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 

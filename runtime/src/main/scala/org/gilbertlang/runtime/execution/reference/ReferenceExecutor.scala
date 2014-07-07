@@ -18,8 +18,12 @@
 
 package org.gilbertlang.runtime.execution.reference
 
+import java.io.PrintStream
+import java.net.URI
+
 import breeze.stats.distributions.Gaussian
 import breeze.linalg.{min, max, norm, *}
+import eu.stratosphere.core.fs.{Path, FileSystem}
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
@@ -46,6 +50,27 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
   var iterationStateCellArray: CellArray = null
   var convergenceCurrentStateCellArray: CellArray = null
   var convergencePreviousStateCellArray: CellArray = null
+
+  var tempFileCounter: Int = 0;
+
+  def newTempFileName(path: String): String = {
+    tempFileCounter += 1
+    val separator = if(path.endsWith("/")) "" else "/"
+    path + separator + "gilbert" + tempFileCounter + ".output"
+  }
+
+  def getPrintStream(pathOption: Option[String]): (PrintStream, Boolean) = {
+    pathOption match{
+      case None => (Console.out, false)
+      case Some(path) =>
+        val completePath = newTempFileName(path)
+        val fs = FileSystem.get(new URI(completePath))
+        val stream = fs.create(new Path(completePath), true)
+        (new PrintStream(stream), true)
+    }
+  }
+
+
 
   protected def execute(executable: Executable): Any = {
 
@@ -520,16 +545,46 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
             handle[WriteMatrix, DoubleMatrix](transformation,
             { transformation => evaluate[DoubleMatrix](transformation.matrix) },
             { (_, matrix) =>
-              for(((row, col), value) <- matrix.activeIterator){
-                println(s"$row $col $value")
+              val (out, closable) = getPrintStream(configuration.outputPath)
+
+              if(configuration.verboseWrite){
+                for(((row, col), value) <- matrix.activeIterator){
+                  out. println(s"$row $col $value")
+                }
+              }else{
+                val rows = matrix.rows
+                val cols = matrix.cols
+                val nonZeros = matrix.activeSize
+
+                out.println(s"Matrix[$rows, $cols] #NonZeroes:$nonZeros")
               }
+
+              if(closable){
+                out.close()
+              }
+
             })
           case MatrixType(BooleanType, _,_) =>
             handle[WriteMatrix, BooleanMatrix](transformation,
             { transformation => evaluate[BooleanMatrix](transformation.matrix) },
-            { (_, matrix) => for(((row, col), value) <- matrix.activeIterator){
-              println(s"$row $col $value")
-            }
+            { (_, matrix) =>
+              val (out, closable) = getPrintStream(configuration.outputPath)
+
+              if(configuration.verboseWrite){
+                for(((row, col), value) <- matrix.activeIterator){
+                  out.println(s"$row $col $value")
+                }
+              }else{
+                val rows = matrix.rows
+                val cols = matrix.cols
+                val nonZeros = matrix.activeSize
+
+                out.println(s"Matrix[$rows, $cols] #NonZeroes:$nonZeros")
+              }
+
+              if(closable){
+                out.close()
+              }
             })
         }
 
@@ -538,7 +593,15 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
 
         handle[WriteString, String](transformation,
             { transformation => evaluate[String](transformation.string) },
-            { (_, string) => println(string) })
+            { (_, string) =>
+              val (out, closable) = getPrintStream(configuration.outputPath)
+
+              out.println(string)
+
+              if(closable){
+                out.close()
+              }
+            })
 
       case transformation: WriteFunction =>
         handle[WriteFunction, Unit](transformation,
@@ -567,11 +630,27 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
           case BooleanType =>
             handle[WriteScalar, Boolean](transformation,
             { transformation => evaluate[Boolean](transformation.scalar) },
-            { (_, scalar) => println(scalar)} )
+            { (_, scalar) =>
+              val (out, closable) = getPrintStream(configuration.outputPath)
+
+              out.println(scalar)
+
+              if(closable){
+                out.close()
+              }
+            } )
           case DoubleType =>
             handle[WriteScalar, Double](transformation,
             { transformation => evaluate[Double](transformation.scalar) },
-            { (_, scalar) => println(scalar) })
+            { (_, scalar) =>
+              val(out, closable) = getPrintStream(configuration.outputPath)
+
+              out.println(scalar)
+
+              if(closable){
+                out.close()
+              }
+            })
           case tpe =>
             throw new LocalExecutionError(s"Cannot print scalar of type $tpe.")
         }
@@ -580,7 +659,57 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
         handle[WriteCellArray, CellArray](
         writeCellArray,
         {input => evaluate[CellArray](input.cellArray)},
-        {(_, cellArray) => for(entry <- cellArray) println(entry)}
+        {(writeCellArray, cellArray) =>
+          for((tpe, idx) <- writeCellArray.cellArray.getType.elementTypes.zipWithIndex){
+            tpe match {
+              case MatrixType(DoubleType, _, _) =>
+                val matrix = cellArray(idx).asInstanceOf[DoubleMatrix]
+                val (out, closable) = getPrintStream(configuration.outputPath)
+
+                if(configuration.verboseWrite){
+                  for(((row, col), value) <- matrix.activeIterator){
+                    out. println(s"$row $col $value")
+                  }
+                }else{
+                  val rows = matrix.rows
+                  val cols = matrix.cols
+                  val nonZeros = matrix.activeSize
+
+                  out.println(s"Matrix[$rows, $cols] #NonZeroes:$nonZeros")
+                }
+
+                if(closable){
+                  out.close()
+                }
+              case MatrixType(BooleanType, _, _) =>
+                val matrix = cellArray(idx).asInstanceOf[BooleanMatrix]
+                val (out, closable) = getPrintStream(configuration.outputPath)
+
+                if(configuration.verboseWrite){
+                  for(((row, col), value) <- matrix.activeIterator){
+                    out. println(s"$row $col $value")
+                  }
+                }else{
+                  val rows = matrix.rows
+                  val cols = matrix.cols
+                  val nonZeros = matrix.activeSize
+
+                  out.println(s"Matrix[$rows, $cols] #NonZeroes:$nonZeros")
+                }
+
+                if(closable){
+                  out.close()
+                }
+              case _ =>
+                val (out, closable) = getPrintStream(configuration.outputPath)
+                out.println(cellArray(idx))
+
+                if(closable){
+                  out.close()
+                }
+            }
+          }
+          for(entry <- cellArray) println(entry)}
         )
 
 

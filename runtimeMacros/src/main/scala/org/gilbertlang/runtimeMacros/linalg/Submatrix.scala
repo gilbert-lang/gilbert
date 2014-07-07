@@ -249,7 +249,7 @@ object Submatrix extends SubmatrixImplicits {
           val totalSize = s"Total size: ($totalRows, $totalColumns)"
           val nonZeros = submatrix.activeSize
 
-          result = s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros"
+          result = s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros" + elementDelimiter
         }
 
         result

@@ -30,6 +30,7 @@ object Runner {
   val DEFAULT_OPTIMIZATION_MMREORDERING = "true"
   val DEFAULT_OPTIMIZATION_TP = "true"
   val DEFAULT_TRIES = "10"
+  val DEFAULT_VERBOSE_WRITING = "false"
 
   val data =  collection.mutable.HashMap[String, List[String]]()
   var outputFile: String = null
@@ -354,6 +355,7 @@ object Runner {
     setTries(configSection.get("tries", DEFAULT_TRIES))
     setOptMMReordering(configSection.get("optimization.MMReordering", DEFAULT_OPTIMIZATION_MMREORDERING))
     setOptTP(configSection.get("optimization.TP", DEFAULT_OPTIMIZATION_TP))
+    this.verboseWriting = configSection.get("verboseWriting", DEFAULT_VERBOSE_WRITING).toDouble
   }
 
   def setJars(value: String){

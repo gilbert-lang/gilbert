@@ -18,22 +18,25 @@
 
 package org.gilbertlang.runtime.execution.spark
 
+import java.net.URI
+
 import breeze.stats.distributions.Gaussian
+import eu.stratosphere.core.fs.{Path, FileSystem}
+import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.{SparkContext}
 import org.gilbertlang.runtime.RuntimeTypes._
 import org.gilbertlang.runtime.Operations._
-import org.apache.commons.io.FileUtils
-import java.io.File
+import java.io.{File, PrintStream}
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 import org.gilbertlang.runtime.shell.PlanPrinter
 import _root_.breeze.linalg.{norm, min, max, *}
 import org.gilbertlang.runtime.execution.UtilityFunctions
-import org.gilbertlang.runtimeMacros.linalg.operators.{SubvectorImplicits, DoubleVectorImplicits, SubmatrixImplicits}
+import org.gilbertlang.runtimeMacros.linalg.operators.{SubvectorImplicits, SubmatrixImplicits}
 import scala.language.postfixOps
 import scala.util.control.Breaks.{break, breakable}
 import org.gilbertlang.runtime.Executables.diag
@@ -108,10 +111,10 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
 
   def getCWD: String = System.getProperty("user.dir")
 
-  def newTempFileName(): String = {
+  def newTempFileName(path: String): String = {
     tempFileCounter += 1
-    val separator = if(configuration.outputPath.getOrElse("").endsWith("/")) "" else "/"
-    configuration.outputPath.getOrElse("") + separator + "gilbert" + tempFileCounter + ".output"
+    val separator = if(path.endsWith("/")) "" else "/"
+    path + separator + "gilbert" + tempFileCounter + ".output"
   }
 
   protected def execute(executable: Executable): Any = {
@@ -229,26 +232,27 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeMatrix,
             {input => evaluate[Matrix](input.matrix)},
             {(_, matrixRDD) =>
-              if(!configuration.outputPath.isDefined){
-                matrixRDD foreach {
-                  matrix =>
-                    if(configuration.verboseWrite) {
-                      println(matrix)
-                    }else{
-                      import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
-                      val index = s"Index: ($rowIndex, $columnIndex)"
-                      val offset = s"Offset: ($rowOffset, $columnOffset)"
-                      val totalSize = s"Total size: ($totalRows, $totalColumns)"
-                      val nonZeros = matrix.activeSize
-
-                      println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
-                    }
-                }
+              val outputRDD = if(configuration.verboseWrite){
+                matrixRDD
               }else{
-                val path = newTempFileName()
-                matrixRDD.saveAsTextFile(path)
+                matrixRDD map { matrix =>
+                  import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+                  val index = s"Index: ($rowIndex, $columnIndex)"
+                  val offset = s"Offset: ($rowOffset, $columnOffset)"
+                  val totalSize = s"Total size: ($totalRows, $totalColumns)"
+                  val nonZeros = matrix.activeSize
+
+                  s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros"
+                }
               }
 
+              configuration.outputPath match {
+                case Some(path) =>
+                  val completePath = newTempFileName(path)
+                  outputRDD.saveAsTextFile(completePath)
+                case None =>
+                  outputRDD foreach { println(_) }
+              }
             }
             )
           case MatrixType(BooleanType, _, _) =>
@@ -256,26 +260,31 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeMatrix,
             {input => evaluate[BooleanMatrix](input.matrix)},
             {(_, matrixRDD) =>
-              if(!configuration.outputPath.isDefined){
-                matrixRDD foreach {
-                  matrix =>
-                    if(configuration.verboseWrite) {
-                      println(matrix)
-                    }else{
-                      import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
-                      val index = s"Index: ($rowIndex, $columnIndex)"
-                      val offset = s"Offset: ($rowOffset, $columnOffset)"
-                      val totalSize = s"Total size: ($totalRows, $totalColumns)"
-                      val nonZeros = matrix.activeSize
+              if(configuration.verboseWrite) {
+                val outputRDD = configuration.verboseWrite match {
+                  case true => matrixRDD
+                  case false =>
+                    matrixRDD map {
+                      matrix =>
+                        import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+                        val index = s"Index: ($rowIndex, $columnIndex)"
+                        val offset = s"Offset: ($rowOffset, $columnOffset)"
+                        val totalSize = s"Total size: ($totalRows, $totalColumns)"
+                        val nonZeros = matrix.activeSize
 
-                      println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
+                        s"BooleanSubmatrix[$index $offset $totalSize] #NonZeroes:$nonZeros"
                     }
                 }
-              }else{
-                val path = newTempFileName()
-                matrixRDD.saveAsTextFile(path)
-              }
 
+                configuration.outputPath match {
+                  case None => outputRDD foreach {
+                    println _
+                  }
+                  case Some(path) =>
+                    val completePath = newTempFileName(path)
+                    outputRDD.saveAsTextFile(completePath)
+                }
+              }
             }
             )
           case tpe => throw new SparkExecutionError(s"Cannot write matrix of type $tpe.")
@@ -286,11 +295,11 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
         writeString,
         {input => evaluate[String](writeString.string)},
         {(_, stringValue) =>
-          if(!configuration.outputPath.isDefined){
-            println(stringValue)
-          }else{
-            val path = newTempFileName()
-            FileUtils.writeStringToFile(new File(path), stringValue)
+          configuration.outputPath match {
+            case None => println(stringValue)
+            case Some(path) =>
+              val completePath = newTempFileName(path)
+              FileUtils.writeStringToFile(new File(completePath), stringValue)
           }
         }
         )
@@ -302,11 +311,11 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeScalar,
             {input => evaluate[Double](input.scalar)},
             {(_, scalarValue) =>
-              if(!configuration.outputPath.isDefined){
-                println(scalarValue)
-              }else{
-                val path = newTempFileName()
-                FileUtils.writeStringToFile(new File(path), scalarValue.toString)
+              configuration.outputPath match {
+                case None => println(scalarValue)
+                case Some(path) =>
+                  val completePath = newTempFileName(path)
+                  FileUtils.writeStringToFile(new File(completePath), scalarValue.toString)
               }
             }
             )
@@ -315,11 +324,11 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             writeScalar,
             {input => evaluate[Boolean](input.scalar)},
             {(_, booleanValue) =>
-              if(!configuration.outputPath.isDefined){
-                println(booleanValue)
-              }else{
-                val path = newTempFileName()
-                FileUtils.writeStringToFile(new File(path), booleanValue.toString)
+              configuration.outputPath match {
+                case None => println(booleanValue)
+                case Some(path) =>
+                  val completePath = newTempFileName(path)
+                  FileUtils.writeStringToFile(new File(completePath), booleanValue.toString)
               }
             }
             )
@@ -336,51 +345,63 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
           val cellArrayType = writeCellArray.cellArray.getType
 
           for(idx <- 0 until cellArrayType.elementTypes.length){
-
-            if(!configuration.outputPath.isDefined){
-              cellArrayType.elementTypes(idx) match {
-                case ScalarType => println(cellArray(idx))
-                case MatrixType(DoubleType, _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach {
-                obj =>
-                  val matrix = obj.asInstanceOf[Submatrix]
-                  if(configuration.verboseWrite) {
-                    println(matrix)
-                  }else{
+            cellArrayType.elementTypes(idx) match {
+              case ScalarType =>
+                configuration.outputPath match {
+                  case None => println(cellArray(idx))
+                  case Some(path) =>
+                    val completePath = newTempFileName(path)
+                    FileUtils.writeStringToFile(new File(completePath), cellArray(idx).toString)
+                }
+              case MatrixType(DoubleType, _, _) => {
+                val matrixRDD = cellArray(idx).asInstanceOf[RDD[Submatrix]]
+                val outputRDD = if(configuration.verboseWrite){
+                  matrixRDD
+                }else{
+                  matrixRDD map { matrix =>
                     import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
                     val index = s"Index: ($rowIndex, $columnIndex)"
                     val offset = s"Offset: ($rowOffset, $columnOffset)"
                     val totalSize = s"Total size: ($totalRows, $totalColumns)"
                     val nonZeros = matrix.activeSize
 
-                    println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
+                    s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros"
                   }
                 }
-                case MatrixType(BooleanType , _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach {
-                  obj =>
-                    val matrix = obj.asInstanceOf[BooleanSubmatrix]
-                    if(configuration.verboseWrite) {
-                      println(matrix)
-                    }else{
-                      import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
-                      val index = s"Index: ($rowIndex, $columnIndex)"
-                      val offset = s"Offset: ($rowOffset, $columnOffset)"
-                      val totalSize = s"Total size: ($totalRows, $totalColumns)"
-                      val nonZeros = matrix.activeSize
 
-                      println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
-                    }
+                configuration.outputPath match {
+                  case Some(path) =>
+                    val completePath = newTempFileName(path)
+                    outputRDD.saveAsTextFile(completePath)
+                  case None =>
+                    outputRDD foreach { println(_) }
                 }
-                case tpe => throw new SparkExecutionError(s"Write cell array does not support type $tpe.")
               }
-            }else{
-              val path = newTempFileName()
-              cellArrayType.elementTypes(idx) match {
-                case ScalarType =>
-                  FileUtils.writeStringToFile(new File(path), cellArray(idx).toString)
-                case MatrixType(_, _, _) =>
-                  cellArray(idx).asInstanceOf[RDD[_]].saveAsTextFile(path)
-                case tpe => throw new SparkExecutionError(s"Write cell array does not support type $tpe.")
+              case MatrixType(BooleanType , _, _) => {
+                val matrixRDD = cellArray(idx).asInstanceOf[RDD[BooleanSubmatrix]]
+                val outputRDD = if(configuration.verboseWrite){
+                  matrixRDD
+                }else{
+                  matrixRDD map { matrix =>
+                    import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+                    val index = s"Index: ($rowIndex, $columnIndex)"
+                    val offset = s"Offset: ($rowOffset, $columnOffset)"
+                    val totalSize = s"Total size: ($totalRows, $totalColumns)"
+                    val nonZeros = matrix.activeSize
+
+                    s"BooleanSubmatrix[$index $offset $totalSize] #NonZeroes:$nonZeros"
+                  }
+                }
+
+                configuration.outputPath match {
+                  case Some(path) =>
+                    val completePath = newTempFileName(path)
+                    outputRDD.saveAsTextFile(completePath)
+                  case None =>
+                    outputRDD foreach { println(_) }
+                }
               }
+              case tpe => throw new SparkExecutionError(s"Write cell array does not support type $tpe.")
             }
           }
         }
