@@ -355,7 +355,7 @@ object Runner {
     setTries(configSection.get("tries", DEFAULT_TRIES))
     setOptMMReordering(configSection.get("optimization.MMReordering", DEFAULT_OPTIMIZATION_MMREORDERING))
     setOptTP(configSection.get("optimization.TP", DEFAULT_OPTIMIZATION_TP))
-    this.verboseWriting = configSection.get("verboseWriting", DEFAULT_VERBOSE_WRITING).toDouble
+    this.verboseWriting = configSection.get("verboseWriting", DEFAULT_VERBOSE_WRITING).toBoolean
   }
 
   def setJars(value: String){
