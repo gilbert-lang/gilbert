@@ -44,6 +44,7 @@ object Runner {
   var mathBackend: MathBackend.Value = null
   var jars: List[String] = null
   var libraryPath: String = ""
+  var verboseWriting: Boolean = false;
 
   var datapoints: ListBuffer[DatapointEntry] = ListBuffer()
 
@@ -208,7 +209,7 @@ object Runner {
             val dataSet = getDataSet(dataReferences, idx)
             val runtimeConfig = RuntimeConfiguration(blocksize, densityThreshold, compilerHints,
               if(outputPath.isEmpty) None else Some(outputPath), if(checkpointDir.isEmpty) None else Some
-                (checkpointDir),iterationUntilCheckpoint)
+                (checkpointDir),iterationUntilCheckpoint, verboseWriting)
             val engineConfig = EngineConfiguration(master, port, appName, dop, jars, libraryPath)
             val evaluationConfig = EvaluationConfiguration(this.engine, this.mathBackend, this.tries,
               this.optimizationMMReordering,
