@@ -12,6 +12,8 @@ class BreezeDoubleMatrix(var matrix: Matrix[Double]) extends DoubleMatrix{
   def rows: Int = matrix.rows
   def cols: Int = matrix.cols
 
+  def activeSize: Int = matrix.activeSize
+
   def apply(x: Int, y: Int): Double = matrix(x, y)
   def update(coord:(Int,Int), value: Double) {
     matrix.update(coord, value)

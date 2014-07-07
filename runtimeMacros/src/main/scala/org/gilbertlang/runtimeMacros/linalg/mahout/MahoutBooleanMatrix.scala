@@ -9,6 +9,10 @@ class MahoutBooleanMatrix(var matrix: Matrix) extends BooleanMatrix {
   def rows = matrix.numRows()
   def cols = matrix.numCols()
 
+  def activeSize: Int = {
+    matrix.iterator().map{slice => slice.getNumNonZeroElements }.reduce{_ + _}
+  }
+
   def apply(row: Int, col:Int): Boolean = d2B(matrix.get(row, col))
 
   def update(coord: (Int, Int), value: Boolean): Unit = {

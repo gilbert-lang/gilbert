@@ -8,6 +8,8 @@ trait BooleanMatrix extends Value {
   def rows: Int
   def cols: Int
 
+  def activeSize: Int
+
   def apply(row: Int, col: Int): Boolean
   def update(coord: (Int, Int), value: Boolean): Unit
 

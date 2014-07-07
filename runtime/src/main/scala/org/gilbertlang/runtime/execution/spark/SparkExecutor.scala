@@ -230,7 +230,20 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             {input => evaluate[Matrix](input.matrix)},
             {(_, matrixRDD) =>
               if(!configuration.outputPath.isDefined){
-                matrixRDD foreach { matrix => println(matrix)}
+                matrixRDD foreach {
+                  matrix =>
+                    if(configuration.verboseWrite) {
+                      println(matrix)
+                    }else{
+                      import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+                      val index = s"Index: ($rowIndex, $columnIndex)"
+                      val offset = s"Offset: ($rowOffset, $columnOffset)"
+                      val totalSize = s"Total size: ($totalRows, $totalColumns)"
+                      val nonZeros = matrix.activeSize
+
+                      println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
+                    }
+                }
               }else{
                 val path = newTempFileName()
                 matrixRDD.saveAsTextFile(path)
@@ -244,7 +257,20 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             {input => evaluate[BooleanMatrix](input.matrix)},
             {(_, matrixRDD) =>
               if(!configuration.outputPath.isDefined){
-                matrixRDD foreach { matrix => println(matrix)}
+                matrixRDD foreach {
+                  matrix =>
+                    if(configuration.verboseWrite) {
+                      println(matrix)
+                    }else{
+                      import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+                      val index = s"Index: ($rowIndex, $columnIndex)"
+                      val offset = s"Offset: ($rowOffset, $columnOffset)"
+                      val totalSize = s"Total size: ($totalRows, $totalColumns)"
+                      val nonZeros = matrix.activeSize
+
+                      println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
+                    }
+                }
               }else{
                 val path = newTempFileName()
                 matrixRDD.saveAsTextFile(path)
@@ -314,7 +340,36 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
             if(!configuration.outputPath.isDefined){
               cellArrayType.elementTypes(idx) match {
                 case ScalarType => println(cellArray(idx))
-                case MatrixType(_, _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach { println }
+                case MatrixType(DoubleType, _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach {
+                obj =>
+                  val matrix = obj.asInstanceOf[Submatrix]
+                  if(configuration.verboseWrite) {
+                    println(matrix)
+                  }else{
+                    import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+                    val index = s"Index: ($rowIndex, $columnIndex)"
+                    val offset = s"Offset: ($rowOffset, $columnOffset)"
+                    val totalSize = s"Total size: ($totalRows, $totalColumns)"
+                    val nonZeros = matrix.activeSize
+
+                    println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
+                  }
+                }
+                case MatrixType(BooleanType , _, _) => cellArray(idx).asInstanceOf[RDD[_]] foreach {
+                  obj =>
+                    val matrix = obj.asInstanceOf[BooleanSubmatrix]
+                    if(configuration.verboseWrite) {
+                      println(matrix)
+                    }else{
+                      import matrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+                      val index = s"Index: ($rowIndex, $columnIndex)"
+                      val offset = s"Offset: ($rowOffset, $columnOffset)"
+                      val totalSize = s"Total size: ($totalRows, $totalColumns)"
+                      val nonZeros = matrix.activeSize
+
+                      println(s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros")
+                    }
+                }
                 case tpe => throw new SparkExecutionError(s"Write cell array does not support type $tpe.")
               }
             }else{

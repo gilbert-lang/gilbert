@@ -6,6 +6,8 @@ class BreezeBooleanMatrix(var matrix: Bitmatrix) extends BooleanMatrix {
   def rows: Int = matrix.rows
   def cols: Int = matrix.cols
 
+  def activeSize: Int = matrix.activeSize
+
   def apply(x: Int, y: Int): Boolean = matrix(x, y)
   def update(coord:(Int,Int), value: Boolean) {
     matrix.update(coord, value)

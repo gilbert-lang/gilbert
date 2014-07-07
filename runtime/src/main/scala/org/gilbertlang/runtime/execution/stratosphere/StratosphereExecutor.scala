@@ -111,7 +111,8 @@ SubmatrixImplicits with SubvectorImplicits  {
             { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
+              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " ",
+                configuration.verboseWrite),
                 ""), s"WriteMatrix($completePathWithFilename)"))
             }
             })
@@ -122,7 +123,8 @@ SubmatrixImplicits with SubvectorImplicits  {
             { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(BooleanSubmatrix.outputFormatter("\n", " "),
+              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(BooleanSubmatrix.outputFormatter
+                ("\n", " ", configuration.verboseWrite),
                 ""), s"WriteMatrix($completePathWithFilename)"))
             }
             })
@@ -152,7 +154,7 @@ SubmatrixImplicits with SubvectorImplicits  {
                     x.wrappedValue[Submatrix]
                 }
                 mappedCell.setName("WriteCellArray: Unwrapped scalarRef Matrix(Double)")
-                mappedCell.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " "),
+                mappedCell.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " ", configuration.verboseWrite),
                   ""),
                   s"WriteCellArray(Matrix[Double], $completePathWithFilename)")
               case StringType =>

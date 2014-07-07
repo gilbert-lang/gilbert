@@ -1,7 +1,7 @@
 package org.gilbertlang.runtimeMacros.linalg.mahout
 
 import org.gilbertlang.runtimeMacros.linalg.DoubleMatrix
-import org.apache.mahout.math.Matrix
+import org.apache.mahout.math.{SparseMatrix, DenseMatrix, Matrix}
 import org.apache.mahout.math.function.Functions
 import collection.JavaConversions._
 
@@ -10,6 +10,10 @@ class MahoutDoubleMatrix(var matrix: Matrix) extends DoubleMatrix {
 
   def rows: Int = matrix.numRows()
   def cols: Int = matrix.numCols()
+
+  def activeSize: Int = {
+    matrix.iterator().map{ slice => slice.getNumNonZeroElements }.reduce{_ + _}
+  }
 
   def apply(x: Int, y: Int): Double = matrix.get(x,y)
 

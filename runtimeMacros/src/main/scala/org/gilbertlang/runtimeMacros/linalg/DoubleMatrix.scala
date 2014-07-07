@@ -8,6 +8,8 @@ trait DoubleMatrix extends Serializable {
 
   def cols: Int
 
+  def activeSize: Int
+
   def apply(x: Int, y: Int): Double
 
   def update(coord: (Int, Int), value: Double): Unit

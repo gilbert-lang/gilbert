@@ -20,6 +20,8 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
   def rows = matrix.rows
   def cols = matrix.cols
 
+  def activeSize: Int = matrix.activeSize
+
   def rowRange = rowOffset until (rowOffset + rows)
   def colRange = columnOffset until (columnOffset + cols)
 
@@ -229,16 +231,27 @@ object Submatrix extends SubmatrixImplicits {
         columnIndex, rowOffset, columnOffset, numTotalRows, numTotalColumns)
     }
   
-  def outputFormatter(elementDelimiter: String, fieldDelimiter: String) = {
+  def outputFormatter(elementDelimiter: String, fieldDelimiter: String, verbose: Boolean) = {
     new (Submatrix => String) {
       def apply(submatrix: Submatrix): String = {
         var result = ""
-        for (((row, col), value) <- submatrix.activeIterator) {
-          // + 1 due to matlab indexing conventions which start at 1
-          result += (row+1) + fieldDelimiter + (col+1) + fieldDelimiter +
-          value + elementDelimiter
+        if(verbose){
+          for (((row, col), value) <- submatrix.activeIterator) {
+            // + 1 due to matlab indexing conventions which start at 1
+            result += (row+1) + fieldDelimiter + (col+1) + fieldDelimiter +
+              value + elementDelimiter
 
+          }
+        }else{
+          import submatrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+          val index = s"Index: ($rowIndex, $columnIndex)"
+          val offset = s"Offset: ($rowOffset, $columnOffset)"
+          val totalSize = s"Total size: ($totalRows, $totalColumns)"
+          val nonZeros = submatrix.activeSize
+
+          result = s"Submatrix[$index $offset $totalSize] #NonZeroes:$nonZeros"
         }
+
         result
       }
     }

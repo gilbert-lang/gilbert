@@ -11,6 +11,8 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
   def rows = matrix.rows
   def cols = matrix.cols
 
+  def activeSize: Int = matrix.activeSize
+
   def rowRange = rowOffset until (rowOffset + rows)
   def colRange = columnOffset until (columnOffset + cols)
 
@@ -151,14 +153,25 @@ object BooleanSubmatrix {
     }
   }
   
-  def outputFormatter(elementDelimiter: String, fieldDelimiter: String) = {
+  def outputFormatter(elementDelimiter: String, fieldDelimiter: String, verbose: Boolean) = {
     new (BooleanSubmatrix => String) {
       def apply(submatrix: BooleanSubmatrix): String = {
         var result = ""
-        for (((row, col), value) <- submatrix.activeIterator) {
-          result += (row+1) + fieldDelimiter + (col+1) + fieldDelimiter +
-          value + elementDelimiter
 
+        if(verbose) {
+          for (((row, col), value) <- submatrix.activeIterator) {
+            result += (row + 1) + fieldDelimiter + (col + 1) + fieldDelimiter +
+              value + elementDelimiter
+
+          }
+        }else{
+          import submatrix.{rowIndex, columnIndex, rowOffset, columnOffset, totalRows, totalColumns}
+          val index = s"Index: ($rowIndex, $columnIndex)"
+          val offset = s"Offset: ($rowOffset, $columnOffset)"
+          val totalSize = s"Total size: ($totalRows, $totalColumns)"
+          val nonZeros = submatrix.activeSize
+
+          val result = s"SubmatrixBoolean[$index $offset $totalSize] #NonZeros: $nonZeros"
         }
         result
       }
