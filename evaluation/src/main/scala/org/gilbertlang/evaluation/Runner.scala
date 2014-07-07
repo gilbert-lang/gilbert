@@ -16,11 +16,20 @@ import scala.collection.mutable.ListBuffer
 
 
 object Runner {
-  val DEFAULT_JOBMANAGER = "node1.stsffap.org"
+  val DEFAULT_JOBMANAGER = "cloud-11"
   val DEFAULT_JOBMANAGER_PORT = -1;
   val DEFAULT_JOBMANAGER_PORT_SPARK = 7077
   val DEFAULT_JOBMANAGER_PORT_STRATOSPHERE = 6123
   val DEFAULT_SEPARATOR = " "
+  val DEFAULT_ENGINE = "Stratosphere"
+  val DEFAULT_MATHBACKEND = "Breeze"
+  val DEFAULT_COMPILERHINTS = "true"
+  val DEFAULT_BLOCKSIZE = "1000"
+  val DEFAULT_DENSITYTHRESHOLD = "0.5"
+  val DEFAULT_OUTPUT_FILE = "evaluationResult"
+  val DEFAULT_OPTIMIZATION_MMREORDERING = "true"
+  val DEFAULT_OPTIMIZATION_TP = "true"
+  val DEFAULT_TRIES = "10"
 
   val data =  collection.mutable.HashMap[String, List[String]]()
   var outputFile: String = null
@@ -334,17 +343,17 @@ object Runner {
     setOutputPath(configSection.get("outputPath"))
     setCheckpointDir(configSection.get("checkpointDir"))
     setJars(configSection.get("jars"))
-    setIterationUntilCheckpoint(configSection.get("iterationUntilCheckpoint", "0"))
-    setEngine(configSection.get("engine"))
-    setMathBackend(configSection.get("math"))
-    setCompilerHints(configSection.get("compilerHints"))
+    setIterationUntilCheckpoint(configSection.get("iterationUntilCheckpoint"))
+    setEngine(configSection.get("engine", DEFAULT_ENGINE))
+    setMathBackend(configSection.get("math", DEFAULT_MATHBACKEND))
+    setCompilerHints(configSection.get("compilerHints", DEFAULT_COMPILERHINTS))
     setTemplate(configSection.get("template"))
-    setBlocksize(configSection.get("blocksize").split(",").toList)
-    setDensityThreshold(configSection.get("densityThreshold").split(",").toList)
-    setOutputFile(configSection.get("outputFile"))
-    setTries(configSection.get("tries"))
-    setOptMMReordering(configSection.get("optimization.MMReordering"))
-    setOptTP(configSection.get("optimization.TP"))
+    setBlocksize(configSection.get("blocksize", DEFAULT_BLOCKSIZE).split(",").toList)
+    setDensityThreshold(configSection.get("densityThreshold", DEFAULT_DENSITYTHRESHOLD).split(",").toList)
+    setOutputFile(configSection.get("outputFile", DEFAULT_OUTPUT_FILE))
+    setTries(configSection.get("tries", DEFAULT_TRIES))
+    setOptMMReordering(configSection.get("optimization.MMReordering", DEFAULT_OPTIMIZATION_MMREORDERING))
+    setOptTP(configSection.get("optimization.TP", DEFAULT_OPTIMIZATION_TP))
   }
 
   def setJars(value: String){
