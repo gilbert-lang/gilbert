@@ -2,8 +2,6 @@ package org.gilbertlang.evaluation
 
 import java.io._
 import org.apache.commons.io.FileUtils
-import org.gilbertlang.language.Gilbert
-import org.gilbertlang.optimizer.Optimizer
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 import scala.language.postfixOps
@@ -107,20 +105,18 @@ object Runner {
     printer.println("# tries: " + this.tries)
     printer.println("# checkpointDir: " + this.checkpointDir + ";" + this
       .iterationUntilCheckpoint)
-    val additional1 = "#" + (if(!data.contains("parallelism")) " parallelism: " + parallelism.get(0) else
-      "") +
-      (if(!data.contains("blocksize")) " blocksize: " + blocksizes.get(0) else "") +
-      (if (!data.contains("densityThreshold")) " densityThreshold: " + densityThresholds.get(0) else "")
-
-    val additional2 = "#" + this.data.keys.filter{key => !headerReferences.contains(key)}.map{key => key + ": " +
+    val configAdditional = "# " + (if(!headerReferences.contains("parallelism")) "DOP: " + this.parallelism(0) + " "
+    else "") + (if (!headerReferences.contains("densityThreshold")) "DensityThreshold: "+ this.densityThresholds(0) +
+      " "else "") + (if(!headerReferences.contains("blocksize")) "Blocksize: " + this.blocksizes(0) + " " else "")
+    val additional = "# " + this.data.keys.filter{key => !headerReferences.contains(key)}.map{key => key + ": " +
       data(key) + ";"}.mkString(" ");
 
-    if(additional1.length > 1){
-      printer.println(additional1)
+    if(configAdditional.length > 2){
+      printer.println(configAdditional)
     }
 
-    if(additional2.length >1){
-      printer.println(additional2)
+    if(additional.length >2){
+      printer.println(additional)
     }
 
     printer.println()
@@ -140,9 +136,6 @@ object Runner {
         reference match {
           case "time" => printer.print(datapoint.time)
           case "error" => printer.print(datapoint.error)
-          case "densityThreshold" => printer.print(datapoint.densityThreshold)
-          case "parallelism" => printer.print(datapoint.dop)
-          case "blocksize" => printer.print(datapoint.blocksize)
           case _ => printer.print(datapoint.dataset.getOrElse(reference, "NotFound"))
         }
         printer.print(separator)
@@ -151,27 +144,27 @@ object Runner {
     }
   }
 
-  def getParallelisms: List[Int] = {
-    if(headerReferences.contains("parallelism")){
-      this.parallelism
+  def getParallelism(idx: Int): Int = {
+    if(idx >= parallelism.length){
+      parallelism.last
     }else{
-      this.parallelism.take(1)
+      parallelism(idx)
     }
   }
 
-  def getBlocksizes: List[Int] = {
-    if(headerReferences.contains("blocksize")){
-      this.blocksizes
+  def getBlocksize(idx:Int): Int = {
+    if(idx >= blocksizes.length){
+      blocksizes.last
     }else{
-      this.blocksizes.take(1)
+      blocksizes(idx)
     }
   }
 
-  def getDensityThresholds: List[Double] = {
-    if(headerReferences.contains("densityThreshold")){
-      this.densityThresholds
+  def getDensityThreshold(idx: Int): Double = {
+    if(idx >= densityThresholds.length){
+      densityThresholds.last
     }else{
-      this.densityThresholds.take(1)
+      densityThresholds(idx)
     }
   }
 
@@ -217,44 +210,31 @@ object Runner {
     val dataReferences = headerReferences filter {
       element =>
         element match {
-          case "densityThreshold" | "blocksize" | "time" | "error" | "parallelism" => false
+          case "time" | "error" | "parallelism" | "densityThreshold" | "blocksize" => false
           case _ => true
         }
     } toSet
 
     val dataLength = getDataLength(dataReferences)
 
-    for(dop <- getParallelisms) {
-      for (blocksize <- getBlocksizes) {
-        for (densityThreshold <- getDensityThresholds) {
-          for (idx <- 0 until dataLength) {
-            val dataSet = getDataSet(dataReferences, idx)
-            val actualDop = if(dataSet.contains("parallelism")){
-              dataSet.getOrElse("parallelism", "").toInt
-            }else{
-              dop
-            }
+    for (idx <- 0 until dataLength) {
+      val dataSet = getDataSet(dataReferences, idx)
+      val dop = getParallelism(idx)
+      val blocksize = getBlocksize(idx)
+      val densityThreshold = getDensityThreshold(idx)
 
-            val actualDensityThreshold = if(dataSet.contains("densityThreshold")){
-              dataSet.getOrElse("densityThreshold", "").toInt
-            }else{
-              densityThreshold
-            }
+      val runtimeConfig = RuntimeConfiguration(blocksize, densityThreshold, compilerHints,
+        if(outputPath.isEmpty) None else Some(outputPath), if(checkpointDir.isEmpty) None else Some
+          (checkpointDir),iterationUntilCheckpoint, verboseWriting)
+      val engineConfig = EngineConfiguration(master, port, appName, dop, jars, libraryPath, Some(memory))
+      val evaluationConfig = EvaluationConfiguration(this.engine, this.mathBackend, this.tries,
+        this.optimizationMMReordering,
+        this.optimizationTP)
 
-            val runtimeConfig = RuntimeConfiguration(blocksize, actualDensityThreshold, compilerHints,
-              if(outputPath.isEmpty) None else Some(outputPath), if(checkpointDir.isEmpty) None else Some
-                (checkpointDir),iterationUntilCheckpoint, verboseWriting)
-            val engineConfig = EngineConfiguration(master, port, appName, actualDop, jars, libraryPath, Some(memory))
-            val evaluationConfig = EvaluationConfiguration(this.engine, this.mathBackend, this.tries,
-              this.optimizationMMReordering,
-              this.optimizationTP)
+      val (time, error) = run(evaluationConfig, runtimeConfig, engineConfig, template, dataSet)
 
-            val (time, error) = run(evaluationConfig, runtimeConfig, engineConfig, template, dataSet)
-
-            addDatapoint(time, error, dop, blocksize, densityThreshold, dataSet)
-          }
-        }
-      }
+      addDatapoint(time, error, dataSet.+(("parallelism",dop.toString)).+(("densityThreshold",
+        densityThreshold.toString)).+(("blocksize", blocksize.toString)))
     }
   }
 
@@ -263,58 +243,59 @@ object Runner {
           template: String,
           dataSet: Map[String,
             String]) : (Double, Double) = {
-    val program =  instantiateTemplate(new FileReader(new File(template)), dataSet)
-    val executable = Gilbert.compileString(program)
-
-    val postMMReordering = if(evaluationConfig.optMMReordering){
-      Optimizer.mmReorder(executable)
-    }else{
-      executable
-    }
-
-    val postTP = if(evaluationConfig.optTP){
-      Optimizer.transposePushdown(postMMReordering)
-    }else{
-      postMMReordering
-    }
-
-    evaluationConfig.mathBackend match {
-      case MathBackend.Mahout => withMahout()
-      case MathBackend.Breeze => withBreeze()
-    }
-
-    val executor = evaluationConfig.engine match {
-      case Engines.Local => local()
-      case Engines.Spark => withSpark.remote(engineConfiguration)
-      case Engines.Stratosphere => withStratosphere.remote(engineConfiguration)
-    }
-
-
-
-    val measurements =
-      for (t <- 0 until evaluationConfig.tries) yield {
-        try {
-          val t = executor.execute(postTP, runtimeConfig)
-          executor.stop()
-          t
-        } catch {
-          case ex: Exception =>
-            ex.printStackTrace()
-            -1
-        }
-      }
-
-    val cleanedMeasurements = measurements.filter{_ >= 0}
-    val num = cleanedMeasurements.length
-    val average = cleanedMeasurements.fold(0.0)(_+_)/num
-    val std = if(num > 1){
-      math.sqrt(1.0/(num-1)* cleanedMeasurements.
-        foldLeft(0.0){ (s, e) => s + math.pow((e -average),2)})
-    } else{
-      0
-    }
-
-    (average, std)
+//    val program =  instantiateTemplate(new FileReader(new File(template)), dataSet)
+//    val executable = Gilbert.compileString(program)
+//
+//    val postMMReordering = if(evaluationConfig.optMMReordering){
+//      Optimizer.mmReorder(executable)
+//    }else{
+//      executable
+//    }
+//
+//    val postTP = if(evaluationConfig.optTP){
+//      Optimizer.transposePushdown(postMMReordering)
+//    }else{
+//      postMMReordering
+//    }
+//
+//    evaluationConfig.mathBackend match {
+//      case MathBackend.Mahout => withMahout()
+//      case MathBackend.Breeze => withBreeze()
+//    }
+//
+//    val executor = evaluationConfig.engine match {
+//      case Engines.Local => local()
+//      case Engines.Spark => withSpark.remote(engineConfiguration)
+//      case Engines.Stratosphere => withStratosphere.remote(engineConfiguration)
+//    }
+//
+//
+//
+//    val measurements =
+//      for (t <- 0 until evaluationConfig.tries) yield {
+//        try {
+//          val t = executor.execute(postTP, runtimeConfig)
+//          executor.stop()
+//          t
+//        } catch {
+//          case ex: Exception =>
+//            ex.printStackTrace()
+//            -1
+//        }
+//      }
+//
+//    val cleanedMeasurements = measurements.filter{_ >= 0}
+//    val num = cleanedMeasurements.length
+//    val average = cleanedMeasurements.fold(0.0)(_+_)/num
+//    val std = if(num > 1){
+//      math.sqrt(1.0/(num-1)* cleanedMeasurements.
+//        foldLeft(0.0){ (s, e) => s + math.pow((e -average),2)})
+//    } else{
+//      0
+//    }
+//
+//    (average, std)
+    (0,0)
   }
 
   def instantiateTemplate(reader: Reader, dataSet: Map[String, String]): String = {
@@ -339,10 +320,8 @@ object Runner {
     stringWriter.toString
   }
 
-  def addDatapoint(time: Double, error: Double, parallelism: Int, blocksize: Int, densityThreshold: Double,
-                   dataSet: Map[String,
-                     String]){
-    datapoints += DatapointEntry(time, error, parallelism, blocksize, densityThreshold, dataSet)
+  def addDatapoint(time: Double, error: Double, dataSet: Map[String,String]){
+    datapoints += DatapointEntry(time, error, dataSet)
   }
 
   def processData(ini: Ini){

@@ -9,7 +9,7 @@ optimization.MMReordering = true
 densityThreshold = 0.6
 outputFile = matrixMultSparkBreeze
 tries = 10
-parallelism = 4
+parallelism = 1
 outputPath =
 checkpointDir =
 iterationUntilCheckpoint = 0
@@ -23,4 +23,4 @@ colsB = 10, 100, 1000
 level = 0.1
 
 [header]
-header = RowsA:rowsA ColsA:colsA ColsB:colsB Time:time Error:error
+header = Parallelism:parallelism RowsA:rowsA ColsA:colsA ColsB:colsB Time:time Error:error
