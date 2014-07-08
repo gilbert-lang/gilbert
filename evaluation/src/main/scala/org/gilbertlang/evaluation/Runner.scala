@@ -2,6 +2,8 @@ package org.gilbertlang.evaluation
 
 import java.io._
 import org.apache.commons.io.FileUtils
+import org.gilbertlang.language.Gilbert
+import org.gilbertlang.optimizer.Optimizer
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 import scala.language.postfixOps
