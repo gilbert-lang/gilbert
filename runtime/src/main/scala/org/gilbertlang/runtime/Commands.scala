@@ -98,6 +98,7 @@ object withSpark {
       setAppName(engineConfiguration.appName).
       setJars(engineConfiguration.jars).
       set("spark.cores.max", engineConfiguration.parallelism.toString).
+      set("spark.default.parallelism", engineConfiguration.parallelism.toString).
       set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
 
     engineConfiguration.memory foreach { m => sparkConf.set("spark.executor.memory", m)}
