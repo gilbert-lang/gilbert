@@ -222,10 +222,22 @@ object Runner {
         for (densityThreshold <- getDensityThresholds) {
           for (idx <- 0 until dataLength) {
             val dataSet = getDataSet(dataReferences, idx)
-            val runtimeConfig = RuntimeConfiguration(blocksize, densityThreshold, compilerHints,
+            val actualDop = if(dataSet.contains("parallelism")){
+              dataSet.getOrElse("parallelism", "").toInt
+            }else{
+              dop
+            }
+
+            val actualDensityThreshold = if(dataSet.contains("densityThreshold")){
+              dataSet.getOrElse("densityThreshold", "").toInt
+            }else{
+              densityThreshold
+            }
+
+            val runtimeConfig = RuntimeConfiguration(blocksize, actualDensityThreshold, compilerHints,
               if(outputPath.isEmpty) None else Some(outputPath), if(checkpointDir.isEmpty) None else Some
                 (checkpointDir),iterationUntilCheckpoint, verboseWriting)
-            val engineConfig = EngineConfiguration(master, port, appName, dop, jars, libraryPath, Some(memory))
+            val engineConfig = EngineConfiguration(master, port, appName, actualDop, jars, libraryPath, Some(memory))
             val evaluationConfig = EvaluationConfiguration(this.engine, this.mathBackend, this.tries,
               this.optimizationMMReordering,
               this.optimizationTP)
