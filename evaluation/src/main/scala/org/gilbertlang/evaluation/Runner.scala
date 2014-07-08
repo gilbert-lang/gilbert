@@ -428,7 +428,7 @@ object Runner {
   }
 
   def setBlocksize(sizes: List[String]){
-    this.blocksizes = sizes map { _.toInt }
+    this.blocksizes = sizes map { _.trim.toInt }
   }
 
   def setDensityThreshold(thresholds: List[String]){
