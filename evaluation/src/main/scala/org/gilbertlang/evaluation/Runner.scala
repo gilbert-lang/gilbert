@@ -1,6 +1,7 @@
 package org.gilbertlang.evaluation
 
 import java.io._
+import org.apache.commons.io.FileUtils
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.optimizer.Optimizer
 import org.gilbertlang.runtime._
@@ -85,6 +86,9 @@ object Runner {
 
   def printOutput() {
     val file = new File(outputFile)
+    if(file.exists() && file.isDirectory){
+      FileUtils.deleteDirectory(file)
+    }
     val printer = new PrintWriter(file)
 
     printInfo(printer)
