@@ -107,13 +107,20 @@ object Runner {
     printer.println("# tries: " + this.tries)
     printer.println("# checkpointDir: " + this.checkpointDir + ";" + this
       .iterationUntilCheckpoint)
-    val additional = "#" + (if(!headerReferences.contains("parallelism")) " parallelism: " + parallelism.get(0) else
+    val additional1 = "#" + (if(!data.contains("parallelism")) " parallelism: " + parallelism.get(0) else
       "") +
-      (if(!headerReferences.contains("blocksize")) " blocksize: " + blocksizes.get(0) else "") +
-      (if (!headerReferences.contains("densityThreshold")) " densityThreshold: " + densityThresholds.get(0) else "")
+      (if(!data.contains("blocksize")) " blocksize: " + blocksizes.get(0) else "") +
+      (if (!data.contains("densityThreshold")) " densityThreshold: " + densityThresholds.get(0) else "")
 
-    if(additional.length > 1){
-      printer.println(additional)
+    val additional2 = "#" + this.data.keys.filter{key => !headerReferences.contains(key)}.map{key => key + ": " + data
+    (key) + "; "}
+
+    if(additional1.length > 1){
+      printer.println(additional1)
+    }
+
+    if(additional2.length >1){
+      printer.println(additional2)
     }
 
     printer.println()
