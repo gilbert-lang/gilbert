@@ -381,7 +381,7 @@ object Runner {
   }
 
   def setParallelism(dops: List[String]){
-    this.parallelism = dops map { value => value.toInt}
+    this.parallelism = dops map { value => value.trim.toInt}
   }
 
   def setOutputPath(value: String){
