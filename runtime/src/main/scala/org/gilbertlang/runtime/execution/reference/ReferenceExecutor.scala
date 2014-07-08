@@ -65,6 +65,7 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
       case Some(path) =>
         val completePath = newTempFileName(path)
         val fs = FileSystem.get(new URI(completePath))
+        fs.delete(new Path(completePath), true)
         val stream = fs.create(new Path(completePath), true)
         (new PrintStream(stream), true)
     }
