@@ -96,8 +96,6 @@ object BreezeDoubleMatrixFactory extends DoubleMatrixFactory {
                    denseThreshold: Double): BreezeDoubleMatrix = {
     val uniform = Rand.uniform
 
-    uniform.sample(rows*cols).filter( d => d < level)
-
     val coordinates = for(r <- 0 until rows; c <- 0 until cols) yield {
         (r, c)
     }
