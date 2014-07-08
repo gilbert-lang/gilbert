@@ -112,8 +112,8 @@ object Runner {
       (if(!data.contains("blocksize")) " blocksize: " + blocksizes.get(0) else "") +
       (if (!data.contains("densityThreshold")) " densityThreshold: " + densityThresholds.get(0) else "")
 
-    val additional2 = "#" + this.data.keys.filter{key => !headerReferences.contains(key)}.map{key => key + ": " + data
-    (key) + "; "}
+    val additional2 = "#" + this.data.keys.filter{key => !headerReferences.contains(key)}.map{key => key + ": " +
+      data(key) + ";"}.mkString(" ");
 
     if(additional1.length > 1){
       printer.println(additional1)

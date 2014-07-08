@@ -2,6 +2,7 @@ package org.gilbertlang.runtime.execution.stratosphere
 
 import _root_.breeze.linalg.{*, norm, min, max}
 import breeze.stats.distributions.Gaussian
+import org.apache.commons.logging.{LogFactory, Log}
 import org.gilbertlang.runtime.Executor
 import eu.stratosphere.api.scala.operators.{CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
 import eu.stratosphere.api.scala._
@@ -846,7 +847,10 @@ SubmatrixImplicits with SubvectorImplicits  {
               val joinedBlocks = left join right where { leftElement => leftElement.columnIndex } isEqualTo
                 { rightElement => rightElement.rowIndex } map
                 { (left, right) =>
+                  StratosphereExecutor.log.info("Start matrix multiplication")
                   val result = left * right
+                  StratosphereExecutor.log.info("End matrix multiplication")
+
                   result
                 }
 
@@ -2171,4 +2175,8 @@ SubmatrixImplicits with SubvectorImplicits  {
         )
     }
   }
+}
+
+object StratosphereExecutor{
+  val log = LogFactory.getLog(classOf[StratosphereExecutor])
 }
