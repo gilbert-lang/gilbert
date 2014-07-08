@@ -243,59 +243,58 @@ object Runner {
           template: String,
           dataSet: Map[String,
             String]) : (Double, Double) = {
-//    val program =  instantiateTemplate(new FileReader(new File(template)), dataSet)
-//    val executable = Gilbert.compileString(program)
-//
-//    val postMMReordering = if(evaluationConfig.optMMReordering){
-//      Optimizer.mmReorder(executable)
-//    }else{
-//      executable
-//    }
-//
-//    val postTP = if(evaluationConfig.optTP){
-//      Optimizer.transposePushdown(postMMReordering)
-//    }else{
-//      postMMReordering
-//    }
-//
-//    evaluationConfig.mathBackend match {
-//      case MathBackend.Mahout => withMahout()
-//      case MathBackend.Breeze => withBreeze()
-//    }
-//
-//    val executor = evaluationConfig.engine match {
-//      case Engines.Local => local()
-//      case Engines.Spark => withSpark.remote(engineConfiguration)
-//      case Engines.Stratosphere => withStratosphere.remote(engineConfiguration)
-//    }
-//
-//
-//
-//    val measurements =
-//      for (t <- 0 until evaluationConfig.tries) yield {
-//        try {
-//          val t = executor.execute(postTP, runtimeConfig)
-//          executor.stop()
-//          t
-//        } catch {
-//          case ex: Exception =>
-//            ex.printStackTrace()
-//            -1
-//        }
-//      }
-//
-//    val cleanedMeasurements = measurements.filter{_ >= 0}
-//    val num = cleanedMeasurements.length
-//    val average = cleanedMeasurements.fold(0.0)(_+_)/num
-//    val std = if(num > 1){
-//      math.sqrt(1.0/(num-1)* cleanedMeasurements.
-//        foldLeft(0.0){ (s, e) => s + math.pow((e -average),2)})
-//    } else{
-//      0
-//    }
-//
-//    (average, std)
-    (0,0)
+    val program =  instantiateTemplate(new FileReader(new File(template)), dataSet)
+    val executable = Gilbert.compileString(program)
+
+    val postMMReordering = if(evaluationConfig.optMMReordering){
+      Optimizer.mmReorder(executable)
+    }else{
+      executable
+    }
+
+    val postTP = if(evaluationConfig.optTP){
+      Optimizer.transposePushdown(postMMReordering)
+    }else{
+      postMMReordering
+    }
+
+    evaluationConfig.mathBackend match {
+      case MathBackend.Mahout => withMahout()
+      case MathBackend.Breeze => withBreeze()
+    }
+
+    val executor = evaluationConfig.engine match {
+      case Engines.Local => local()
+      case Engines.Spark => withSpark.remote(engineConfiguration)
+      case Engines.Stratosphere => withStratosphere.remote(engineConfiguration)
+    }
+
+
+
+    val measurements =
+      for (t <- 0 until evaluationConfig.tries) yield {
+        try {
+          val t = executor.execute(postTP, runtimeConfig)
+          executor.stop()
+          t
+        } catch {
+          case ex: Exception =>
+            ex.printStackTrace()
+            -1
+        }
+      }
+
+    val cleanedMeasurements = measurements.filter{_ >= 0}
+    val num = cleanedMeasurements.length
+    val average = cleanedMeasurements.fold(0.0)(_+_)/num
+    val std = if(num > 1){
+      math.sqrt(1.0/(num-1)* cleanedMeasurements.
+        foldLeft(0.0){ (s, e) => s + math.pow((e -average),2)})
+    } else{
+      0
+    }
+
+    (average, std)
   }
 
   def instantiateTemplate(reader: Reader, dataSet: Map[String, String]): String = {
