@@ -198,7 +198,12 @@ object Runner {
     var result = Map[String, String]()
 
     val pairs = for(reference <- references) yield {
-      (reference, data(reference)(idx))
+      val value = if(data(reference).length <= idx){
+        data(reference).last
+      }else{
+        data(reference)(idx)
+      }
+      (reference, value)
     }
 
     val constants = for(key <- data.keySet if !references.contains(key))yield {
@@ -217,7 +222,8 @@ object Runner {
         }
     } toSet
 
-    val dataLength = getDataLength(dataReferences)
+    val dataLength = (getDataLength(dataReferences)::parallelism.length::densityThresholds.length::List(blocksizes
+      .length)).reduce(math.max(_,_))
 
     for (idx <- 0 until dataLength) {
       val dataSet = getDataSet(dataReferences, idx)
