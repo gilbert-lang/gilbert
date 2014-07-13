@@ -65,6 +65,7 @@ object Optimizer {
         case linspace(start, end, num) => linspace(tpS(start), tpS(end), tpS(num))
         case ones(rows, cols) => ones(tpS(rows), tpS(cols))
         case randn(rows, cols, mean, std) => randn(tpS(rows), tpS(cols), tpS(mean), tpS(std))
+        case urand(rows, cols) => urand(tpS(rows), tpS(cols))
         case sprand(rows, cols, mean, std, level) => sprand(tpS(rows), tpS(cols), tpS(mean), tpS(std), tpS(level))
         case adaptiveRand(rows, cols, mean, std, level) => adaptiveRand(tpS(rows), tpS(cols), tpS(mean), tpS(std),
           tpS(level))
@@ -189,6 +190,7 @@ object Optimizer {
           case linspace(start, end, num) => linspace(mmS(start), mmS(end), mmS(num))
           case ones(rows, cols) => ones(mmS(rows), mmS(cols))
           case randn(rows, cols, mean, std) => randn(mmS(rows), mmS(cols), mmS(mean), mmS(std))
+          case urand(rows, cols) => urand(mmS(rows), mmS(cols))
           case sprand(rows, cols, mean, std, level) => sprand(mmS(rows), mmS(cols), mmS(mean), mmS(std), mmS(level))
           case adaptiveRand(rows, cols, mean, std, level) => adaptiveRand(mmS(rows), mmS(cols), mmS(mean), mmS(std),
             mmS(level))
