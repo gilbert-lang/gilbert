@@ -171,7 +171,7 @@ object Runner {
   }
 
   def getDataLength(dataReferences: Set[String]): Int = {
-    var max = 1
+    var max = 0
     var firstElement = true
 
     for(reference <- dataReferences){
@@ -181,13 +181,8 @@ object Runner {
 
       val length = data(reference).length
 
-      if(!firstElement && max != length){
-        throw new RuntimeException("Data elements don't have the same length")
-      }
-
-      if(firstElement){
+      if(max < length){
         max = length
-        firstElement = false
       }
     }
 
