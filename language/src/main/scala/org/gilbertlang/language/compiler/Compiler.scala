@@ -239,6 +239,7 @@ trait Compiler {
       case "ones$DD" => function(2, ones(ScalarParameter(0), ScalarParameter(1)))
       case "rand$DDDD" => function(4, randn(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
         ScalarParameter(3)))
+      case "rand$DD" => function(2, urand(ScalarParameter(0), ScalarParameter(1)))
       case "rand$DDDDD" => function(5,adaptiveRand(ScalarParameter(0), ScalarParameter(1), ScalarParameter(2),
         ScalarParameter(3), ScalarParameter(4)))
       case "zeros$DD" => function(2, zeros(ScalarParameter(0), ScalarParameter(1)))

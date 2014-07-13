@@ -21,7 +21,7 @@ package org.gilbertlang.runtime.execution.reference
 import java.io.PrintStream
 import java.net.URI
 
-import breeze.stats.distributions.Gaussian
+import breeze.stats.distributions.{Uniform, Gaussian}
 import breeze.linalg.{min, max, norm, *}
 import eu.stratosphere.core.fs.{Path, FileSystem}
 import org.gilbertlang.runtime._
@@ -454,6 +454,15 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
             val rand = new Gaussian(mean, std)
             MatrixFactory.getDouble.rand(numRows, numColumns, rand)
           })
+
+      case transformation: urand =>
+        handle[urand, (Int, Int)](transformation,
+        { transformation =>
+          (evaluate[Double](transformation.numRows).toInt, evaluate[Double](transformation.numColumns).toInt) },
+        { case (_, (numRows, numColumns)) =>
+          val rand = new Uniform(0.0, 1.0)
+          MatrixFactory.getDouble.rand(numRows, numColumns, rand)
+        })
 
       case (transformation: sprand) =>
         handle[sprand, (Int, Int, Double, Double, Double)](transformation,

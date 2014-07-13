@@ -20,7 +20,7 @@ package org.gilbertlang.runtime.execution.spark
 
 import java.net.URI
 
-import breeze.stats.distributions.Gaussian
+import _root_.breeze.stats.distributions.{Uniform, Gaussian}
 import eu.stratosphere.core.fs.{Path, FileSystem}
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkContext._
@@ -866,6 +866,19 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
           sc.parallelize(partitionPlan.toSeq) map { partition =>
             val rand = Gaussian(bcMean.value, bcStd.value)
             Submatrix.rand(partition, rand)
+          }
+        }
+        )
+
+      case r: urand =>
+        handle[urand, (Int, Int)](
+        r,
+        { input => (evaluate[Double](input.numRows).toInt, evaluate[Double](input.numColumns).toInt)},
+        { case (_,(rows, cols)) =>
+          val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
+          sc.parallelize(partitionPlan.toSeq) map { partition =>
+            val uniform = new Uniform(0.0,1.0)
+            Submatrix.rand(partition, uniform)
           }
         }
         )

@@ -152,6 +152,12 @@ abstract class DagWalker {
         visit(transformation.std)
         onLeave(transformation)
 
+      case (transformation: urand) =>
+        onArrival(transformation)
+        visit(transformation.numRows)
+        visit(transformation.numColumns)
+        onLeave(transformation)
+
       case transformation: sprand =>
         onArrival(transformation)
         visit(transformation.numRows)

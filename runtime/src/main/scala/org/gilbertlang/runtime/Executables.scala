@@ -457,6 +457,25 @@ object Executables {
     def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
   }
 
+  case class urand(numRows: ScalarRef, numColumns: ScalarRef) extends FunctionMatrixTransformation {
+    def instantiate(args: Executable*): urand = {
+      var anyInstantiated = false
+      val instantiateRows = numRows.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+      val instantiatedCols = numColumns.instantiate(args:_*)
+      anyInstantiated |= Executable.instantiated
+
+      if(anyInstantiated){
+        Executable.instantiated = true
+        urand(instantiateRows, instantiatedCols)
+      }else{
+        this
+      }
+    }
+
+    def getType = MatrixType(DoubleType, scalarRef2Int(numRows), scalarRef2Int(numColumns))
+  }
+
   case class sprand(numRows: ScalarRef, numCols: ScalarRef, mean: ScalarRef, std: ScalarRef,
                     level: ScalarRef) extends FunctionMatrixTransformation {
 

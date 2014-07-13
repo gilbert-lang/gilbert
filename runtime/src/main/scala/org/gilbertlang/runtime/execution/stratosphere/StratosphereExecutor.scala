@@ -1,7 +1,7 @@
 package org.gilbertlang.runtime.execution.stratosphere
 
 import _root_.breeze.linalg.{*, norm, min, max}
-import breeze.stats.distributions.Gaussian
+import _root_.breeze.stats.distributions.{Uniform, Gaussian}
 import org.apache.commons.logging.{LogFactory, Log}
 import org.gilbertlang.runtime.Executor
 import eu.stratosphere.api.scala.operators.{CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
@@ -1225,6 +1225,44 @@ SubmatrixImplicits with SubvectorImplicits  {
 
               randomBlocks
           })
+
+      case executable: urand =>
+        handle[urand, (Scalar[Double], Scalar[Double])](
+        executable,
+        { exec =>
+          (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numColumns))
+        },
+        {
+          case (_, (rowsDS, colsDS)) =>
+            val partitions = rowsDS cross colsDS flatMap {
+              (rows, cols) =>
+                val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt,
+                  cols.toInt)
+                partitionPlan.iterator
+            }
+            partitions.setName("URand: Partitions")
+
+            //reduceGroup to distribute the partitions across the worker nodes
+            val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ ps => ps.next}
+            distributedPartitions.setName("URand: Distributed partitions")
+
+            val randomBlocks = distributedPartitions map {
+              partition =>
+                val uniform = new Uniform(0.0, 1.0)
+                Submatrix.rand(partition, uniform)
+
+            }
+
+            randomBlocks.setName("URand: Random submatrices")
+
+            if(configuration.compilerHints){
+              distributedPartitions.uniqueKey(p => p.id)
+
+              randomBlocks.uniqueKey(s => (s.rowIndex, s.columnIndex))
+            }
+
+            randomBlocks
+        })
 
       case executable: sprand =>
         handle[sprand, (Scalar[Double], Scalar[Double], Scalar[Double], Scalar[Double], Scalar[Double])](

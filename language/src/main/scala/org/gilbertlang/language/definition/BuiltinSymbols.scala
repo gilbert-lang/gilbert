@@ -98,7 +98,8 @@ object BuiltinSymbols extends AbstractBuiltinSymbols[String] {
       FunctionType((DoubleType, DoubleType, DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0),
           ReferenceValue(1))),
       FunctionType((DoubleType, DoubleType, DoubleType, DoubleType, DoubleType), MatrixType(DoubleType,
-        ReferenceValue(0), ReferenceValue(1)))
+        ReferenceValue(0), ReferenceValue(1))),
+      FunctionType((DoubleType, DoubleType), MatrixType(DoubleType, ReferenceValue(0), ReferenceValue(1)))
     ))
   }
 

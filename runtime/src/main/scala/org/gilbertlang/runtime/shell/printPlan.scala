@@ -127,6 +127,11 @@ object PlanPrinter {
         print(op.mean, depth + 1)
         print(op.std, depth + 1)
 
+      case op: urand =>
+        printIndented(depth, op,"urand")
+        print(op.numRows, depth+1)
+        print(op.numColumns, depth + 1)
+
       case op: sprand =>
         printIndented(depth, op, "sprand")
         print(op.numRows, depth + 1)
