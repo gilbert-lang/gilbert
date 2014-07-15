@@ -250,15 +250,15 @@ object Runner {
     val executable = Gilbert.compileString(program)
 
     val postMMReordering = if(evaluationConfig.optMMReordering){
-      Optimizer.mmReorder(executable)
       println("Optimization: Matrix multiplication reordering.")
+      Optimizer.mmReorder(executable)
     }else{
       executable
     }
 
     val postTP = if(evaluationConfig.optTP){
-      Optimizer.transposePushdown(postMMReordering)
       println("Optimization: Transpose push down.")
+      Optimizer.transposePushdown(postMMReordering)
     }else{
       postMMReordering
     }
