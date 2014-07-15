@@ -251,12 +251,14 @@ object Runner {
 
     val postMMReordering = if(evaluationConfig.optMMReordering){
       Optimizer.mmReorder(executable)
+      println("Optimization: Matrix multiplication reordering.")
     }else{
       executable
     }
 
     val postTP = if(evaluationConfig.optTP){
       Optimizer.transposePushdown(postMMReordering)
+      println("Optimization: Transpose push down.")
     }else{
       postMMReordering
     }
