@@ -107,7 +107,10 @@ object withSpark {
   }
 
   def getSparkDependencies(root: String): List[String] = {
-    val jars = List("runtime-0.1-SNAPSHOT.jar", "runtimeMacros-0.1-SNAPSHOT.jar", "stratosphere-core-0.6-patched.jar")
+    val jars = List("runtime-0.1-SNAPSHOT.jar",
+      "runtimeMacros-0.1-SNAPSHOT.jar",
+      "stratosphere-core-0.6-patched.jar",
+      "mahout-math-1.0-SNAPSHOT.jar")
 
     jars map { jar => root + jar}
   }
