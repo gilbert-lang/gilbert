@@ -19,18 +19,18 @@
 package org.gilbertlang.runtime
 
 import eu.stratosphere.api.common.PlanExecutor
-import org.apache.log4j.{WriterAppender, SimpleLayout, Level, Logger}
-import org.apache.spark.{SparkContext, SparkConf}
+import eu.stratosphere.api.scala.{ScalaPlan, ScalaSink}
+import eu.stratosphere.client.{LocalExecutor, RemoteExecutor}
+import org.apache.log4j.{Level, Logger, SimpleLayout, WriterAppender}
+import org.apache.spark.{SparkConf, SparkContext}
+import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.execution.reference.ReferenceExecutor
 import org.gilbertlang.runtime.execution.spark.SparkExecutor
 import org.gilbertlang.runtime.execution.stratosphere.StratosphereExecutor
-import eu.stratosphere.api.scala.ScalaPlan
-import eu.stratosphere.api.scala.ScalaSink
-import Executables._
-import eu.stratosphere.client.{RemoteExecutor, LocalExecutor}
-import org.gilbertlang.runtimeMacros.linalg.{RuntimeConfiguration, MatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.breeze.{BreezeBooleanMatrixFactory, BreezeDoubleMatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.mahout.{MahoutBooleanMatrixFactory, MahoutDoubleMatrixFactory}
+import org.gilbertlang.runtimeMacros.linalg.{MatrixFactory, RuntimeConfiguration}
+
 import scala.collection.JavaConverters._
 
 object local {
@@ -128,7 +128,7 @@ object withStratosphere{
 
 
       val config = configuration.copy(outputPath = Some(configuration.outputPath.getOrElse("file://" +
-        System.getProperty("user.dir"))))
+        System.getProperty("user.dir").replace('\\','/'))))
 
       val plan = translator.run(finalProgram, config) match {
         case x:ScalaPlan => x
