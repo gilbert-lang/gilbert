@@ -15,19 +15,22 @@
     <packaging>pom</packaging>
 
     <properties>
-        <scala.short.version>2.10</scala.short.version>
+        <scala.binary.version>2.10</scala.binary.version>
         <scala.version>2.10.3</scala.version>
         <java.compatibility>1.6</java.compatibility>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <stratosphere.version>0.6-patched</stratosphere.version>
+        <flink.version>1.1.2</flink.version>
+        <spark.version>2.0.0</spark.version>
+        <breeze.version>0.12</breeze.version>
+        <mahout.version>0.12.2</mahout.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
             <dependency>
                 <groupId>org.scalanlp</groupId>
-                <artifactId>breeze_2.10</artifactId>
-                <version>0.8.1</version>
+                <artifactId>breeze_${scala.binary.version}</artifactId>
+                <version>${breeze.version}</version>
                 <exclusions>
                     <exclusion>
                         <groupId>com.thoughtworks.paranamer</groupId>
@@ -38,34 +41,22 @@
             <dependency>
                 <groupId>org.gilbertlang</groupId>
                 <artifactId>language</artifactId>
-                <version>0.1-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.gilbertlang</groupId>
                 <artifactId>runtime</artifactId>
-                <version>0.1-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.gilbertlang</groupId>
                 <artifactId>runtimeMacros</artifactId>
-                <version>0.1-SNAPSHOT</version>
+                <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.scala-lang</groupId>
                 <artifactId>scala-library</artifactId>
                 <version>${scala.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>junit</groupId>
-                <artifactId>junit</artifactId>
-                <version>4.11</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.scalatest</groupId>
-                <artifactId>scalatest_${scala.short.version}</artifactId>
-                <version>2.2.0</version>
-                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>org.scala-lang</groupId>
@@ -79,39 +70,35 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.spark</groupId>
-                <artifactId>spark-core_2.10</artifactId>
-                <version>2.0.0</version>
+                <artifactId>spark-core_${scala.binary.version}</artifactId>
+                <version>${spark.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.mahout</groupId>
                 <artifactId>mahout-math</artifactId>
-                <version>1.0-SNAPSHOT</version>
+                <version>${mahout.version}</version>
             </dependency>
             <dependency>
-                <groupId>eu.stratosphere</groupId>
-                <artifactId>stratosphere-scala</artifactId>
-                <version>${stratosphere.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.eclipse.jetty</groupId>
-                        <artifactId>jetty-server</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>org.eclipse.jetty</groupId>
-                        <artifactId>jetty-servlet</artifactId>
-                    </exclusion>
-                </exclusions>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-scala_2.10</artifactId>
+                <version>${flink.version}</version>
             </dependency>
             <dependency>
-                <groupId>eu.stratosphere</groupId>
-                <artifactId>stratosphere-clients</artifactId>
-                <version>${stratosphere.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.eclipse.jetty</groupId>
-                        <artifactId>jetty-servlet</artifactId>
-                    </exclusion>
-                </exclusions>
+                <groupId>org.apache.flink</groupId>
+                <artifactId>flink-clients_2.10</artifactId>
+                <version>${flink.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>junit</groupId>
+                <artifactId>junit</artifactId>
+                <version>4.11</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.scalatest</groupId>
+                <artifactId>scalatest_${scala.binary.version}</artifactId>
+                <version>2.2.0</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
