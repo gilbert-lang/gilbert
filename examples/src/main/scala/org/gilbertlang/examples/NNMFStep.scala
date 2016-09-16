@@ -2,7 +2,7 @@ package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
 import eu.stratosphere.client.LocalExecutor
-import org.gilbertlang.runtime.{withBreeze, EngineConfiguration, withStratosphere}
+import org.gilbertlang.runtime.{withSpark, withBreeze, EngineConfiguration, withStratosphere}
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
 object NNMFStep {
@@ -13,6 +13,6 @@ object NNMFStep {
     val engineConfiguration = EngineConfiguration(parallelism = 4)
 
     withBreeze()
-    withStratosphere.local(engineConfiguration).execute(executable, runtimeConfig)
+    withSpark.remote(engineConfiguration).execute(executable, runtimeConfig)
   }
 }

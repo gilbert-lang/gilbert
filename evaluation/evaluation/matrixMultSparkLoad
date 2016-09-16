@@ -1,0 +1,12 @@
+# Engine: Spark; Math-Backend: Breeze
+# Template: matrixMult.gb.template
+# App-Name: Evaluation
+# Compiler Hints: true
+# Optimization: TP: true; MM Reorder: true
+# tries: 3
+# checkpointDir: ;0
+# DOP: 2 DensityThreshold: 0.5 Blocksize: 100 
+# level: List(0.1);
+
+RowsA ColsA ColsB Time Error 
+100 100 100 12.445214666666667 0.7980099323343869 
