@@ -21,21 +21,25 @@ package org.gilbertlang.runtime.execution.reference
 import java.io.PrintStream
 import java.net.URI
 
-import breeze.stats.distributions.{Uniform, Gaussian}
-import breeze.linalg.{min, max, norm, *}
-import eu.stratosphere.core.fs.{Path, FileSystem}
+import breeze.linalg.support.ScalarOf
+import breeze.stats.distributions.{Gaussian, Uniform}
+import breeze.linalg.{*, max, min, norm}
+import org.apache.flink.core.fs.{FileSystem, Path}
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtime.Operations._
-import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BreezeMatrixOps}
-import org.gilbertlang.runtimeMacros.linalg.operators.{DoubleVectorImplicits, DoubleMatrixImplicits}
+import org.gilbertlang.runtimeMacros.linalg.breeze.operators.BreezeMatrixOps
+import org.gilbertlang.runtimeMacros.linalg.operators.{DoubleMatrixImplicits, DoubleVectorImplicits}
+
 import scala.io.Source
 import org.gilbertlang.runtime.shell.PlanPrinter
-import org.gilbertlang.runtimeMacros.linalg.{BooleanMatrix, MatrixFactory, DoubleMatrix, RuntimeConfiguration}
+import org.gilbertlang.runtimeMacros.linalg.{BooleanMatrix, DoubleMatrix, MatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.breeze.operators.BreezeMatrixRegistries
+
 import util.control.Breaks.{break, breakable}
-import org.gilbertlang.runtime.RuntimeTypes.{MatrixType, DoubleType, BooleanType}
+import org.gilbertlang.runtime.RuntimeTypes.{BooleanType, DoubleType, MatrixType}
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
+
 import scala.language.postfixOps
 
 class ReferenceExecutor extends Executor with BreezeMatrixOps with
@@ -236,7 +240,8 @@ BreezeMatrixRegistries with DoubleMatrixImplicits with DoubleVectorImplicits {
             handle[CellwiseMatrixMatrixTransformation, (DoubleMatrix, DoubleMatrix)](
             transformation,
             {input => (evaluate[DoubleMatrix](input.left), evaluate[DoubleMatrix](input.right))},
-            { case (_, (left, right)) =>
+            {
+              case (_, (left, right)) =>
               operation match {
                 case Maximum => max(left, right)
                 case Minimum => min(left,right)

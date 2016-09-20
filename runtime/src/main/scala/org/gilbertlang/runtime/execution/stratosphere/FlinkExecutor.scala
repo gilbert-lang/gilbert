@@ -1,21 +1,22 @@
 package org.gilbertlang.runtime.execution.stratosphere
 
-import _root_.breeze.linalg.{*, norm, min, max}
-import _root_.breeze.stats.distributions.{Uniform, Gaussian}
-import org.apache.commons.logging.{LogFactory, Log}
+import _root_.breeze.linalg.{*, max, min, norm}
+import _root_.breeze.stats.distributions.{Gaussian, Uniform}
+import org.apache.commons.logging.LogFactory
+import org.apache.flink.api.java.operators.DataSink
 import org.gilbertlang.runtime.Executor
-import eu.stratosphere.api.scala.operators.{CsvInputFormat, CsvOutputFormat, DelimitedOutputFormat}
-import eu.stratosphere.api.scala._
-import org.gilbertlang.runtimeMacros.linalg.operators.{SubvectorImplicits, SubmatrixImplicits}
+import org.apache.flink.api.scala._
+import org.apache.flink.types.{DoubleValue, StringValue}
+import org.gilbertlang.runtimeMacros.linalg.operators.{SubmatrixImplicits, SubvectorImplicits}
+
 import scala.collection.convert.WrapAsScala
 import org.gilbertlang.runtime.Operations._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
+
 import scala.language.implicitConversions
 import scala.language.reflectiveCalls
 import org.gilbertlang.runtime.RuntimeTypes._
-import eu.stratosphere.api.scala.CollectionDataSource
-import eu.stratosphere.types.{DoubleValue, StringValue}
 import org.gilbertlang.runtime.Executables.diag
 import org.gilbertlang.runtimeMacros.linalg.numerics
 import org.gilbertlang.runtime.Executables.VectorwiseMatrixTransformation
@@ -68,12 +69,17 @@ import org.gilbertlang.runtime.RuntimeTypes.MatrixType
 import org.gilbertlang.runtime.Executables.function
 import org.gilbertlang.runtime.Executables.sumRow
 import org.gilbertlang.runtime.Executables.WriteString
+
 import scala.language.postfixOps
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 
 @SerialVersionUID(1)
-class StratosphereExecutor extends Executor with WrapAsScala with
-SubmatrixImplicits with SubvectorImplicits  {
+class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
+    extends Executor
+    with WrapAsScala
+    with SubmatrixImplicits
+    with SubvectorImplicits  {
+
   import ImplicitConversions._
 
   type Matrix = DataSet[Submatrix]
@@ -83,8 +89,8 @@ SubmatrixImplicits with SubvectorImplicits  {
   private var tempFileCounter = 0
   private var iterationStatePlaceholderValue: Option[Matrix] = None
   private var iterationStatePlaceholderValueCellArray: Option[CellArray] = None
-  private var convergencePreviousStateValue: Option[Matrix] = None
   private var convergenceCurrentStateValue: Option[Matrix] = None
+  private var convergenceNextStateValue: Option[Matrix] = None
   private var convergenceCurrentStateCellArrayValue: Option[CellArray] = None
   private var convergencePreviousStateCellArrayValue: Option[CellArray] = None
 
@@ -112,9 +118,7 @@ SubmatrixImplicits with SubvectorImplicits  {
             { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " ",
-                configuration.verboseWrite),
-                ""), s"WriteMatrix($completePathWithFilename)"))
+              List(matrix.map(Submatrix.outputFormatter("\n", " ", configuration.verboseWrite)).writeAsText(completePathWithFilename).name(s"WriteMatrix($completePathWithFilename)"))
             }
             })
           case MatrixType(BooleanType,_,_) =>
@@ -124,9 +128,7 @@ SubmatrixImplicits with SubvectorImplicits  {
             { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(matrix.write(completePathWithFilename, DelimitedOutputFormat(BooleanSubmatrix.outputFormatter
-                ("\n", " ", configuration.verboseWrite),
-                ""), s"WriteMatrix($completePathWithFilename)"))
+              List(matrix.map(BooleanSubmatrix.outputFormatter("\n", " ", configuration.verboseWrite)).writeAsText(completePathWithFilename).name(s"WriteMatrix($completePathWithFilename)"))
             }
             })
         }
@@ -138,7 +140,7 @@ SubmatrixImplicits with SubvectorImplicits  {
         { (exec, cellArray) =>
           var index = 0
           val cellArrayType = exec.cellArray.getType
-          val result = new Array[ScalaSink[_]](cellArrayType.elementTypes.length)
+          val result = new Array[DataSink[_]](cellArrayType.elementTypes.length)
           while(index < cellArrayType.elementTypes.length){
             val completePathWithFilename = newTempFileName()
             val loopIndex = index
@@ -146,33 +148,30 @@ SubmatrixImplicits with SubvectorImplicits  {
               x =>
                 x.index == loopIndex
             }
-            filtered.setName("WriteCellArray: Select entry")
+            filtered.name("WriteCellArray: Select entry")
 
-            val sink = cellArrayType.elementTypes(index) match {
+            val sink: DataSink[_] = cellArrayType.elementTypes(index) match {
               case MatrixType(DoubleType,_,_) =>
                 val mappedCell = filtered map {
                   x =>
                     x.wrappedValue[Submatrix]
                 }
-                mappedCell.setName("WriteCellArray: Unwrapped scalarRef Matrix(Double)")
-                mappedCell.write(completePathWithFilename, DelimitedOutputFormat(Submatrix.outputFormatter("\n", " ", configuration.verboseWrite),
-                  ""),
-                  s"WriteCellArray(Matrix[Double], $completePathWithFilename)")
+                mappedCell.name("WriteCellArray: Unwrapped scalarRef Matrix(Double)")
+                mappedCell.map(Submatrix.outputFormatter("\n", " ", configuration.verboseWrite))
+                  .writeAsText(completePathWithFilename)
+                  .name(s"WriteCellArray(Matrix[Double], $completePathWithFilename)")
               case StringType =>
                 val mappedCell =filtered map( x => x.wrappedValue[String])
-                mappedCell.setName("WriteCellArray: Unwrapped scalarRef String")
-                mappedCell.write(completePathWithFilename, CsvOutputFormat(),
-                  s"WriteCellArray(String, $completePathWithFilename)")
+                mappedCell.name("WriteCellArray: Unwrapped scalarRef String")
+                mappedCell.writeAsCsv(completePathWithFilename).name(s"WriteCellArray(String, $completePathWithFilename)")
               case DoubleType =>
                 val mappedCell = filtered map(x => x.wrappedValue[Double])
-                mappedCell.setName("WriteCellArray: Unwrapped scalarRef Double")
-                mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Double," +
-                  s"$completePathWithFilename)")
+                mappedCell.name("WriteCellArray: Unwrapped scalarRef Double")
+                mappedCell.writeAsCsv(completePathWithFilename).name(s"WriteCellArray(Double, $completePathWithFilename)")
               case BooleanType =>
                 val mappedCell = filtered map(x => x.wrappedValue[Boolean])
-                mappedCell.setName("WriteCellArray: Unwrapped scalarRef Boolean")
-                mappedCell.write(completePathWithFilename, CsvOutputFormat(), s"WriteCellArray(Boolean," +
-                  s"$completePathWithFilename)")
+                mappedCell.name("WriteCellArray: Unwrapped scalarRef Boolean")
+                mappedCell.writeAsCsv(completePathWithFilename).name(s"WriteCellArray(Boolean, $completePathWithFilename)")
               case tpe =>
                 throw new StratosphereExecutionError(s"Cannot write cell entry of type $tpe.")
             }
@@ -191,8 +190,7 @@ SubmatrixImplicits with SubvectorImplicits  {
           { (_, string) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(string.write(completePathWithFilename, CsvOutputFormat(), s"WriteString($completePathWithFilename)" +
-                s""))
+              List(string.writeAsCsv(completePathWithFilename).name(s"WriteString($completePathWithFilename)"))
             }
           })
 
@@ -210,8 +208,7 @@ SubmatrixImplicits with SubvectorImplicits  {
             { (_, scalar) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(scalar.write(completePathWithFilename, CsvOutputFormat[Double](),
-                s"WriteScalarRef($completePathWithFilename)"))
+              List(scalar.writeAsCsv(completePathWithFilename).name(s"WriteScalarRef($completePathWithFilename)"))
             }
             })
           case BooleanType =>
@@ -220,8 +217,7 @@ SubmatrixImplicits with SubvectorImplicits  {
             { exec => evaluate[Scalar[Boolean]](exec.scalar) },
             { (_, scalar) =>
               val completePathWithFilename = newTempFileName()
-              List(scalar.write(completePathWithFilename, CsvOutputFormat(),
-                s"WriteScalarRef($completePathWithFilename)"))
+              List(scalar.writeAsCsv(completePathWithFilename).name(s"WriteScalarRef($completePathWithFilename)"))
             }
             )
           case tpe =>
@@ -241,21 +237,18 @@ SubmatrixImplicits with SubvectorImplicits  {
                 { case (_, (scalar, matrix)) =>
                   val result = logicOperation match {
                     case And | SCAnd =>
-                      val result = scalar cross matrix map { (scalar, submatrix) => submatrix :& scalar }
-                      result.setName("SM: Logical And")
+                      val result = scalar cross matrix apply {(scalar, submatrix) => submatrix :& scalar}
+                      result.name("SM: Logical And")
                       result
                     case Or | SCOr =>
-                      val result = scalar cross matrix map { (scalar, submatrix) => submatrix :| scalar }
-                      result.setName("SM: Logical Or")
+                      val result = scalar cross matrix apply { (scalar, submatrix) => submatrix :| scalar }
+                      result.name("SM: Logical Or")
                       result
                   }
                   if(configuration.compilerHints) {
-                    if(configuration.preserveHint){
-                      result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                        s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                        s.totalColumns))
+                    if (configuration.preserveHint) {
+                      result.withForwardedFieldsSecond("rowIndex -> rowIndex", "columnIndex -> columnIndex", "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows", "totalColumns -> totalColumns")
                     }
-                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
                   result
                 })
@@ -267,42 +260,40 @@ SubmatrixImplicits with SubvectorImplicits  {
             case (_, (scalarDS, matrixDS)) =>
               val result = operation match {
                 case Addition =>
-                  val result = scalarDS cross matrixDS map { (scalar, submatrix) => submatrix + scalar }
-                  result.setName("SM: Addition")
+                  val result = scalarDS cross matrixDS apply { (scalar, submatrix) => submatrix + scalar }
+                  result.name("SM: Addition")
                   result
                 case Subtraction =>
-                  val result = scalarDS cross matrixDS map { (scalar, submatrix) => submatrix + -scalar }
-                  result.setName("SM: Subtraction")
+                  val result = scalarDS cross matrixDS apply { (scalar, submatrix) => submatrix + -scalar }
+                  result.name("SM: Subtraction")
                   result
                 case Multiplication =>
-                  val result = scalarDS cross matrixDS map { (scalar, submatrix) => submatrix * scalar }
-                  result.setName("SM: Multiplication")
+                  val result = scalarDS cross matrixDS apply { (scalar, submatrix) => submatrix * scalar }
+                  result.name("SM: Multiplication")
                   result
                 case Division =>
-                  val result = scalarDS cross matrixDS map { (scalar, submatrix) =>
+                  val result = scalarDS cross matrixDS apply { (scalar, submatrix) =>
                     {
                       val partition = submatrix.getPartition
                       val result = Submatrix.init(partition, scalar)
                       result / submatrix
                     }
                   }
-                  result.setName("SM: Division")
+                  result.name("SM: Division")
                   result
                 case Exponentiation =>
-                  val result = scalarDS cross matrixDS map { (scalar, submatrix) =>
+                  val result = scalarDS cross matrixDS apply { (scalar, submatrix) =>
                     val partition = submatrix.getPartition
                     val scalarMatrix = Submatrix.init(partition, scalar)
                     scalarMatrix :^ submatrix
                   }
-                  result.setName("SM: CellwiseExponentiation")
+                  result.name("SM: CellwiseExponentiation")
                   result
               }
               if(configuration.compilerHints) {
-                if(configuration.preserveHint){
-                  result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
+                if(configuration.preserveHint) {
+                  result.withForwardedFieldsSecond("rowIndex -> rowIndex", "columnIndex -> columnIndex", "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows", "totalColumns -> totalColumns")
                 }
-                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
               result
           })
@@ -314,37 +305,34 @@ SubmatrixImplicits with SubvectorImplicits  {
               case (_, (scalar, matrix)) =>
                 val result = operation match {
                   case GreaterThan =>
-                    val result = scalar cross matrix map { (scalar, submatrix) => submatrix :< scalar }
-                    result.setName("SM: Greater than")
+                    val result = scalar cross matrix apply { (scalar, submatrix) => submatrix :< scalar }
+                    result.name("SM: Greater than")
                     result
                   case GreaterEqualThan =>
-                    val result = scalar cross matrix map { (scalar, submatrix) => submatrix :<= scalar }
-                    result.setName("SM: Greater equal than")
+                    val result = scalar cross matrix apply { (scalar, submatrix) => submatrix :<= scalar }
+                    result.name("SM: Greater equal than")
                     result
                   case LessThan =>
-                    val result = scalar cross matrix map { (scalar, submatrix) => submatrix :> scalar }
-                    result.setName("SM: Less than")
+                    val result = scalar cross matrix apply { (scalar, submatrix) => submatrix :> scalar }
+                    result.name("SM: Less than")
                     result
                   case LessEqualThan =>
-                    val result = scalar cross matrix map { (scalar, submatrix) => submatrix :>= scalar }
-                    result.setName("SM: Less equal than")
+                    val result = scalar cross matrix apply { (scalar, submatrix) => submatrix :>= scalar }
+                    result.name("SM: Less equal than")
                     result
                   case Equals =>
-                    val result = scalar cross matrix map { (scalar, submatrix) => submatrix :== scalar }
-                    result.setName("SM: Equals")
+                    val result = scalar cross matrix apply { (scalar, submatrix) => submatrix :== scalar }
+                    result.name("SM: Equals")
                     result
                   case NotEquals =>
-                    val result = scalar cross matrix map { (scalar, submatrix) => submatrix :!= scalar }
-                    result.setName("SM: Not equals")
+                    val result = scalar cross matrix apply { (scalar, submatrix) => submatrix :!= scalar }
+                    result.name("SM: Not equals")
                     result
                 }
                 if(configuration.compilerHints) {
                   if(configuration.preserveHint){
-                    result.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns))
+                    result.withForwardedFieldsSecond("rowIndex -> rowIndex", "columnIndex -> columnIndex", "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows", "totalColumns -> totalColumns")
                   }
-                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                 }
                 result
             })
@@ -360,21 +348,18 @@ SubmatrixImplicits with SubvectorImplicits  {
                 { case (_, (matrix, scalar)) =>
                   val result = logicOperation match {
                     case And | SCAnd =>
-                      val result = matrix cross scalar map { (submatrix, scalar) => submatrix :& scalar }
-                      result.setName("MS: Logical And")
+                      val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :& scalar }
+                      result.name("MS: Logical And")
                       result
                     case Or | SCOr =>
-                      val result = matrix cross scalar map { (submatrix, scalar) => submatrix :| scalar }
-                      result.setName("MS: Logical Or")
+                      val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :| scalar }
+                      result.name("MS: Logical Or")
                       result
                   }
                   if(configuration.compilerHints) {
                     if(configuration.preserveHint){
-                      result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                        s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                        s.totalColumns))
+                      result.withForwardedFieldsFirst("rowIndex -> rowIndex", "columnIndex -> columnIndex", "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows", "totalColumns -> totalColumns")
                     }
-                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
                   result
                 })
@@ -386,33 +371,30 @@ SubmatrixImplicits with SubvectorImplicits  {
             case (_, (matrixDS, scalarDS)) =>
               val result = operation match {
                 case Addition =>
-                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix + scalar }
-                  result.setName("MS: Addition")
+                  val result = matrixDS cross scalarDS apply { (submatrix, scalar) => submatrix + scalar }
+                  result.name("MS: Addition")
                   result
                 case Subtraction =>
-                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix - scalar }
-                  result.setName("MS: Subtraction")
+                  val result = matrixDS cross scalarDS apply { (submatrix, scalar) => submatrix - scalar }
+                  result.name("MS: Subtraction")
                   result
                 case Multiplication =>
-                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix * scalar }
-                  result.setName("MS: Multiplication")
+                  val result = matrixDS cross scalarDS apply { (submatrix, scalar) => submatrix * scalar }
+                  result.name("MS: Multiplication")
                   result
                 case Division =>
-                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix / scalar }
-                  result.setName("MS: Division")
+                  val result = matrixDS cross scalarDS apply { (submatrix, scalar) => submatrix / scalar }
+                  result.name("MS: Division")
                   result
                 case Exponentiation =>
-                  val result = matrixDS cross scalarDS map { (submatrix, scalar) => submatrix :^ scalar}
-                  result.setName("MS: Exponentiation")
+                  val result = matrixDS cross scalarDS apply { (submatrix, scalar) => submatrix :^ scalar}
+                  result.name("MS: Exponentiation")
                   result
               }
               if(configuration.compilerHints) {
                 if(configuration.preserveHint){
-                  result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
+                  result.withForwardedFieldsFirst("rowIndex -> rowIndex", "columnIndex -> columnIndex", "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows", "totalColumns -> totalColumns")
                 }
-                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
               result
           })
@@ -424,37 +406,34 @@ SubmatrixImplicits with SubvectorImplicits  {
               case (_, (matrix, scalar)) =>
                 val result = operation match {
                   case GreaterThan =>
-                    val result = matrix cross scalar map { (submatrix, scalar) => submatrix :> scalar }
-                    result.setName("MS: Greater than")
+                    val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :> scalar }
+                    result.name("MS: Greater than")
                     result
                   case GreaterEqualThan =>
-                    val result = matrix cross scalar map { (submatrix, scalar) => submatrix :>= scalar }
-                    result.setName("MS: Greater equal than")
+                    val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :>= scalar }
+                    result.name("MS: Greater equal than")
                     result
                   case LessThan =>
-                    val result = matrix cross scalar map { (submatrix, scalar) => submatrix :< scalar }
-                    result.setName("MS: Less than")
+                    val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :< scalar }
+                    result.name("MS: Less than")
                     result
                   case LessEqualThan =>
-                    val result = matrix cross scalar map { (submatrix, scalar) => submatrix :<= scalar }
-                    result.setName("MS: Less equal than")
+                    val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :<= scalar }
+                    result.name("MS: Less equal than")
                     result
                   case Equals =>
-                    val result = matrix cross scalar map { (submatrix, scalar) => submatrix :== scalar }
-                    result.setName("MS: Equals")
+                    val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :== scalar }
+                    result.name("MS: Equals")
                     result
                   case NotEquals =>
-                    val result = matrix cross scalar map { (submatrix, scalar) => submatrix :!= scalar }
-                    result.setName("MS: Not equals")
+                    val result = matrix cross scalar apply { (submatrix, scalar) => submatrix :!= scalar }
+                    result.name("MS: Not equals")
                     result
                 }
                 if(configuration.compilerHints){
                   if(configuration.preserveHint){
-                    result.left.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                      s.totalColumns))
+                    result.withForwardedFieldsFirst("rowIndex -> rowIndex", "columnIndex -> columnIndex", "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows", "totalColumns -> totalColumns")
                   }
-                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                 }
                 result
             })
@@ -470,20 +449,20 @@ SubmatrixImplicits with SubvectorImplicits  {
               {case (_, (left, right)) =>
                 logicOperation match {
                   case And  =>
-                    val result = left cross right map { (left, right) => left & right }
-                    result.setName("SS: Logical And")
+                    val result = left cross right apply { (left, right) => left & right }
+                    result.name("SS: Logical And")
                     result
                   case Or =>
-                    val result = left cross right map { (left, right) => left | right }
-                    result.setName("SS: Logical Or")
+                    val result = left cross right apply { (left, right) => left | right }
+                    result.name("SS: Logical Or")
                     result
                   case SCAnd  =>
-                    val result = left cross right map { (left, right) => left && right }
-                    result.setName("SS: Logical And")
+                    val result = left cross right apply { (left, right) => left && right }
+                    result.name("SS: Logical And")
                     result
                   case SCOr =>
-                    val result = left cross right map { (left, right) => left || right }
-                    result.setName("SS: Logical Or")
+                    val result = left cross right apply { (left, right) => left || right }
+                    result.name("SS: Logical Or")
                     result
                 }
               }
@@ -496,24 +475,24 @@ SubmatrixImplicits with SubvectorImplicits  {
                 case (_, (left, right)) =>
                   operation match {
                     case Addition =>
-                      val result = left cross right map { (left, right) => left + right }
-                      result.setName("SS: Addition")
+                      val result = left cross right apply { (left, right) => left + right }
+                      result.name("SS: Addition")
                       result
                     case Subtraction =>
-                      val result = left cross right map { (left, right) => left - right }
-                      result.setName("SS: Subtraction")
+                      val result = left cross right apply { (left, right) => left - right }
+                      result.name("SS: Subtraction")
                       result
                     case Multiplication =>
-                      val result = left cross right map { (left, right) => left * right }
-                      result.setName("SS: Multiplication")
+                      val result = left cross right apply { (left, right) => left * right }
+                      result.name("SS: Multiplication")
                       result
                     case Division =>
-                      val result =left cross right map { (left, right) => left / right }
-                      result.setName("SS: Division")
+                      val result =left cross right apply { (left, right) => left / right }
+                      result.name("SS: Division")
                       result
                     case Exponentiation =>
-                      val result = left cross right map { (left, right) => math.pow(left,right)}
-                      result.setName("SS: Exponentiation")
+                      val result = left cross right apply { (left, right) => math.pow(left,right)}
+                      result.name("SS: Exponentiation")
                       result
                   }
               })
@@ -525,12 +504,12 @@ SubmatrixImplicits with SubvectorImplicits  {
               case (_, (left, right)) =>
                 operation match {
                   case Maximum =>
-                    val result = left union right combinableReduceAll { elements => elements.max }
-                    result.setName("SS: Maximum")
+                    val result = left union right reduce { (a, b) => max(a, b) }
+                    result.name("SS: Maximum")
                     result
                   case Minimum =>
-                    val result = left union right combinableReduceAll { elements => elements.min }
-                    result.setName("SS: Minimum")
+                    val result = left union right reduce { (a, b) => min(a, b) }
+                    result.name("SS: Minimum")
                     result
                 }
             })
@@ -542,28 +521,28 @@ SubmatrixImplicits with SubvectorImplicits  {
               case (_, (left, right)) =>
                 operation match {
                   case GreaterThan =>
-                    val result = left cross right map { (left, right) => left > right }
-                    result.setName("SS: Greater than")
+                    val result = left cross right apply { (left, right) => left > right }
+                    result.name("SS: Greater than")
                     result
                   case GreaterEqualThan =>
-                    val result = left cross right map { (left, right) => left >= right }
-                    result.setName("SS: Greater equal than")
+                    val result = left cross right apply { (left, right) => left >= right }
+                    result.name("SS: Greater equal than")
                     result
                   case LessThan =>
-                    val result = left cross right map { (left, right) => left < right }
-                    result.setName("SS: Less than")
+                    val result = left cross right apply { (left, right) => left < right }
+                    result.name("SS: Less than")
                     result
                   case LessEqualThan =>
-                    val result = left cross right map { (left, right) => left <= right }
-                    result.setName("SS: Less equal than")
+                    val result = left cross right apply { (left, right) => left <= right }
+                    result.name("SS: Less equal than")
                     result
                   case Equals =>
-                    val result = left cross right map { (left, right) => left == right}
-                    result.setName("SS: Equals")
+                    val result = left cross right apply { (left, right) => left == right}
+                    result.name("SS: Equals")
                     result
                   case NotEquals =>
-                    val result = left cross right map { (left, right) => left != right }
-                    result.setName("SS: Not equals")
+                    val result = left cross right apply { (left, right) => left != right }
+                    result.name("SS: Not equals")
                     result
                 }
             })
@@ -577,20 +556,18 @@ SubmatrixImplicits with SubvectorImplicits  {
             {
               exec.operation match {
                 case Maximum =>
-                  matrix map { x => max(x) } combinableReduceAll
-                    { elements => elements.max }
+                  matrix map { x => max(x) } reduce { (a, b) => max(a, b) }
                 case Minimum =>
-                  matrix map { x => min(x) } combinableReduceAll
-                    { elements => elements.min }
+                  matrix map { x => min(x) } reduce { (a, b) => min(a, b) }
                 case Norm2 =>
-                  matrix map { x => _root_.breeze.linalg.sum(x:*x) } combinableReduceAll
-                    { x => x.fold(0.0)(_ + _) } map
+                  matrix map { x => _root_.breeze.linalg.sum(x:*x) } reduce
+                    { (a, b) => a + b } map
                     { x => math.sqrt(x) }
                 case SumAll =>
                   val blockwiseSum = matrix map { x => _root_.breeze.linalg.sum(x) }
-                  blockwiseSum.setName("Aggregate Matrix: Blockwise sum.")
-                  val result = blockwiseSum combinableReduceAll( sums => sums.foldLeft(0.0)(_ + _))
-                  result.setName("Aggregate Matrix: Sum all")
+                  blockwiseSum.name("Aggregate Matrix: Blockwise sum.")
+                  val result = blockwiseSum reduce ( (a, b) => a + b)
+                  result.name("Aggregate Matrix: Sum all")
                   result
               }
             }
@@ -606,7 +583,7 @@ SubmatrixImplicits with SubvectorImplicits  {
                 case Minus =>
                   scalarDS map { x => -x }
                 case Binarize =>
-                  scalarDS map { binarize }
+                  scalarDS map { binarize(_) }
                 case Abs =>
                   scalarDS map { value => math.abs(value) }
               }
@@ -618,14 +595,7 @@ SubmatrixImplicits with SubvectorImplicits  {
           executable,
           { _ => },
           { (exec, _) =>
-            val result = CollectionDataSource(List(exec.value))
-
-            if(configuration.compilerHints){
-              result.outputCardinality = 1
-            }
-
-            result
-
+            env.fromElements(exec.value)
           })
 
       case executable: boolean =>
@@ -633,13 +603,7 @@ SubmatrixImplicits with SubvectorImplicits  {
             executable,
             {_ => },
             { (exec, _) =>
-              val result = CollectionDataSource(List(exec.value))
-
-              if(configuration.compilerHints){
-                result.outputCardinality = 1
-              }
-
-              result
+              env.fromElements(exec.value)
             })
 
       case executable: string =>
@@ -647,12 +611,7 @@ SubmatrixImplicits with SubvectorImplicits  {
           executable,
           { _ => },
           { (exec, _) =>
-            val result = CollectionDataSource(List(exec.value))
-            if(configuration.compilerHints){
-              result.outputCardinality = 1
-            }
-
-            result
+            env.fromElements(exec.value)
           })
 
       case executable: CellwiseMatrixTransformation =>
@@ -675,11 +634,10 @@ SubmatrixImplicits with SubvectorImplicits  {
               }
               if(configuration.compilerHints){
                 if(configuration.preserveHint){
-                  result.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
+                  result.withForwardedFields("rowIndex -> rowIndex", "columnIndex -> columnIndex",
+                    "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows",
+                    "totalColumns -> totalColumns")
                 }
-                result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
               }
               result
             }
@@ -694,20 +652,17 @@ SubmatrixImplicits with SubvectorImplicits  {
                 { case (_, (left, right)) =>
                   val result = logicOperation match {
                     case And | SCAnd =>
-                      val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                      val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) => left :& right }
-                      result.setName("MM: Logical And")
+                      result.name("MM: Logical And")
                       result
                     case Or | SCOr =>
-                      val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                      val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) => left :| right }
-                      result.setName("MM: Logical Or")
+                      result.name("MM: Logical Or")
                       result
-                  }
-                  if(configuration.compilerHints){
-                    result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
                   }
                   result
                 })
@@ -719,42 +674,39 @@ SubmatrixImplicits with SubvectorImplicits  {
             case (_ , (left, right)) =>
               val result = operation match {
                 case Addition =>
-                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                    { y => (y.rowIndex, y.columnIndex) } map
+                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                    { y => (y.rowIndex, y.columnIndex) } apply
                     { (left, right) =>
                       val result = left + right
                       result
                     }
-                  result.setName("MM: Addition")
+                  result.name("MM: Addition")
                   result
                 case Subtraction =>
-                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                    { y => (y.rowIndex, y.columnIndex) } map
+                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                    { y => (y.rowIndex, y.columnIndex) } apply
                     { (left, right) => left - right }
-                  result.setName("MM: Subtraction")
+                  result.name("MM: Subtraction")
                   result
                 case Multiplication =>
-                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                    { y => (y.rowIndex, y.columnIndex) } map
+                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                    { y => (y.rowIndex, y.columnIndex) } apply
                     { (left, right) => left :* right
                     }
-                  result.setName("MM: Cellwise multiplication")
+                  result.name("MM: Cellwise multiplication")
                   result
                 case Division =>
-                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                    { y => (y.rowIndex, y.columnIndex) } map
+                  val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                    { y => (y.rowIndex, y.columnIndex) } apply
                     { (left, right) => left / right
                     }
-                  result.setName("MM: Division")
+                  result.name("MM: Division")
                   result
                 case Exponentiation =>
-                  val result = left join right where {x => (x.rowIndex, x.columnIndex)} isEqualTo { y => (y.rowIndex,
-                   y.columnIndex)} map { (left, right) => left :^ right }
-                  result.setName("MM: Exponentiation")
+                  val result = left join right where {x => (x.rowIndex, x.columnIndex)} equalTo { y => (y.rowIndex,
+                   y.columnIndex)} apply { (left, right) => left :^ right }
+                  result.name("MM: Exponentiation")
                   result
-              }
-              if(configuration.compilerHints){
-                result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
               }
               result
           })
@@ -766,24 +718,21 @@ SubmatrixImplicits with SubvectorImplicits  {
               case (_ , (left, right)) =>
                 val result = operation match {
                   case Maximum =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) =>
                         numerics.max(left, right)
                       }
-                    result.setName("MM: Maximum")
+                    result.name("MM: Maximum")
                     result
                   case Minimum =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) =>
                         numerics.min(left, right)
                       }
-                    result.setName("MM: Minimum")
+                    result.name("MM: Minimum")
                     result
-                }
-                if(configuration.compilerHints){
-                  result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
                 }
                 result
             })
@@ -795,44 +744,41 @@ SubmatrixImplicits with SubvectorImplicits  {
               case (_ , (left, right)) =>
                 val result = operation match {
                   case GreaterThan =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left,right) => left :> right }
-                    result.setName("MM: Greater than")
+                    result.name("MM: Greater than")
                     result
                   case GreaterEqualThan =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      {y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      {y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) => left :>= right }
-                    result.setName("MM: Greater equal than")
+                    result.name("MM: Greater equal than")
                     result
                   case LessThan =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) => left :< right }
-                    result.setName("MM: Less than")
+                    result.name("MM: Less than")
                     result
                   case LessEqualThan =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) => left :<= right }
-                    result.setName("MM: Less equal than")
+                    result.name("MM: Less equal than")
                     result
                   case Equals =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) => left :== right }
-                    result.setName("MM: Equals")
+                    result.name("MM: Equals")
                     result
                   case NotEquals =>
-                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } isEqualTo
-                      { y => (y.rowIndex, y.columnIndex) } map
+                    val result = left join right where { x => (x.rowIndex, x.columnIndex) } equalTo
+                      { y => (y.rowIndex, y.columnIndex) } apply
                       { (left, right) => left :!= right }
-                    result.setName("MM: NotEquals")
+                    result.name("MM: NotEquals")
                     result
-                }
-                if(configuration.compilerHints){
-                  result.uniqueKey(s=> (s.rowIndex, s.columnIndex))
                 }
                 result
             })
@@ -844,32 +790,25 @@ SubmatrixImplicits with SubvectorImplicits  {
           { exec => (evaluate[Matrix](exec.left), evaluate[Matrix](exec.right)) },
           {
             case (_, (left, right)) =>
-              val joinedBlocks = left join right where { leftElement => leftElement.columnIndex } isEqualTo
-                { rightElement => rightElement.rowIndex } map
+              val joinedBlocks = left join right where { leftElement => leftElement.columnIndex } equalTo
+                { rightElement => rightElement.rowIndex } apply
                 { (left, right) =>
-                  StratosphereExecutor.log.info("Start matrix multiplication")
+                  FlinkExecutor.log.info("Start matrix multiplication")
                   val result = left * right
-                  StratosphereExecutor.log.info("End matrix multiplication")
+                  FlinkExecutor.log.info("End matrix multiplication")
 
                   result
                 }
 
               val reduced = joinedBlocks groupBy
-                { element => (element.rowIndex, element.columnIndex) } combinableReduceGroup
-                { elements =>
-                  {
-                    val element = elements.next()
-                    val copied= element.copy
-                    val result = elements.foldLeft(copied)({ _ + _ })
-                    result
-                  }
-                }
+                { element => (element.rowIndex, element.columnIndex) } reduce (_ + _)
+
               if(configuration.compilerHints){
                 if(configuration.preserveHint){
-                  reduced.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows, s.totalColumns))
+                  reduced.withForwardedFields("rowIndex -> rowIndex", "columnIndex -> columnIndex",
+                    "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows",
+                    "totalColumns -> totalColumns")
                 }
-                reduced.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
               reduced
           })
@@ -880,9 +819,6 @@ SubmatrixImplicits with SubvectorImplicits  {
           { exec => evaluate[Matrix](exec.matrix) },
           { (_, matrixDS) =>
             val result = matrixDS map { matrix => matrix.t }
-            if(configuration.compilerHints){
-              result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-            }
             result
           })
 
@@ -898,19 +834,13 @@ SubmatrixImplicits with SubvectorImplicits  {
                     submatrix =>
                       norm(submatrix( * , ::),1)
                   }
-                  blockwiseNorm.setName("VM: Blockwise L1 norm")
+                  blockwiseNorm.name("VM: Blockwise L1 norm")
 
-                  val l1norm = blockwiseNorm groupBy (subvector => subvector.index) combinableReduceGroup {
-                    subvectors =>
-                      {
-                        val firstElement = subvectors.next().copy
-                        subvectors.foldLeft(firstElement)(_ + _)
-                      }
-                  }
-                  l1norm.setName("VM: L1 norm")
+                  val l1norm = blockwiseNorm groupBy (subvector => subvector.index) reduce (_ + _)
+                  l1norm.name("VM: L1 norm")
 
                   val normedMatrix =  l1norm join
-                    matrix where { l1norm => l1norm.index } isEqualTo { submatrix => submatrix.rowIndex } map
+                    matrix where { l1norm => l1norm.index } equalTo { submatrix => submatrix.rowIndex } apply
                     { (l1norm, submatrix) =>
                       val result = submatrix.copy
                       for(col <- submatrix.colRange)
@@ -918,106 +848,82 @@ SubmatrixImplicits with SubvectorImplicits  {
 
                       result
                     }
-                  normedMatrix.setName("VM: L1 normed matrix")
+                  normedMatrix.name("VM: L1 normed matrix")
 
                   if(configuration.compilerHints){
                     if(configuration.preserveHint){
-                      l1norm.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+                      l1norm.withForwardedFields("index -> index", "offset -> offset", "totalEntries -> totalEntries")
 
-                      normedMatrix.right.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                        s.totalRows, s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                        s.totalRows, s.totalColumns))
+                      normedMatrix.withForwardedFieldsSecond("rowIndex -> rowIndex", "columnIndex -> columnIndex",
+                      "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows",
+                      "totalColumns -> totalColumns")
                     }
-                    l1norm.uniqueKey(v => v.index)
-                    normedMatrix.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
 
                   normedMatrix
                 case Maximum =>
                   val blockwiseMax = matrix map { submatrix => max(submatrix(*, ::)) }
-                  blockwiseMax.setName("VM: Blockwise maximum")
+                  blockwiseMax.name("VM: Blockwise maximum")
 
                   val maximum = blockwiseMax groupBy
-                    { subvector => subvector.index } combinableReduceGroup { subvectors =>
-                      val firstElement = subvectors.next().copy
-                      subvectors.foldLeft(firstElement) { numerics.max(_, _) }
-                    }
-                  maximum.setName("VM: vectorwise maximum")
+                    { subvector => subvector.index } reduce (numerics.max(_, _))
+                  maximum.name("VM: vectorwise maximum")
 
                   val matrixResult = maximum map { subvector => subvector.asMatrix }
-                  matrixResult.setName("VM: vectorwise maximum matrix form")
+                  matrixResult.name("VM: vectorwise maximum matrix form")
 
                   if(configuration.compilerHints){
                     if(configuration.preserveHint){
-                      maximum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+                      maximum.withForwardedFields("index -> index", "offset -> offset", "totalEntries -> totalEntries")
                     }
-                    maximum.uniqueKey(v => v.index)
-
-                    matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
 
                   matrixResult
                 case Minimum =>
                   val blockwiseMin = matrix map { submatrix => min(submatrix(*, ::)) }
-                  blockwiseMin.setName("VM: Blockwise minimum")
+                  blockwiseMin.name("VM: Blockwise minimum")
 
                   val minimum = blockwiseMin groupBy
-                    { subvector => subvector.index } combinableReduceGroup { subvectors =>
-                      val firstElement = subvectors.next().copy
-                      subvectors.foldLeft(firstElement) { numerics.min(_, _) }
-                    }
-                  minimum.setName("VM: Vectorwise minimum")
+                    { subvector => subvector.index } reduce { numerics.min(_, _) }
+                  minimum.name("VM: Vectorwise minimum")
 
                   val matrixResult = minimum map { subvector => subvector.asMatrix }
-                  matrixResult.setName("VM: Vectorwise minimum in matrix form")
+                  matrixResult.name("VM: Vectorwise minimum in matrix form")
 
                   if(configuration.compilerHints){
                     if(configuration.preserveHint){
-                      minimum.preserves(v => (v.index, v.offset, v.totalEntries), v=> (v.index, v.offset, v.totalEntries))
+                      minimum.withForwardedFields("index -> index", "offset -> offset", "totalEntries -> totalEntries")
                     }
-                    minimum.uniqueKey(v => v.index)
-                    matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
 
                   matrixResult
                 case Norm2 =>
                   val squaredValues = matrix map { submatrix => submatrix :^ 2.0 }
-                  squaredValues.setName("VWM: Norm2 squared values")
+                  squaredValues.name("VWM: Norm2 squared values")
 
                   val blockwiseSum = squaredValues map { submatrix => _root_.breeze.linalg.sum(submatrix(*,
                     ::)) }
-                  blockwiseSum.setName("VM: Norm2 blockwise sum")
+                  blockwiseSum.name("VM: Norm2 blockwise sum")
 
                   val sumSquaredValues = blockwiseSum groupBy
-                    { subvector => subvector.index } combinableReduceGroup
-                    { subvectors =>
-                      val firstSubvector = subvectors.next().copy
-                      subvectors.foldLeft(firstSubvector)(_ + _)
-                    }
-                  sumSquaredValues.setName("VWM: Norm2 sum squared values")
+                    { subvector => subvector.index } reduce (_ + _)
+
+                  sumSquaredValues.name("VWM: Norm2 sum squared values")
 
                   val result = sumSquaredValues map {
                     sqv =>
                       sqv.asMatrix mapActiveValues { value => math.sqrt(value) }
                   }
-                  result.setName("VWM: Norm2")
+                  result.name("VWM: Norm2")
 
                   if(configuration.compilerHints){
                     if(configuration.preserveHint){
-                      squaredValues.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                        s.totalRows, s.totalColumns), s=> (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset,
-                        s.totalRows, s.totalColumns))
+                      squaredValues.withForwardedFields("rowIndex -> rowIndex", "columnIndex -> columnIndex",
+                      "rowOffset -> rowOffset", "columnOffset -> columnOffset", "totalRows -> totalRows",
+                      "totalColumns -> totalColumns")
 
-                      sumSquaredValues.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset,
-                        v.totalEntries))
+                      sumSquaredValues.withForwardedFields("index -> index", "offset -> offset", "totalEntries -> totalEntries")
                     }
-
-                    squaredValues.uniqueKey(s => (s.rowIndex, s.columnIndex))
-
-
-                    sumSquaredValues.uniqueKey(v => v.index)
-
-                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
                   }
 
                   result
@@ -1034,32 +940,35 @@ SubmatrixImplicits with SubvectorImplicits  {
           },
           {
             case (_, (path, rows, cols)) =>
-              val pathLiteral = path.getValue[StringValue](0,0)
-              val source = DataSource("file://" + pathLiteral, CsvInputFormat[(Int, Int, Double)]("\n", ' '))
+              val pathLiteral = path.getValue(0)
+              val completePath = "file://" + pathLiteral
+              val source = env.readCsvFile[(Int, Int, Double)](completePath, "\n", " ")
 
               val rowsCols = rows cross cols
-              val rowsColsPair = rowsCols map {
+              val rowsColsPair = rowsCols apply {
                 (rows, cols) => (rows.toInt, cols.toInt)
               }
-              rowsColsPair.setName("LoadMatrix: Rows and Cols pair")
+              rowsColsPair.name("LoadMatrix: Rows and Cols pair")
 
-              val blocks = rowsColsPair flatMap { case (numRows, numCols) =>
+              val blocks = rowsColsPair flatMap {  pair =>
+                val (numRows, numCols) = pair
                 val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, numRows, numCols)
                 for (partition <- partitionPlan.iterator) yield {
                   (partition.id, partition)
                 }
               }
-              blocks.setName("LoadMatrix: Partition blocks")
+              blocks.name("LoadMatrix: Partition blocks")
 
-              val partitionedData = rowsColsPair cross source map {
-                case ((numRows, numCols), (row, column, value)) =>
+              val partitionedData = rowsColsPair cross source apply {
+                (left, right) =>
+                  val ((numRows, numCols), (row, column, value)) = (left, right)
                   val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, numRows, numCols)
                   (partitionPlan.partitionId(row-1, column-1), row-1, column-1, value)
               }
-              partitionedData.setName("LoadMatrix: Partitioned data")
+              partitionedData.name("LoadMatrix: Partitioned data")
 
-              val loadedMatrix = partitionedData cogroup blocks where { entry => entry._1 } isEqualTo { block => block
-              ._1 } map {
+              val loadedMatrix = partitionedData coGroup blocks where { entry => entry._1 } equalTo { block => block
+              ._1 } apply {
                 (entries, blocks) =>
                 if(!blocks.hasNext){
                   throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
@@ -1074,23 +983,13 @@ SubmatrixImplicits with SubvectorImplicits  {
 
                 Submatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
               }
-              loadedMatrix.setName("LoadMatrix: Loaded matrix")
-
-              if(configuration.compilerHints){
-                rowsColsPair.outputCardinality = 1
-
-                blocks.uniqueKey(p => p._1)
-
-                loadedMatrix.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              }
+              loadedMatrix.name("LoadMatrix: Loaded matrix")
 
               loadedMatrix
           })
 
       case compound: CompoundExecutable =>
-        val executables = compound.executables flatMap { evaluate[List[ScalaSink[_]]] }
-        new ScalaPlan(executables)
-
+        val executables = compound.executables flatMap { evaluate(_) }
 
       case executable: ones =>
         handle[ones, (Scalar[Double], Scalar[Double])](
@@ -1098,25 +997,22 @@ SubmatrixImplicits with SubvectorImplicits  {
           { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numColumns)) },
           {
             case (_, (rows, columns)) =>
-              val partitions = rows cross columns flatMap { (rows, columns) =>
+              val partitions = rows cross columns flatMap { pair =>
+                val (rows, columns) = pair
                 val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt, columns.toInt)
                 partitionPlan.iterator
               }
-              partitions.setName("Ones: Partitions")
+              partitions.name("Ones: Partitions")
 
               //reduceGroup to distributed the partitions across the worker nodes
               val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ps => ps.next}
-              distributedPartitions.setName("Ones: Distributed partitions")
+              distributedPartitions.name("Ones: Distributed partitions")
 
               val result = distributedPartitions map { p =>
                 Submatrix.init(p, 1.0)
               }
 
-              result.setName("Ones")
-
-              if(configuration.compilerHints){
-                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              }
+              result.name("Ones")
 
               result
           })
@@ -1126,25 +1022,21 @@ SubmatrixImplicits with SubvectorImplicits  {
             executable,
             { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numCols))},
             { case (_, (rows, columns)) =>
-              val partitions = rows cross columns flatMap { (rows, columns) =>
+              val partitions = rows cross columns flatMap { pair =>
+                val (rows, columns) = pair
                 val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt, columns.toInt)
 
                 partitionPlan.iterator
               }
-              partitions.setName("Zeros: Partitions")
+              partitions.name("Zeros: Partitions")
 
               //reduceGroup to distribute the partitions across the worker nodes
               val distributedPartitions = partitions.groupBy(p => p.id).reduceGroup(ps => ps.next)
-              distributedPartitions.setName("Zeros: Distributed partitions")
+              distributedPartitions.name("Zeros: Distributed partitions")
 
               val result = distributedPartitions map { p => Submatrix(p)}
 
-              result.setName(s"Zeros")
-
-              if(configuration.compilerHints){
-                distributedPartitions.uniqueKey(p => p.id)
-                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              }
+              result.name(s"Zeros")
 
               result
             })
@@ -1154,11 +1046,12 @@ SubmatrixImplicits with SubvectorImplicits  {
             executable,
             { exec => (evaluate[Scalar[Double]](exec.numRows), evaluate[Scalar[Double]](exec.numCols))},
             { case (_, (rows, columns)) =>
-              val partitions = rows cross columns flatMap { (rows, columns) =>
+              val partitions = rows cross columns flatMap { pair =>
+                val (rows, columns) = pair
                 val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt, columns.toInt)
                 partitionPlan.iterator
               }
-              partitions.setName("Eye: Partitions")
+              partitions.name("Eye: Partitions")
 
               //reduceGroup to distribute partitions across worker nodes
               val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{
@@ -1167,19 +1060,14 @@ SubmatrixImplicits with SubvectorImplicits  {
                   val s = ps.size
                   result
               }
-              distributedPartitions.setName("Eye: Distributed partitions")
+              distributedPartitions.name("Eye: Distributed partitions")
 
               val result = distributedPartitions.map{
                 p =>
                   Submatrix.eye(p)
               }
 
-              result.setName("Eye")
-
-              if(configuration.compilerHints){
-                distributedPartitions.uniqueKey(p => p.id)
-                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              }
+              result.name("Eye")
 
               result
             })
@@ -1194,34 +1082,28 @@ SubmatrixImplicits with SubvectorImplicits  {
           {
             case (_, (rowsDS, colsDS, meanDS, stdDS)) =>
               val partitions = rowsDS cross colsDS flatMap {
-                (rows, cols) =>
+                pair =>
+                  val (rows, cols) = pair
                   val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt,
                     cols.toInt)
                   partitionPlan.iterator
               }
-              partitions.setName("Randn: Partitions")
+              partitions.name("Randn: Partitions")
 
               //reduceGroup to distribute the partitions across the worker nodes
               val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ ps => ps.next}
-              distributedPartitions.setName("Randn: Distributed partitions")
+              distributedPartitions.name("Randn: Distributed partitions")
 
-              val meanStd = meanDS cross stdDS map { (mean, std) => (mean, std) }
-              meanStd.setName("Randn: mean and std pair")
+              val meanStd = meanDS cross stdDS apply { (mean, std) => (mean, std) }
+              meanStd.name("Randn: mean and std pair")
 
-              val randomBlocks = distributedPartitions cross meanStd map {
-                case (partition, (mean, std)) =>
-                  Submatrix.rand(partition, Gaussian(mean, std))
+              val randomBlocks = distributedPartitions cross meanStd apply {
+                (partition, meanStd) =>
+                  Submatrix.rand(partition, Gaussian(meanStd._1, meanStd._2))
 
               }
 
-              randomBlocks.setName("Randn: Random submatrices")
-
-              if(configuration.compilerHints){
-                distributedPartitions.uniqueKey(p => p.id)
-                meanStd.outputCardinality = 1
-
-                randomBlocks.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              }
+              randomBlocks.name("Randn: Random submatrices")
 
               randomBlocks
           })
@@ -1235,16 +1117,17 @@ SubmatrixImplicits with SubvectorImplicits  {
         {
           case (_, (rowsDS, colsDS)) =>
             val partitions = rowsDS cross colsDS flatMap {
-              (rows, cols) =>
+              pair =>
+                val (rows, cols) = pair
                 val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt,
                   cols.toInt)
                 partitionPlan.iterator
             }
-            partitions.setName("URand: Partitions")
+            partitions.name("URand: Partitions")
 
             //reduceGroup to distribute the partitions across the worker nodes
             val distributedPartitions = partitions.groupBy{p => p.id}.reduceGroup{ ps => ps.next}
-            distributedPartitions.setName("URand: Distributed partitions")
+            distributedPartitions.name("URand: Distributed partitions")
 
             val randomBlocks = distributedPartitions map {
               partition =>
@@ -1253,13 +1136,7 @@ SubmatrixImplicits with SubvectorImplicits  {
 
             }
 
-            randomBlocks.setName("URand: Random submatrices")
-
-            if(configuration.compilerHints){
-              distributedPartitions.uniqueKey(p => p.id)
-
-              randomBlocks.uniqueKey(s => (s.rowIndex, s.columnIndex))
-            }
+            randomBlocks.name("URand: Random submatrices")
 
             randomBlocks
         })
@@ -1274,39 +1151,31 @@ SubmatrixImplicits with SubvectorImplicits  {
         },
         {
           case (_, (rowsDS, colsDS, meanDS, stdDS, levelDS)) =>
-            val partitions = rowsDS cross colsDS flatMap { (rows, cols) =>
+            val partitions = rowsDS cross colsDS flatMap { pair =>
+              val (rows, cols) = pair
               val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt, cols.toInt)
 
               partitionPlan.iterator
             }
-            partitions.setName("Sprand: Random partitions")
+            partitions.name("Sprand: Random partitions")
 
             //reduceGroup to distribute the partitions across the worker nodes
             val distributedPartitions = partitions.groupBy(p => p.id).reduceGroup(ps => ps.next)
-            distributedPartitions.setName("Sprand: Disitributed partitions")
+            distributedPartitions.name("Sprand: Disitributed partitions")
 
-            val meanStd = meanDS cross stdDS map { case (mean, std) => (mean, std)}
-            meanStd.setName("Sprand: mean and std combined")
+            val meanStd = meanDS cross stdDS apply { (mean, std) => (mean, std)}
+            meanStd.name("Sprand: mean and std combined")
 
-            val meanStdLevel = meanStd cross stdDS map { case ((mean, std), level) => (mean, std, level)}
-            meanStdLevel.setName("Sprand: Mean, std and level combined")
+            val meanStdLevel = meanStd cross stdDS apply { (meanStd, level) => (meanStd._1, meanStd._2, level)}
+            meanStdLevel.name("Sprand: Mean, std and level combined")
 
-            val randomSparseBlocks = distributedPartitions cross meanStdLevel map {
-              case (partition, (mean, std, level)) =>
-                val rand = Gaussian(mean, std)
-                Submatrix.sprand(partition, rand, level)
+            val randomSparseBlocks = distributedPartitions cross meanStdLevel apply {
+              (partition, meanStdLevel) =>
+                val rand = Gaussian(meanStdLevel._1, meanStdLevel._2)
+                Submatrix.sprand(partition, rand, meanStdLevel._3)
             }
 
-            randomSparseBlocks.setName("Sprand: Sparse random blocks")
-
-            if(configuration.compilerHints){
-              meanStd.outputCardinality = 1
-              meanStdLevel.outputCardinality = 1
-
-              distributedPartitions.uniqueKey(p => p.id)
-
-              randomSparseBlocks.uniqueKey(s => (s.rowIndex, s.columnIndex))
-            }
+            randomSparseBlocks.name("Sprand: Sparse random blocks")
 
             randomSparseBlocks
         }
@@ -1322,33 +1191,27 @@ SubmatrixImplicits with SubvectorImplicits  {
         },
         {
           case (_, (rowsDS, colsDS, meanDS, stdDS, levelDS)) =>
-            val partitions = rowsDS cross colsDS flatMap { (rows, cols) =>
+            val partitions = rowsDS cross colsDS flatMap { pair =>
+              val (rows, cols) = pair
               val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows.toInt, cols.toInt)
               partitionPlan.iterator
             }
-            partitions.setName("AdaptiveRand: Partitions")
+            partitions.name("AdaptiveRand: Partitions")
 
             //reduceGroup to distribute the partitions explicitely across the worker nodes
             val distributedPartitions = partitions.groupBy(p => p.id).reduceGroup(ps => ps.next)
-            distributedPartitions.setName("AdaptiveRand: Distributed partitions")
+            distributedPartitions.name("AdaptiveRand: Distributed partitions")
 
-            val meanStd = meanDS cross stdDS map {(mean, std) => (mean, std)}
-            meanStd.setName("AdaptiveRand: Mean and std pair")
+            val meanStd = meanDS cross stdDS apply {(mean, std) => (mean, std)}
+            meanStd.name("AdaptiveRand: Mean and std pair")
 
-            val meanStdLevel = meanStd cross levelDS map { case ((mean, std), level) => (mean, std, level)}
-            meanStdLevel.setName("AdaptiveRand: Mean, std and level triple")
+            val meanStdLevel = meanStd cross levelDS apply { (meanStd, level) => (meanStd._1, meanStd._2, level)}
+            meanStdLevel.name("AdaptiveRand: Mean, std and level triple")
 
-            val result = distributedPartitions cross meanStdLevel map {
-              case (partition, (mean, std, level)) =>
-                val random = Gaussian(mean, std)
-                Submatrix.adaptiveRand(partition, random, level, configuration.densityThreshold)
-            }
-
-            if(configuration.compilerHints){
-              distributedPartitions.uniqueKey(p => p.id)
-              meanStd.outputCardinality = 1
-              meanStdLevel.outputCardinality = 1
-              result.uniqueKey(s => (s.rowIndex, s.columnIndex))
+            val result = distributedPartitions cross meanStdLevel apply {
+              (partition, meanStdLevel) =>
+                val random = Gaussian(meanStdLevel._1, meanStdLevel._2)
+                Submatrix.adaptiveRand(partition, random, meanStdLevel._3, configuration.densityThreshold)
             }
 
             result
@@ -1365,11 +1228,7 @@ SubmatrixImplicits with SubvectorImplicits  {
                 submatrix.mapActiveValues(binarize)
               }
 
-              result.setName("Spones")
-
-              if(configuration.compilerHints){
-                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              }
+              result.name("Spones")
 
               result
             }
@@ -1382,25 +1241,17 @@ SubmatrixImplicits with SubvectorImplicits  {
           { (_, matrix) =>
             {
               val blockwiseSum = matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(*, ::)) }
-              blockwiseSum.setName("SumRow: Blockwise rowwise sum")
+              blockwiseSum.name("SumRow: Blockwise rowwise sum")
 
               val rowwiseSum = blockwiseSum groupBy
-                { subvector => subvector.index } combinableReduceGroup
-                { subvectors =>
-                  val firstSubvector = subvectors.next().copy
-                  subvectors.foldLeft(firstSubvector)(_ + _)
-                }
-              rowwiseSum.setName("SumRow: Row-wise sum")
+                { subvector => subvector.index } reduce (_ + _)
+              rowwiseSum.name("SumRow: Row-wise sum")
 
               val matrixResult = rowwiseSum map { subvector => subvector.asMatrix }
-              matrixResult.setName("SumRow: Row-wise sum in matrix form")
+              matrixResult.name("SumRow: Row-wise sum in matrix form")
 
               if(configuration.compilerHints){
-
-                rowwiseSum.uniqueKey(v => v.index)
-                rowwiseSum.preserves(v => (v.index, v.offset, v.totalEntries), v => (v.index, v.offset, v.totalEntries))
-
-                matrixResult.uniqueKey(s => (s.rowIndex, s.columnIndex))
+                rowwiseSum.withForwardedFields("index -> index", "offset -> offset", "totalEntries -> totalEntries")
               }
 
               matrixResult
@@ -1414,27 +1265,19 @@ SubmatrixImplicits with SubvectorImplicits  {
           { (_, matrix) =>
             {
               val blockwiseSum = matrix map { submatrix => _root_.breeze.linalg.sum(submatrix(::, *)) }
-              blockwiseSum.setName("SumCol: Blockwise column sum")
+              blockwiseSum.name("SumCol: Blockwise column sum")
 
               val colwiseSum = blockwiseSum groupBy
-                { submatrix => submatrix.columnIndex } combinableReduceGroup
-                { subvectors =>
-                  val firstSubvector = subvectors.next().copy
-                  subvectors.foldLeft(firstSubvector)(_ + _)
-                }
-              colwiseSum.setName("SumCol: Column sum")
+                { submatrix => submatrix.columnIndex } reduce (_ + _)
+              colwiseSum.name("SumCol: Column sum")
 
               if(configuration.compilerHints){
                 if(configuration.preserveHint){
-                  blockwiseSum.preserves(s => (s.columnIndex, s.columnOffset, s.totalColumns), s=> (s.columnIndex,
-                    s.columnOffset, s.totalColumns))
+                  blockwiseSum.withForwardedFields("columnIndex -> columnIndex", "columnOffset -> columnOffset", "totalColumns -> totalColumns")
 
-                  colwiseSum.preserves(s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns), s => (s.rowIndex, s.columnIndex, s.rowOffset, s.columnOffset, s.totalRows,
-                    s.totalColumns))
+                  colwiseSum.withForwardedFields("rowIndex -> rowIndex", "columnIndex -> columnIndex", "rowOffset -> rowOffset",
+                  "columnOffset -> columnOffset", "totalRows -> totalRows", "totalColumns -> totalColumns")
                 }
-
-                colwiseSum.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
 
               colwiseSum
@@ -1451,10 +1294,11 @@ SubmatrixImplicits with SubvectorImplicits  {
                 case (Some(1), _) =>
                   val entries = matrix map
                     { submatrix => (submatrix.columnIndex, submatrix.cols, submatrix.columnOffset) }
-                  entries.setName("Diag: Row vector input")
+                  entries.name("Diag: Row vector input")
 
                   val result = entries cross matrix map {
-                    case ((rowIndex, numRows, rowOffset), submatrix) =>
+                    input =>
+                      val ((rowIndex, numRows, rowOffset), submatrix) = input
                       val partition = Partition(-1, rowIndex, submatrix.columnIndex, numRows, submatrix.cols,
                         rowOffset, submatrix.columnOffset, submatrix.totalColumns, submatrix.totalColumns)
 
@@ -1470,11 +1314,7 @@ SubmatrixImplicits with SubvectorImplicits  {
                         Submatrix(partition)
                       }
                   }
-                  result.setName("Diag: Result diagonal matrix of a row vector")
-
-                  if(configuration.compilerHints){
-                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                  }
+                  result.name("Diag: Result diagonal matrix of a row vector")
 
                   result
                 case (_, Some(1)) =>
@@ -1482,10 +1322,11 @@ SubmatrixImplicits with SubvectorImplicits  {
                     submatrix =>
                       (submatrix.rowIndex, submatrix.rows, submatrix.rowOffset)
                   }
-                  entries.setName("Diag: Column vector input")
+                  entries.name("Diag: Column vector input")
 
                   val result = entries cross matrix map {
-                    case ((columnIndex, numColumns, columnOffset), submatrix) =>
+                    input =>
+                      val ((columnIndex, numColumns, columnOffset), submatrix) = input
                       val partition = Partition(-1, submatrix.rowIndex, columnIndex, submatrix.rows, numColumns,
                         submatrix.rowOffset, columnOffset, submatrix.totalRows, submatrix.totalRows)
 
@@ -1503,11 +1344,8 @@ SubmatrixImplicits with SubvectorImplicits  {
                         Submatrix(partition)
                       }
                   }
-                  result.setName("Diag: Result diagonal matrix of a column vector")
+                  result.name("Diag: Result diagonal matrix of a column vector")
 
-                  if(configuration.compilerHints){
-                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                  }
                   result
                 case _ =>
                   val partialDiagResults = matrix map { submatrix =>
@@ -1527,18 +1365,10 @@ SubmatrixImplicits with SubvectorImplicits  {
 
                     result
                   }
-                  partialDiagResults.setName("Diag: Extract diagonal")
+                  partialDiagResults.name("Diag: Extract diagonal")
 
-                  val result = partialDiagResults groupBy { partialResult => partialResult.rowIndex } combinableReduceGroup {
-                    results =>
-                      val result = results.next().copy
-                      results.foldLeft(result)(_ + _)
-                  }
-                  result.setName("Diag: ")
-
-                  if(configuration.compilerHints){
-                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                  }
+                  val result = partialDiagResults groupBy { partialResult => partialResult.rowIndex } reduce (_ + _)
+                  result.name("Diag: ")
 
                   result
               }
@@ -1550,7 +1380,7 @@ SubmatrixImplicits with SubvectorImplicits  {
           executable,
           { exec => (evaluate[Matrix](exec.initialState), evaluate[Scalar[Double]](exec.maxIterations)) },
           { case (exec, (initialState, maxIterations)) =>
-            val numberIterations = maxIterations.getValue[DoubleValue](0,0).getValue.toInt
+            val numberIterations = maxIterations.getValue(0).toInt
             def stepFunction(partialSolution: Matrix) = {
               val oldStatePlaceholderValue = iterationStatePlaceholderValue
               iterationStatePlaceholderValue = Some(partialSolution)
@@ -1567,23 +1397,29 @@ SubmatrixImplicits with SubvectorImplicits  {
             var iteration: Matrix = null
 
             if(exec.convergencePlan != null){
-              val terminationFunction = (prev: Matrix, cur: Matrix) => {
-                val oldPreviousState = convergencePreviousStateValue
-                val oldCurrentState = convergenceCurrentStateValue
-                convergencePreviousStateValue = Some(prev)
-                convergenceCurrentStateValue = Some(cur)
+              val terminationFunction = (current: Matrix, next: Matrix) => {
+                val oldPreviousState = convergenceCurrentStateValue
+                val oldCurrentState = convergenceNextStateValue
+                convergenceCurrentStateValue = Some(current)
+                convergenceNextStateValue = Some(next)
                 val result = evaluate[Scalar[Boolean]](exec.convergencePlan)
 
-                convergencePreviousStateValue = oldPreviousState
-                convergenceCurrentStateValue = oldCurrentState
+                convergenceCurrentStateValue = oldPreviousState
+                convergenceNextStateValue = oldCurrentState
                 result filter { b => !b}
               }
 
-              iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
+              iteration = initialState.iterateWithTermination(numberIterations){
+                current =>
+                  val next = stepFunction(current)
+                  val termination = terminationFunction(current, next)
+
+                  (next, termination)
+              }
             }else{
-              iteration = initialState.iterate(numberIterations, stepFunction)
+              iteration = initialState.iterate(numberIterations)(stepFunction)
             }
-            iteration.setName("Fixpoint iteration")
+            iteration.name("Fixpoint iteration")
 
             iteration
           })
@@ -1599,7 +1435,7 @@ SubmatrixImplicits with SubvectorImplicits  {
         executable,
         { exec => (evaluate[CellArray](exec.initialState), evaluate[Scalar[Double]](exec.maxIterations)) },
         { case (exec, (initialState, maxIterations)) =>
-          val numberIterations = maxIterations.getValue[DoubleValue](0,0).getValue.toInt
+          val numberIterations = maxIterations.getValue(0).toInt
           def stepFunction(partialSolution: CellArray) = {
             val oldStatePlaceholderValue = iterationStatePlaceholderValueCellArray
             iterationStatePlaceholderValueCellArray = Some(partialSolution)
@@ -1611,26 +1447,32 @@ SubmatrixImplicits with SubvectorImplicits  {
           var iteration: CellArray = null
 
           if(exec.convergencePlan != null){
-            val terminationFunction = (prev: CellArray, cur: CellArray) => {
-              val oldPreviousState = convergencePreviousStateCellArrayValue
-              val oldCurrentState = convergenceCurrentStateCellArrayValue
-              convergencePreviousStateCellArrayValue = Some(prev)
-              convergenceCurrentStateCellArrayValue = Some(cur)
+            val terminationFunction = (current: CellArray, next: CellArray) => {
+              val oldCurrentState = convergencePreviousStateCellArrayValue
+              val oldNextState = convergenceCurrentStateCellArrayValue
+              convergencePreviousStateCellArrayValue = Some(current)
+              convergenceCurrentStateCellArrayValue = Some(next)
 
               val result = evaluate[Scalar[Boolean]](exec.convergencePlan)
 
-              convergencePreviousStateCellArrayValue = oldPreviousState
-              convergenceCurrentStateCellArrayValue = oldCurrentState
+              convergencePreviousStateCellArrayValue = oldCurrentState
+              convergenceCurrentStateCellArrayValue = oldNextState
 
               result filter { b => !b }
             }
 
-            iteration = initialState.iterateWithTermination(numberIterations, stepFunction, terminationFunction)
+            iteration = initialState.iterateWithTermination(numberIterations){
+              current =>
+                val next = stepFunction(current)
+                val termination = terminationFunction(current, next)
+
+                (next, termination)
+            }
           }else{
-            iteration = initialState.iterate(numberIterations, stepFunction)
+            iteration = initialState.iterate(numberIterations)(stepFunction)
           }
 
-          iteration.setName("Fixpoint iteration")
+          iteration.name("Fixpoint iteration")
           iteration
         })
 
@@ -1646,36 +1488,30 @@ SubmatrixImplicits with SubvectorImplicits  {
           { exec => (evaluate[Matrix](exec.matrix), evaluate[Scalar[Double]](exec.dimension)) },
           {
             case (_, (matrix, scalar)) =>
-              val partialSum = scalar cross matrix map { (scalar, submatrix) =>
+              val partialSum = scalar cross matrix apply { (scalar, submatrix) =>
                 if (scalar == 1) {
                   (submatrix.columnIndex, _root_.breeze.linalg.sum(submatrix(::, *)))
                 } else {
                   (submatrix.rowIndex, _root_.breeze.linalg.sum(submatrix(*, ::)).asMatrix)
                 }
               }
-              partialSum.setName("Sum: Partial sum")
+              partialSum.name("Sum: Partial sum")
 
-              val pairIDSubmatrix = partialSum groupBy { case (group, submatrix) => group } combinableReduceGroup {
-                submatrices =>
-                  val firstSubmatrix = submatrices.next()
-                  (firstSubmatrix._1, submatrices.foldLeft(firstSubmatrix._2.copy)(_ + _._2))
+              val pairIDSubmatrix = partialSum groupBy { input => input._1 } reduce {
+                (left, right) =>
+                  (left._1, left._2 + right._2)
               }
-              pairIDSubmatrix.setName("Sum: (ID, sum)")
 
-              val result = pairIDSubmatrix map {
-                case (_, submatrix) =>
-                  submatrix
-              }
-              result.setName("Sum: Final result")
+              pairIDSubmatrix.name("Sum: (ID, sum)")
+
+              val result = pairIDSubmatrix map (_._2)
+
+              result.name("Sum: Final result")
 
               if(configuration.compilerHints){
                 if(configuration.preserveHint){
-                  pairIDSubmatrix.preserves(p => p._1, r => r._1)
+                  pairIDSubmatrix.withForwardedFields("_1 -> _1")
                 }
-                pairIDSubmatrix.uniqueKey(p => p._1)
-
-                result.neglects(p => p._1)
-                result.uniqueKey(s => (s.rowIndex, s.columnIndex))
               }
               result
           })
@@ -1718,13 +1554,13 @@ SubmatrixImplicits with SubvectorImplicits  {
                     MatrixType(_,_,_) =>
                     throw new StratosphereExecutionError("Cannot create cell array from given type.")
                 }
-                result.setName(s"CellEntry($index)")
+                result.name(s"CellEntry($index)")
                 result
             }
 
             val firstEntry = cellArrayEntries.head
             val result = cellArrayEntries.tail.foldLeft(firstEntry)(_ union _)
-            result.setName("CellArray")
+            result.name("CellArray")
 
             result
           }
@@ -1806,13 +1642,13 @@ SubmatrixImplicits with SubvectorImplicits  {
         throw new StratosphereExecutionError("Parameter found. Cannot execute parameters.")
 
       case ConvergencePreviousStatePlaceholder =>
-        convergencePreviousStateValue match {
+        convergenceCurrentStateValue match {
           case Some(matrix) => matrix
           case None => throw new StratosphereExecutionError("Convergence previous state scalarRef has not been set.")
         }
 
       case ConvergenceCurrentStatePlaceholder =>
-        convergenceCurrentStateValue match {
+        convergenceNextStateValue match {
           case Some(matrix) => matrix
           case None => throw new StratosphereExecutionError("Convergence current state scalarRef has not been set.")
         }
@@ -1859,11 +1695,7 @@ SubmatrixImplicits with SubvectorImplicits  {
                     } toSeq
                   )
                 }
-                result.setName("TypeConversionMatrix")
-
-                if(configuration.compilerHints){
-                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                }
+                result.name("TypeConversionMatrix")
 
                 result
             })
@@ -1878,10 +1710,11 @@ SubmatrixImplicits with SubvectorImplicits  {
                 evaluate[Scalar[Double]](r.numCols))},
               {
                 case (_, (matrixDS, rowsMultDS, colsMultDS)) =>
-                  val rowsColsMult = rowsMultDS cross colsMultDS map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
-                  rowsColsMult.setName("Repmat: Pair rows and cols multiplier")
+                  val rowsColsMult = rowsMultDS cross colsMultDS apply { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+                  rowsColsMult.name("Repmat: Pair rows and cols multiplier")
 
-                  val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                  val newBlocks = matrixDS cross rowsColsMult flatMap { pair =>
+                    val (matrix, (rowsMult, colsMult)) = pair
                     val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rowsMult*matrix.totalRows,
                       colsMult*matrix.totalColumns)
                     val rowIncrementor = matrix.totalRows
@@ -1896,9 +1729,10 @@ SubmatrixImplicits with SubvectorImplicits  {
 
                     result.toIterator
                   }
-                  newBlocks.setName("Repmat: New blocks")
+                  newBlocks.name("Repmat: New blocks")
 
-                  val repmatEntries = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                  val repmatEntries = matrixDS cross rowsColsMult flatMap { pair =>
+                    val (matrix, (rowsMult, colsMult)) = pair
                     val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize,
                       rowsMult*matrix.totalRows, colsMult*matrix.totalColumns)
 
@@ -1909,10 +1743,10 @@ SubmatrixImplicits with SubvectorImplicits  {
                       }
                     }
                   }
-                  repmatEntries.setName("Repmat: Repeated entries")
+                  repmatEntries.name("Repmat: Repeated entries")
 
-                  val result = newBlocks cogroup repmatEntries where { block => block._1} isEqualTo { entry => entry
-                    ._1} map {
+                  val result = newBlocks coGroup repmatEntries where { block => block._1} equalTo { entry => entry
+                    ._1} apply {
                     (blocks, entries) =>
                       if(!blocks.hasNext){
                         throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
@@ -1926,15 +1760,9 @@ SubmatrixImplicits with SubvectorImplicits  {
 
                       Submatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
                   }
-                  result.setName("Repmat: Repeated matrix")
+                  result.name("Repmat: Repeated matrix")
 
-                  if(configuration.compilerHints){
-                    rowsColsMult.outputCardinality = 1;
-                    newBlocks.uniqueKey(p => p._1)
-                    result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                  }
                   result
-
               }
             )
           case MatrixType(BooleanType, _, _) =>
@@ -1944,10 +1772,11 @@ SubmatrixImplicits with SubvectorImplicits  {
               evaluate[Scalar[Double]](r.numCols))},
             {
               case (_, (matrixDS, rowsMultDS, colsMultDS)) =>
-                val rowsColsMult = rowsMultDS cross colsMultDS map { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
-                rowsColsMult.setName("Repmat: Pair rows and cols multiplier")
+                val rowsColsMult = rowsMultDS cross colsMultDS apply { (rowsMult, colsMult) => (rowsMult.toInt, colsMult.toInt)}
+                rowsColsMult.name("Repmat: Pair rows and cols multiplier")
 
-                val newBlocks = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                val newBlocks = matrixDS cross rowsColsMult flatMap { pair =>
+                  val (matrix, (rowsMult, colsMult)) = pair
                   val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rowsMult*matrix.totalRows,
                     colsMult*matrix.totalColumns)
                   val rowIncrementor = matrix.totalRows
@@ -1963,9 +1792,10 @@ SubmatrixImplicits with SubvectorImplicits  {
                   result.toIterator
                 }
 
-                newBlocks.setName("Repmat: New blocks")
+                newBlocks.name("Repmat: New blocks")
 
-                val repmatEntries = matrixDS cross rowsColsMult flatMap { case (matrix, (rowsMult, colsMult)) =>
+                val repmatEntries = matrixDS cross rowsColsMult flatMap { pair =>
+                  val (matrix, (rowsMult, colsMult)) = pair
                   val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize,
                     rowsMult*matrix.totalRows, colsMult*matrix.totalColumns)
 
@@ -1976,10 +1806,10 @@ SubmatrixImplicits with SubvectorImplicits  {
                     }
                   }
                 }
-                repmatEntries.setName("Repmat: Repeated entries")
+                repmatEntries.name("Repmat: Repeated entries")
 
-                val result = newBlocks cogroup repmatEntries where { block => block._1} isEqualTo { entry => entry
-                  ._1} map {
+                val result = newBlocks coGroup repmatEntries where { block => block._1} equalTo { entry => entry
+                  ._1} apply {
                   (blocks, entries) =>
                     if(!blocks.hasNext){
                       throw new IllegalArgumentError("LoadMatrix coGroup phase must have at least one block")
@@ -1993,15 +1823,9 @@ SubmatrixImplicits with SubvectorImplicits  {
 
                     BooleanSubmatrix(partition, (entries map { case (id, row, col, value) => (row, col, value)}).toSeq)
                 }
-                result.setName("Repmat: Repeated matrix")
+                result.name("Repmat: Repeated matrix")
 
-                if(configuration.compilerHints){
-                  rowsColsMult.outputCardinality = 1;
-                  newBlocks.uniqueKey(p => p._1)
-                  result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-                }
                 result
-
             }
             )
         }
@@ -2012,16 +1836,17 @@ SubmatrixImplicits with SubvectorImplicits  {
         { l => (evaluate[Scalar[Double]](l.start), evaluate[Scalar[Double]](l.end),
           evaluate[Scalar[Double]](l.numPoints))},
         { case (_,(startDS, endDS, numPointsDS)) =>
-          val startEnd = startDS cross endDS map { (start, end) => (start, end)}
-          startEnd.setName("Linspace: Start end pair")
+          val startEnd = startDS cross endDS apply { (start, end) => (start, end)}
+          startEnd.name("Linspace: Start end pair")
 
           val blocks = numPointsDS flatMap { num =>
             val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, 1, num.toInt)
             for(partition <- partitionPlan.iterator) yield partition
           }
-          blocks.setName("Linspace: New blocks")
+          blocks.name("Linspace: New blocks")
 
-          val result = blocks cross startEnd map { case (block, (start, end)) =>
+          val result = blocks cross startEnd apply { (left, right) =>
+            val (block, (start, end)) = (left, right)
             val spacing = (end-start)/(block.numTotalColumns-1)
             val result = Submatrix(block, block.numColumns)
 
@@ -2030,16 +1855,9 @@ SubmatrixImplicits with SubvectorImplicits  {
             }
             result
           }
-          result.setName("Linspace: Linear spaced matrix")
-
-          if(configuration.compilerHints){
-            startEnd.outputCardinality = 1
-            blocks.uniqueKey(p => p.id)
-            result.uniqueKey(s => (s.rowIndex, s.columnIndex))
-          }
+          result.name("Linspace: Linear spaced matrix")
 
           result
-
         }
         )
 
@@ -2049,7 +1867,7 @@ SubmatrixImplicits with SubvectorImplicits  {
           {m => (evaluate[Matrix](m.matrix), evaluate[Scalar[Double]](m.dimension))},
           {
             case (_, (matrix, dimension)) =>
-              val totalSizeDimension = matrix cross dimension map { (matrix, dim) =>
+              val totalSizeDimension = matrix cross dimension apply { (matrix, dim) =>
                 if(dim == 1){
                   (1, matrix.totalColumns, dim)
                 }else if(dim == 2){
@@ -2057,7 +1875,7 @@ SubmatrixImplicits with SubvectorImplicits  {
                 }else{
                   throw new StratosphereExecutionError("minWithIndex does not support the dimension " + dim)
                 }
-              } reduceAll{ entries =>
+              } reduceGroup { entries =>
                 if(entries.hasNext)
                   entries.next()
                 else{
@@ -2065,10 +1883,12 @@ SubmatrixImplicits with SubvectorImplicits  {
                     "0)")
                 }
               }
-              totalSizeDimension.setName("MinWithIndex: Total size with dimension")
+              totalSizeDimension.name("MinWithIndex: Total size with dimension")
 
 
-              val minPerBlock = matrix cross dimension flatMap { (matrix, dim) =>
+              val minPerBlock = matrix cross dimension flatMap { pair =>
+                val (matrix, dim) = pair
+
                 if(dim == 1){
                   val minPerColumn = for(col <- matrix.colRange) yield{
                     val (minRow, minValue) = matrix(::, col).iterator.minBy{ case (row, value) => value }
@@ -2085,22 +1905,23 @@ SubmatrixImplicits with SubvectorImplicits  {
                   throw new StratosphereExecutionError("minWithIndex does not support the dimension "+ dim)
                 }
               }
-              minPerBlock.setName("MinWithIndex: Min per block")
+              minPerBlock.name("MinWithIndex: Min per block")
 
-              val minIndexValue = (minPerBlock groupBy { entry => entry._1}).combinableReduceGroup{ entries =>
+              val minIndexValue = (minPerBlock groupBy { entry => entry._1}).reduceGroup{ entries =>
                 entries minBy ( x => x._3)
               }
-              minIndexValue.setName("MinWithIndex: argmin and min scalarRef")
+              minIndexValue.name("MinWithIndex: argmin and min scalarRef")
 
-              val newBlocks = totalSizeDimension flatMap { case (rows, cols, _) =>
+              val newBlocks = totalSizeDimension flatMap { input =>
+                val (rows, cols, _) = input
                 val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, rows, cols)
                 for(partition <- partitionPlan.toIterator) yield {
                   (partition.id, partition)
                 }
               }
-              newBlocks.setName("MinWithIndex: New blocks")
+              newBlocks.name("MinWithIndex: New blocks")
 
-              val partitionedMinIndexValue = minIndexValue cross totalSizeDimension map { (mIdxValue, sizeDimension) =>
+              val partitionedMinIndexValue = minIndexValue cross totalSizeDimension apply { (mIdxValue, sizeDimension) =>
                 val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, sizeDimension._1,
                   sizeDimension._2)
 
@@ -2115,9 +1936,9 @@ SubmatrixImplicits with SubvectorImplicits  {
                     ._3)
                 }
               }
-              partitionedMinIndexValue.setName("MinWithIndex: Partitioned argmin and min scalarRef")
+              partitionedMinIndexValue.name("MinWithIndex: Partitioned argmin and min scalarRef")
 
-              val minValues = newBlocks cogroup partitionedMinIndexValue where ( x => x._1) isEqualTo( x => x._1) map {
+              val minValues = newBlocks coGroup partitionedMinIndexValue where (x => x._1) equalTo (x => x._1) apply {
                 (blocks, entries) =>
                   val minValues = entries map {
                     case (_, row, col, _, value) =>
@@ -2137,9 +1958,9 @@ SubmatrixImplicits with SubvectorImplicits  {
                   val minValuesSeq = minValues.toList
                   CellEntry(0,ValueWrapper(Submatrix(partition, minValuesSeq)))
               }
-              minValues.setName("MinWithIndex: Min values cell entry")
+              minValues.name("MinWithIndex: Min values cell entry")
 
-              val minIndices = newBlocks cogroup partitionedMinIndexValue where ( x => x._1) isEqualTo( x => x._1) map
+              val minIndices = newBlocks coGroup partitionedMinIndexValue where ( x => x._1) equalTo ( x => x._1) apply
               { (blocks, entries) =>
                   val minIndices = entries map { case (_, row, col, minIndex, _) => (row,col,(minIndex+1).toDouble)}
 
@@ -2155,18 +1976,13 @@ SubmatrixImplicits with SubvectorImplicits  {
 
                   CellEntry(1,ValueWrapper(Submatrix(partition, minIndices.toSeq)))
               }
-              minIndices.setName("MinWithIndex: Min indices cell entry")
+              minIndices.name("MinWithIndex: Min indices cell entry")
 
               minValues.union(minIndices)
               val result = minValues union minIndices
-              result.setName("MinWithIndex: Cell array")
-
-              if(configuration.compilerHints){
-                newBlocks.uniqueKey(p => p._1)
-              }
+              result.name("MinWithIndex: Cell array")
 
               result
-
           }
         )
 
@@ -2176,9 +1992,9 @@ SubmatrixImplicits with SubvectorImplicits  {
           {p => (evaluate[Matrix](p.matrixA), evaluate[Matrix](p.matrixB)) },
           {
             case (_,(matrixA, matrixB)) =>
-              val partialSqDiffs = matrixA join matrixB where { a => a.columnIndex } isEqualTo
-                { b => b.columnIndex } map {
-                (a,b) =>
+              val partialSqDiffs = matrixA join matrixB where { a => a.columnIndex } equalTo
+                { b => b.columnIndex } apply {
+                (a, b) =>
                   val partitionPlan = new SquareBlockPartitionPlan(configuration.blocksize, a.totalRows, b.totalRows)
                   val newEntries = for(rowA <- a.rowRange; rowB <- b.rowRange) yield {
                     val diff = a(rowA,::) - b(rowB,::)
@@ -2190,24 +2006,11 @@ SubmatrixImplicits with SubvectorImplicits  {
                   val partition = partitionPlan.getPartition(a.rowIndex, b.rowIndex)
                   Submatrix(partition, newEntries.toSeq)
               }
-              partialSqDiffs.setName("Pdist2: Partial squared diffs")
+              partialSqDiffs.name("Pdist2: Partial squared diffs")
 
-              val pdist2 = partialSqDiffs groupBy( x => (x.rowIndex, x.columnIndex)) combinableReduceGroup {
-                diffs =>
-                  if(!diffs.hasNext){
-                    throw new StratosphereExecutionError("Diffs is empty")
-                  }
+              val pdist2 = partialSqDiffs groupBy( x => (x.rowIndex, x.columnIndex)) reduce (_ + _) map (_ :^ 0.5)
+              pdist2.name("Pdist2: pair wise distance matrix")
 
-                  val first = diffs.next()
-
-                  val summedDiffs = diffs.foldLeft(first)(_ + _)
-                  summedDiffs :^ 0.5
-              }
-              pdist2.setName("Pdist2: pair wise distance matrix")
-
-              if(configuration.compilerHints){
-                pdist2.uniqueKey(s => (s.rowIndex, s.columnIndex))
-              }
               pdist2
           }
         )
@@ -2215,6 +2018,6 @@ SubmatrixImplicits with SubvectorImplicits  {
   }
 }
 
-object StratosphereExecutor{
-  val log = LogFactory.getLog(classOf[StratosphereExecutor])
+object FlinkExecutor{
+  val log = LogFactory.getLog(classOf[FlinkExecutor])
 }

@@ -18,19 +18,23 @@
 
 package org.gilbertlang.runtime
 
-import eu.stratosphere.api.common.PlanExecutor
-import org.apache.log4j.{WriterAppender, SimpleLayout, Level, Logger}
-import org.apache.spark.{SparkContext, SparkConf}
+import java.net.URL
+
+import org.apache.log4j.{Level, Logger, SimpleLayout, WriterAppender}
+import org.apache.spark.{SparkConf, SparkContext}
 import org.gilbertlang.runtime.execution.reference.ReferenceExecutor
 import org.gilbertlang.runtime.execution.spark.SparkExecutor
-import org.gilbertlang.runtime.execution.stratosphere.StratosphereExecutor
-import eu.stratosphere.api.scala.ScalaPlan
-import eu.stratosphere.api.scala.ScalaSink
+import org.gilbertlang.runtime.execution.stratosphere.FlinkExecutor
 import Executables._
-import eu.stratosphere.client.{RemoteExecutor, LocalExecutor}
-import org.gilbertlang.runtimeMacros.linalg.{RuntimeConfiguration, MatrixFactory}
+import org.apache.flink.api.common.operators.GenericDataSinkBase
+import org.apache.flink.api.common.{Plan, PlanExecutor}
+import org.apache.flink.api.scala.ExecutionEnvironment
+import org.apache.flink.client.{LocalExecutor, RemoteExecutor}
+import org.apache.flink.configuration.{ConfigConstants, Configuration}
+import org.gilbertlang.runtimeMacros.linalg.{MatrixFactory, RuntimeConfiguration}
 import org.gilbertlang.runtimeMacros.linalg.breeze.{BreezeBooleanMatrixFactory, BreezeDoubleMatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.mahout.{MahoutBooleanMatrixFactory, MahoutDoubleMatrixFactory}
+
 import scala.collection.JavaConverters._
 
 object local {
@@ -109,17 +113,16 @@ object withSpark {
   def getSparkDependencies(root: String): List[String] = {
     val jars = List("runtime-0.1-SNAPSHOT.jar",
       "runtimeMacros-0.1-SNAPSHOT.jar",
-      "stratosphere-core-0.6-patched.jar",
-      "mahout-math-1.0-SNAPSHOT.jar")
+      "mahout-math-0.12.2.jar")
 
     jars map { jar => root + jar}
   }
 }
 
-object withStratosphere{
-  class StratosphereExecutionEngine(val executor: PlanExecutor, val appName: String, val parallelism: Int) extends
+object withFlink{
+  class FlinkExecutionEngine(val env: ExecutionEnvironment, val appName: String) extends
   ExecutionEngine {
-    val translator = new StratosphereExecutor()
+    val translator = new FlinkExecutor(env, appName)
 
     def stop() {}
 
@@ -130,18 +133,9 @@ object withStratosphere{
       val config = configuration.copy(outputPath = Some(configuration.outputPath.getOrElse("file://" +
         System.getProperty("user.dir"))))
 
-      val plan = translator.run(finalProgram, config) match {
-        case x:ScalaPlan => x
-        case x:ScalaSink[_] => new ScalaPlan(Seq(x))
-        case x:List[_] =>
-          val sinks = for(dataset <- x) yield dataset.asInstanceOf[ScalaSink[_]]
-          new ScalaPlan(sinks)
-      }
+      translator.run(finalProgram, config)
 
-      plan.setDefaultParallelism(parallelism)
-      plan.setJobName(appName)
-
-      val result = executor.executePlan(plan)
+      val result = env.execute(appName)
 
       val netTime= result.getNetRuntime
       netTime.toDouble/1000
@@ -152,22 +146,33 @@ object withStratosphere{
     val executor = new LocalExecutor
     executor.setDefaultOverwriteFiles(true)
 
-    new StratosphereExecutionEngine(executor, engineConfiguration.appName, engineConfiguration.parallelism)
+    val configuration = new Configuration()
+    configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
+    configuration.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, engineConfiguration.parallelism)
+
+    val env = ExecutionEnvironment.createLocalEnvironment(configuration)
+
+    new FlinkExecutionEngine(env, engineConfiguration.appName)
   }
 
   def remote(engineConfiguration: EngineConfiguration): ExecutionEngine = {
 
-    val stratosphereDependencies: List[String] = getStratosphereDependencies(engineConfiguration.libraryPath)
+    val flinkDependencies: List[String] = getFlinkDependencies(engineConfiguration.libraryPath)
 
-    val executor = new RemoteExecutor(engineConfiguration.master, engineConfiguration.port,
-      (engineConfiguration.jars ++ stratosphereDependencies).asJava)
+    val jarFiles = engineConfiguration.jars ++ flinkDependencies
 
-    new StratosphereExecutionEngine(executor, engineConfiguration.appName, engineConfiguration.parallelism)
+    val env = ExecutionEnvironment.createRemoteEnvironment(
+      engineConfiguration.master,
+      engineConfiguration.port,
+      engineConfiguration.parallelism,
+      jarFiles: _*)
+
+    new FlinkExecutionEngine(env, engineConfiguration.appName)
   }
 
-  private def getStratosphereDependencies(root: String): List[String] = {
-    val jars = List("runtime-0.1-SNAPSHOT.jar", "runtimeMacros-0.1-SNAPSHOT.jar", "breeze_2.10-0.8.1.jar",
-      "mahout-math-1.0-SNAPSHOT.jar", "commons-math3-3.2.jar")
+  private def getFlinkDependencies(root: String): List[String] = {
+    val jars = List("runtime-0.1-SNAPSHOT.jar", "runtimeMacros-0.1-SNAPSHOT.jar", "breeze_2.10-0.12.jar",
+      "mahout-math-0.12.2.jar", "commons-math3-3.2.jar")
 
     jars map { jar => root + jar}
   }

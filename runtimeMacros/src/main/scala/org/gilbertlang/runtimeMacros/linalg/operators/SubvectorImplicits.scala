@@ -5,7 +5,7 @@ import breeze.linalg.support.{CanMapValues, CanZipMapValues}
 import org.gilbertlang.runtimeMacros.linalg.{DoubleVector, Subvector}
 
 trait SubvectorImplicits extends DoubleVectorImplicits {
-  implicit def handholdSV: CanMapValues.HandHold[Subvector, Double] = new CanMapValues.HandHold[Subvector, Double]
+//  implicit def handholdSV: CanMapValues.HandHold[Subvector, Double] = new CanMapValues.HandHold[Subvector, Double]
 
   implicit def canZipMapValuesSV: CanZipMapValues[Subvector, Double, Double, Subvector] = {
     new CanZipMapValues[Subvector, Double, Double, Subvector]{

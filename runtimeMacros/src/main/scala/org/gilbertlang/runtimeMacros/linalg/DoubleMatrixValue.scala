@@ -3,17 +3,18 @@ package org.gilbertlang.runtimeMacros.linalg
 
 import java.io._
 
-import eu.stratosphere.types.{Value}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.types.Value
 import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
 class DoubleMatrixValue(var matrix: DoubleMatrix) extends Value {
   def this() = this(null)
 
-  def write(out: DataOutput): Unit = {
+  override def write(out: DataOutputView): Unit = {
     MatrixSerialization.writeDoubleMatrix(matrix, out)
   }
 
-  def read(in: DataInput): Unit = {
+  override def read(in: DataInputView): Unit = {
     matrix = MatrixSerialization.readDoubleMatrix(in)
   }
 

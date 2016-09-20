@@ -1,8 +1,7 @@
 package org.gilbertlang.examples
 
-import org.gilbertlang.runtime.{EngineConfiguration, local, withStratosphere}
+import org.gilbertlang.runtime.{EngineConfiguration, withFlink}
 import org.gilbertlang.language.Gilbert
-import eu.stratosphere.client.LocalExecutor
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
 object StratosphereExecutor {
@@ -12,6 +11,6 @@ object StratosphereExecutor {
 
     val runtimeConfig = RuntimeConfiguration()
     val engineConfiguration = EngineConfiguration(parallelism = 4)
-    withStratosphere.local(engineConfiguration).execute(executable, runtimeConfig)
+    withFlink.local(engineConfiguration).execute(executable, runtimeConfig)
   }
 }

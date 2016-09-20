@@ -1,10 +1,11 @@
 package org.gilbertlang.runtimeMacros.linalg
 
+import _root_.breeze.linalg.support.ScalarOf
 import _root_.breeze.linalg.support.CanSlice2
-import _root_.breeze.stats.distributions.{Uniform, Rand}
-import eu.stratosphere.types.Value
-import java.io.{DataInput, DataOutput}
+import _root_.breeze.stats.distributions.{Rand, Uniform}
 
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.types.Value
 import org.gilbertlang.runtimeMacros.linalg.operators.SubmatrixImplicits
 
 case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var columnIndex: Int,
@@ -123,7 +124,7 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
     Submatrix(matrix.t, columnIndex, rowIndex, columnOffset, rowOffset, totalColumns, totalRows)
   }
 
-  def write(out: DataOutput): Unit = {
+  override def write(out: DataOutputView): Unit = {
     matrixValue.write(out)
     out.writeInt(rowIndex)
     out.writeInt(columnIndex)
@@ -133,7 +134,7 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
     out.writeInt(totalColumns)
   }
 
-  def read(in: DataInput): Unit = {
+  override def read(in: DataInputView): Unit = {
     matrixValue = new DoubleMatrixValue()
     matrixValue.read(in)
     rowIndex = in.readInt()
@@ -146,6 +147,8 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
 }
 
 object Submatrix extends SubmatrixImplicits {
+
+  implicit val scalarOf = ScalarOf.dummy[Submatrix, Double]
 
   def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,
     Double)])(implicit factory: DoubleMatrixFactory, configuration: RuntimeConfiguration):

@@ -1,7 +1,6 @@
 package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
-import eu.stratosphere.client.LocalExecutor
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 

@@ -2,18 +2,19 @@ package org.gilbertlang.runtimeMacros.linalg
 
 import java.io._
 
-import eu.stratosphere.types.Value
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.types.Value
 import org.gilbertlang.runtimeMacros.linalg.serialization.VectorSerialization
 
 class DoubleVectorValue(var vector: DoubleVector) extends Value {
 
   def this() = this(null)
 
-  def write(out: DataOutput): Unit = {
+  override def write(out: DataOutputView): Unit = {
     VectorSerialization.writeDouble(vector, out)
   }
 
-  def read(in: DataInput): Unit = {
+  override def read(in: DataInputView): Unit = {
     vector = VectorSerialization.readDouble(in)
   }
 

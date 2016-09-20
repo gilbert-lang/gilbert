@@ -1,8 +1,7 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import java.io.{DataInput, DataOutput}
-
-import eu.stratosphere.types.Value
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.types.Value
 
 trait BooleanMatrix extends Value {
   def rows: Int
@@ -26,11 +25,11 @@ trait BooleanMatrix extends Value {
 
   def t: BooleanMatrix
 
-  def write(out: DataOutput): Unit = {
+  override def write(out: DataOutputView): Unit = {
 
   }
 
-  def read(in: DataInput): Unit = {
+  override def read(in: DataInputView): Unit = {
 
   }
 }

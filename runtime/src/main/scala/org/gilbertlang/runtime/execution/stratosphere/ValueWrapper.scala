@@ -1,8 +1,8 @@
 package org.gilbertlang.runtime.execution.stratosphere
 
-import eu.stratosphere.types.Value
-import java.io.{DataOutput, DataInput}
-import org.gilbertlang.runtimeMacros.linalg.{Submatrix, BooleanSubmatrix}
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.types.Value
+import org.gilbertlang.runtimeMacros.linalg.{BooleanSubmatrix, Submatrix}
 
 
 class ValueWrapper(var value: Any) extends Value {
@@ -12,7 +12,7 @@ class ValueWrapper(var value: Any) extends Value {
 
   def getAs[T]: T = value.asInstanceOf[T]
 
-  override def write(out: DataOutput){
+  override def write(out: DataOutputView){
     value match {
       case x: Double =>
         out.writeUTF(doubleID)
@@ -35,7 +35,7 @@ class ValueWrapper(var value: Any) extends Value {
     }
   }
 
-  override def read(in: DataInput){
+  override def read(in: DataInputView){
     val tpe = in.readUTF()
 
     tpe match {

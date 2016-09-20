@@ -1,8 +1,7 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import eu.stratosphere.types.Value
-import java.io.{DataInput, DataOutput}
-
+import org.apache.flink.core.memory.{DataInputView, DataOutputView}
+import org.apache.flink.types.Value
 import org.gilbertlang.runtimeMacros.linalg.serialization.MatrixSerialization
 
 case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var columnIndex: Int, var rowOffset: Int,
@@ -44,7 +43,7 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
   
   def getPartition = Partition(-1, rowIndex, columnIndex, rows, cols, rowOffset, columnOffset, totalRows, totalColumns)
 
-  override def write(out: DataOutput){
+  override def write(out: DataOutputView){
     MatrixSerialization.writeBooleanMatrix(matrix, out)
     out.writeInt(rowIndex)
     out.writeInt(columnIndex)
@@ -54,7 +53,7 @@ case class BooleanSubmatrix(var matrix: BooleanMatrix, var rowIndex: Int, var co
     out.writeInt(totalColumns)
   }
 
-  override def read(in: DataInput){
+  override def read(in: DataInputView){
     matrix = MatrixSerialization.readBooleanMatrix(in)
     rowIndex = in.readInt()
     columnIndex = in.readInt()

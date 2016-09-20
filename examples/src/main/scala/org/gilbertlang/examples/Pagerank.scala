@@ -2,7 +2,6 @@ package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
 import org.gilbertlang.runtime._
-import eu.stratosphere.client.LocalExecutor
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
 object Pagerank {

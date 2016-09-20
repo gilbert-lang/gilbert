@@ -5,16 +5,15 @@ import breeze.linalg.{CSCMatrix => BreezeSparseMatrix}
 import org.gilbertlang.runtimeMacros.linalg.breeze.Bitmatrix
 import scala.language.implicitConversions
 import breeze.math.Semiring
-import breeze.storage.DefaultArrayValue
 import scala.reflect.ClassTag
 import breeze.linalg.BitVector
 
 trait BreezeVectorImplicits {
-  implicit def sparseVector2SparseMatrix[T:ClassTag:Semiring:DefaultArrayValue](sparseVector: SparseVector[T]) = {
+  implicit def sparseVector2SparseMatrix[T:ClassTag:Semiring](sparseVector: SparseVector[T]) = {
     new SparseVectorDecorator(sparseVector)
   }
 
-  class SparseVectorDecorator[T:ClassTag:Semiring:DefaultArrayValue](val sparseVector: SparseVector[T]){
+  class SparseVectorDecorator[T:ClassTag:Semiring](val sparseVector: SparseVector[T]){
     def asSparseMatrix: BreezeSparseMatrix[T] = {
       val builder = new BreezeSparseMatrix.Builder[T](sparseVector.length, 1, sparseVector.activeSize)
       for((row, value) <- sparseVector.activeIterator){

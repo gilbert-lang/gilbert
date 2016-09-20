@@ -1,8 +1,7 @@
 package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
-import eu.stratosphere.client.LocalExecutor
-import org.gilbertlang.runtime.{withSpark, withBreeze, EngineConfiguration, withStratosphere}
+import org.gilbertlang.runtime.{withSpark, withBreeze, EngineConfiguration, withFlink}
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
 object NNMFStep {

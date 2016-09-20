@@ -1,8 +1,7 @@
 package org.gilbertlang.examples
 
 import org.gilbertlang.language.Gilbert
-import eu.stratosphere.client.LocalExecutor
-import org.gilbertlang.runtime.{withBreeze, EngineConfiguration, withStratosphere}
+import org.gilbertlang.runtime.{withBreeze, EngineConfiguration, withFlink}
 import org.gilbertlang.runtimeMacros.linalg.RuntimeConfiguration
 
 object CellArray {
@@ -14,6 +13,6 @@ object CellArray {
     val runtimeConfig = RuntimeConfiguration()
 
     withBreeze()
-    withStratosphere.local(engineConfig).execute(executable, runtimeConfig)
+    withFlink.local(engineConfig).execute(executable, runtimeConfig)
   }
 }

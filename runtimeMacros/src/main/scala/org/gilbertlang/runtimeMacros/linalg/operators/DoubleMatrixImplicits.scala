@@ -13,8 +13,8 @@ import org.gilbertlang.runtimeMacros.linalg.breeze.operators.BreezeMatrixImplici
 
 trait DoubleMatrixImplicits extends BreezeMatrixImplicits with MahoutMatrixImplicits {
 
-  implicit def handholdDM: CanMapValues.HandHold[DoubleMatrix, Double] = new CanMapValues.HandHold[DoubleMatrix,
-    Double]
+//  implicit def handholdDM: CanMapValues.HandHold[DoubleMatrix, Double] = new CanMapValues.HandHold[DoubleMatrix,
+//    Double]
 
   implicit def canZipMapValuesDM: CanZipMapValues[DoubleMatrix, Double, Double,
     DoubleMatrix] = new CanZipMapValues[DoubleMatrix, Double, Double, DoubleMatrix]{

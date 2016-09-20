@@ -4,7 +4,7 @@ import breeze.linalg._
 import breeze.linalg.support.CanTraverseValues.ValuesVisitor
 import breeze.linalg.support._
 import breeze.math.Semiring
-import breeze.storage.DefaultArrayValue
+import breeze.storage.Zero
 
 import scala.language.{implicitConversions, postfixOps}
 import scala.reflect.ClassTag
@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
  * Created by till on 01/04/14.
  */
 trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
-  implicit def canZipMapValuesMatrix[@specialized(Double, Boolean) T: DefaultArrayValue: ClassTag: Semiring]: CanZipMapValues[Matrix[T], T, T, Matrix[T]] = {
+  implicit def canZipMapValuesMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring]: CanZipMapValues[Matrix[T], T, T, Matrix[T]] = {
     new CanZipMapValues[Matrix[T], T, T, Matrix[T]]{
       override def map(a: Matrix[T], b:Matrix[T], fn: (T, T) => T) = {
         (a,b) match {
@@ -33,12 +33,10 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canMapMatrixValues[T, R: ClassTag:DefaultArrayValue:Semiring]: support
-  .CanMapValues[Matrix[T], T, R,
-    Matrix[R]] = {
+  implicit def canMapMatrixValues[T, R: ClassTag :Semiring]: support.CanMapValues[Matrix[T], T, R, Matrix[R]] = {
     new CanMapValues[Matrix[T], T, R, Matrix[R]]{
       /**Maps all key-value pairs from the given collection. */
-      override def map(from: Matrix[T], fn: (T => R)): Matrix[R] = {
+      override def apply(from: Matrix[T], fn: (T => R)): Matrix[R] = {
         from match{
           case x: DenseMatrix[T] => x.map(fn)(DenseMatrix.canMapValues)
           case x: CSCMatrix[T] => x.map(fn)(CSCMatrix.canMapValues)
@@ -48,22 +46,26 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
             result
         }
       }
+    }
+  }
 
+  implicit def canMapActiveMatrixValues[T, R: ClassTag: Semiring]: support.CanMapActiveValues[Matrix[T], T, R, Matrix[R]] = {
+    new CanMapActiveValues[Matrix[T], T, R, Matrix[R]] {
       /**Maps all active key-value pairs from the given collection. */
-      override def mapActive(from: Matrix[T], fn: (T => R)): Matrix[R] = {
-        from match{
-          case x: DenseMatrix[T] => x.mapActiveValues(fn)(DenseMatrix.canMapValues)
-          case x: CSCMatrix[T] => x.mapActiveValues(fn)(CSCMatrix.canMapValues)
+      override def apply(from: Matrix[T], fn: (T) => R): Matrix[R] = {
+        from match {
+          case x: DenseMatrix[T] => x.mapValues(fn)(DenseMatrix.canMapValues)
+          case x: CSCMatrix[T] => x.mapActiveValues(fn)(CSCMatrix.canMapActiveValues)
           case x =>
             val result = DenseMatrix.zeros[R](x.rows, x.cols)
-            x.activeIterator foreach { case ((row, col), value) => result.update(row, col, fn(value))}
+            x.activeIterator foreach { case ((row, col), value) => result.update(row, col, fn(value)) }
             result
         }
       }
     }
   }
 
-  implicit def canTransposeMatrixBM[@specialized(Double, Boolean) T:ClassTag:DefaultArrayValue:Semiring]:
+  implicit def canTransposeMatrixBM[@specialized(Double, Boolean) T:ClassTag :Semiring]:
   CanTranspose[Matrix[T], Matrix[T]] = {
     new CanTranspose[Matrix[T], Matrix[T]]{
       override def apply(from: Matrix[T]):Matrix[T] = {
@@ -100,7 +102,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canSliceRowMatrix[T: ClassTag: Semiring: DefaultArrayValue]: CanSlice2[Matrix[T], Int, ::.type,
+  implicit def canSliceRowMatrix[T: ClassTag: Semiring]: CanSlice2[Matrix[T], Int, ::.type,
     Matrix[T]] = {
     new CanSlice2[Matrix[T], Int, ::.type, Matrix[T]]{
       override def apply(matrix: Matrix[T], row: Int, ignored: ::.type) = {
@@ -118,7 +120,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canSliceRowsMatrix[T: ClassTag: Semiring: DefaultArrayValue]: CanSlice2[Matrix[T], Range, ::.type, Matrix[T]] = {
+  implicit def canSliceRowsMatrix[T: ClassTag: Semiring]: CanSlice2[Matrix[T], Range, ::.type, Matrix[T]] = {
     new CanSlice2[Matrix[T], Range, ::.type, Matrix[T]]{
       override def apply(matrix: Matrix[T], rows: Range, ignored: ::.type) = {
         matrix match {
@@ -135,7 +137,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canSliceColMatrix[T: ClassTag: Semiring: DefaultArrayValue]: CanSlice2[Matrix[T], ::.type, Int, Vector[T]] = {
+  implicit def canSliceColMatrix[T: ClassTag: Semiring]: CanSlice2[Matrix[T], ::.type, Int, Vector[T]] = {
     new CanSlice2[Matrix[T], ::.type, Int, Vector[T]] {
       override def apply(matrix: Matrix[T], ignored: ::.type, col:Int) = {
         matrix match {
@@ -152,7 +154,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canSliceColsMatrix[T: ClassTag: Semiring: DefaultArrayValue]: CanSlice2[Matrix[T], ::.type, Range, Matrix[T]] = {
+  implicit def canSliceColsMatrix[T: ClassTag: Semiring]: CanSlice2[Matrix[T], ::.type, Range, Matrix[T]] = {
     new CanSlice2[Matrix[T], ::.type, Range, Matrix[T]] {
       override def apply(matrix: Matrix[T], ignored: ::.type, cols: Range) = {
         matrix match {
@@ -169,29 +171,31 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canCollapseRowsMatrix[T: ClassTag: DefaultArrayValue: Semiring]: CanCollapseAxis[Matrix[T], Axis._0.type, Vector[T], T, Matrix[T]] = {
+  implicit def canCollapseRowsMatrix[T: ClassTag: Semiring: Zero]: CanCollapseAxis[Matrix[T], Axis._0.type, Vector[T], T, Matrix[T]] = {
     new CanCollapseAxis[Matrix[T], Axis._0.type, Vector[T], T, Matrix[T]]{
       override def apply(matrix: Matrix[T], axis: Axis._0.type)(fn: Vector[T] => T) = {
-        matrix match {
-          case x: DenseMatrix[T] =>
-            val collapser = implicitly[CanCollapseAxis[DenseMatrix[T], Axis._0.type, DenseVector[T], T,
-              DenseMatrix[T]]]
-            collapser(x, axis)(fn)
-          case x: CSCMatrix[T] =>
-            val collapser = implicitly[CanCollapseAxis[CSCMatrix[T], Axis._0.type, SparseVector[T], T, CSCMatrix[T]]]
-            collapser(x, axis)(fn)
-          case x =>
-            val result = DenseMatrix.zeros[T](1, x.cols)
-            for(col <- 0 until x.cols){
-              result.update(0, col, fn(x(::, col)))
-            }
-            result
+        var result: DenseMatrix[T] = null
+
+        for (c <- 0 until matrix.cols) {
+          val col = fn(matrix(::, c))
+
+          if (result eq null) {
+            result = DenseMatrix.zeros(1, matrix.cols)
+          }
+
+          result(0, c) = col
+        }
+
+        if (result eq null) {
+          DenseMatrix.zeros[T](0, matrix.cols)
+        } else {
+          result
         }
       }
     }
   }
 
-  implicit def canCollapseColsMatrix[T: ClassTag: DefaultArrayValue: Semiring]: CanCollapseAxis[Matrix[T], Axis._1.type, Vector[T], T,
+  implicit def canCollapseColsMatrix[T: ClassTag: Semiring]: CanCollapseAxis[Matrix[T], Axis._1.type, Vector[T], T,
     Vector[T]] = new CanCollapseAxis[Matrix[T], Axis._1.type, Vector[T], T, Vector[T]]{
     override def apply(matrix: Matrix[T], axis: Axis._1.type)(fn: Vector[T] => T) = {
       matrix match {
@@ -212,11 +216,11 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def handholdCanMapColsMatrix[T: ClassTag: DefaultArrayValue: Semiring]: CanCollapseAxis
+  implicit def handholdCanMapColsMatrix[T: ClassTag: Semiring]: CanCollapseAxis
   .HandHold[Matrix[T], Axis._1.type, Vector[T]] =
     new CanCollapseAxis.HandHold[Matrix[T], Axis._1.type, Vector[T]]()
 
-  implicit def handholdCanMapRowsMatrix[T: ClassTag: DefaultArrayValue: Semiring]: CanCollapseAxis
+  implicit def handholdCanMapRowsMatrix[T: ClassTag: Semiring]: CanCollapseAxis
   .HandHold[Matrix[T], Axis._0.type, Vector[T]] =
     new CanCollapseAxis.HandHold[Matrix[T], Axis._0.type, Vector[T]]()
 }

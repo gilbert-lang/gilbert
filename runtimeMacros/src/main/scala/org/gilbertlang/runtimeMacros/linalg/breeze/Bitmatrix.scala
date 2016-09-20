@@ -1,9 +1,9 @@
 package org.gilbertlang.runtimeMacros.linalg.breeze
 
 import breeze.linalg.support.{CanCopy, CanTranspose}
-import breeze.linalg.{Matrix, MatrixLike}
+import breeze.linalg.{Matrix, MatrixLike, Vector, View}
 import breeze.stats.distributions.Rand
-import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BreezeMatrixRegistries, BitmatrixOps}
+import org.gilbertlang.runtimeMacros.linalg.breeze.operators.{BitmatrixOps, BreezeMatrixRegistries}
 
 class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
     val isTranspose: Boolean) 
@@ -86,6 +86,17 @@ class Bitmatrix(val rows: Int, val cols: Int, val data: java.util.BitSet,
   
   override def toString() = {
     activeKeysIterator.mkString("Bitmatrix(", ", ", ")")
+  }
+
+  override def flatten(view: View = View.Require): Vector[Boolean] = {
+    view match {
+      case View.Require =>
+        throw new UnsupportedOperationException("Flatten operation with View.Require is momentarily unsupported.")
+      case View.Copy =>
+        throw new UnsupportedOperationException("Flatten operation with View.Copy is momentarily unsupported.")
+      case View.Prefer =>
+        flatten(View.Require)
+    }
   }
 }
 

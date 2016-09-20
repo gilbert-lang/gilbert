@@ -271,7 +271,7 @@ object Runner {
     val executor = evaluationConfig.engine match {
       case Engines.Local => local()
       case Engines.Spark => withSpark.remote(engineConfiguration)
-      case Engines.Stratosphere => withStratosphere.remote(engineConfiguration)
+      case Engines.Stratosphere => withFlink.remote(engineConfiguration)
     }
 
 

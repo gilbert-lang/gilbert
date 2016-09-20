@@ -21,7 +21,6 @@ package org.gilbertlang.runtime.execution.spark
 import java.net.URI
 
 import _root_.breeze.stats.distributions.{Uniform, Gaussian}
-import eu.stratosphere.core.fs.{Path, FileSystem}
 import org.apache.commons.io.FileUtils
 import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD

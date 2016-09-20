@@ -3,7 +3,7 @@ package org.gilbertlang.runtimeMacros.linalg.breeze.operators
 import breeze.linalg.support.{CanCollapseAxis, CanCopy, CanSlice2, CanZipMapValues}
 import breeze.linalg.{Axis, CSCMatrix, SparseVector}
 import breeze.math.Semiring
-import breeze.storage.DefaultArrayValue
+import breeze.storage.Zero
 
 import scala.collection.mutable
 import scala.reflect.ClassTag
@@ -13,10 +13,10 @@ import scala.reflect.ClassTag
  */
 trait BreezeSparseMatrixImplicits {
   implicit def canCopySparseMatrix[T: ClassTag]: CanCopy[CSCMatrix[T]] = new CanCopy[CSCMatrix[T]]{
-    override def apply(matrix: CSCMatrix[T]): CSCMatrix[T] = matrix.copy.asInstanceOf[CSCMatrix[T]]
+    override def apply(matrix: CSCMatrix[T]): CSCMatrix[T] = matrix.copy
   }
 
-  implicit def canSliceRowSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue]:
+  implicit def canSliceRowSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring]:
   CanSlice2[CSCMatrix[T],Int, ::.type, CSCMatrix[T]] = {
     new CanSlice2[CSCMatrix[T],Int, ::.type, CSCMatrix[T]] {
       override def apply(matrix: CSCMatrix[T], row: Int, ignored: ::.type) = {
@@ -39,7 +39,7 @@ trait BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canSliceRowsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue]:
+  implicit def canSliceRowsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring]:
   CanSlice2[CSCMatrix[T], Range, ::.type, CSCMatrix[T]] = {
     new CanSlice2[CSCMatrix[T],Range, ::.type, CSCMatrix[T]] {
       override def apply(matrix: CSCMatrix[T], rows: Range, ignored: ::.type) = {
@@ -68,7 +68,7 @@ trait BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canSliceColSparseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue]:
+  implicit def canSliceColSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Zero]:
   CanSlice2[CSCMatrix[T], ::.type,Int, SparseVector[T]] = {
     new CanSlice2[CSCMatrix[T], ::.type,Int, SparseVector[T]] {
       override def apply(matrix: CSCMatrix[T], ignored: ::.type, col: Int): SparseVector[T]= {
@@ -89,7 +89,7 @@ trait BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canSliceColsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring: DefaultArrayValue]:
+  implicit def canSliceColsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring]:
   CanSlice2[CSCMatrix[T], ::.type, Range, CSCMatrix[T]] = {
     new CanSlice2[CSCMatrix[T], ::.type, Range, CSCMatrix[T]] {
       override def apply(matrix: CSCMatrix[T], ignored: ::.type, cols: Range) = {
@@ -118,7 +118,7 @@ trait BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canZipMapValuesSparseMatrix[@specialized(Double, Boolean) T: DefaultArrayValue: ClassTag: Semiring]: CanZipMapValues[CSCMatrix[T], T, T, CSCMatrix[T]] = {
+  implicit def canZipMapValuesSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring]: CanZipMapValues[CSCMatrix[T], T, T, CSCMatrix[T]] = {
     new CanZipMapValues[CSCMatrix[T], T, T, CSCMatrix[T]]{
       override def map(a: CSCMatrix[T], b: CSCMatrix[T], fn: (T, T) => T) = {
         val ring = implicitly[Semiring[T]]
@@ -176,7 +176,7 @@ trait BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canCollapseRowsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue: Semiring]:
+  implicit def canCollapseRowsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring]:
   CanCollapseAxis[CSCMatrix[T], Axis._0.type, SparseVector[T],
     T, CSCMatrix[T]] = new CanCollapseAxis[CSCMatrix[T], Axis._0.type, SparseVector[T], T,
     CSCMatrix[T]]{
@@ -191,7 +191,7 @@ trait BreezeSparseMatrixImplicits {
     }
   }
 
-  implicit def canCollapseColsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: DefaultArrayValue: Semiring]:
+  implicit def canCollapseColsSparseMatrix[@specialized(Double, Boolean) T: ClassTag: Semiring]:
   CanCollapseAxis[CSCMatrix[T], Axis._1.type, SparseVector[T], T, SparseVector[T]] =
     new CanCollapseAxis[CSCMatrix[T], Axis._1.type, SparseVector[T], T, SparseVector[T]]{
       override def apply(matrix: CSCMatrix[T], axis: Axis._1.type)(fn: SparseVector[T] => T) = {

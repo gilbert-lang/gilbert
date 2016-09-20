@@ -2,9 +2,6 @@ package org.gilbertlang.runtimeMacros.linalg.io
 
 import java.io.DataOutput
 import java.io.DataInput
-import scala.reflect.ClassTag
-import breeze.math.Semiring
-import breeze.storage.DefaultArrayValue
 
 trait Serializer[@specialized(Double, Boolean) T] {
   def write(value: T, out: DataOutput)

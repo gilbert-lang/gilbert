@@ -24,7 +24,7 @@ object NNMF {
       parallelism = dop, libraryPath = "/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/evaluation/target/lib/")
 
     withBreeze()
-    val result = withStratosphere.remote(stratosphereConfiguration).execute(executable, runtimeConfiguration)
+    val result = withFlink.remote(stratosphereConfiguration).execute(executable, runtimeConfiguration)
 //    val result = withSpark.remote(sparkConfiguration).execute(executable, runtimeConfiguration.copy(outputPath = None))
 //    val result = local().execute(executable, runtimeConfiguration)
 
