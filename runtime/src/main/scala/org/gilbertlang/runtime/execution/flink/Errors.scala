@@ -1,4 +1,4 @@
-package org.gilbertlang.runtime.execution.stratosphere
+package org.gilbertlang.runtime.execution.flink
 
 class TransformationNotSupportedError(msg: String) extends Error(msg){
   def this() = this("Transformation not supported.")

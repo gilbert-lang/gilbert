@@ -1,4 +1,4 @@
-package org.gilbertlang.runtime.execution.stratosphere
+package org.gilbertlang.runtime.execution.flink
 
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.api.java.operators.DataSource
@@ -15,8 +15,13 @@ object ImplicitConversions {
 
   class ValueExtractor[T](dataset: DataSet[T]){
     def getValue(index: Int): T = {
-      if (dataset.isInstanceOf[DataSource[T]]) {
-        val dataSource: DataSource[T] = dataset.asInstanceOf[DataSource[T]]
+
+      val field = dataset.getClass.getDeclaredField("set")
+      field.setAccessible(true)
+      val javaDataSet = field.get(dataset)
+
+      if (javaDataSet.isInstanceOf[DataSource[T]]) {
+        val dataSource: DataSource[T] = javaDataSet.asInstanceOf[DataSource[T]]
 
         val inputFormat = dataSource.getInputFormat
 

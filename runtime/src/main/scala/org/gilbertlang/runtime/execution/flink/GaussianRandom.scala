@@ -1,4 +1,4 @@
-package org.gilbertlang.runtime.execution.stratosphere
+package org.gilbertlang.runtime.execution.flink
 
 import scala.util.Random
 

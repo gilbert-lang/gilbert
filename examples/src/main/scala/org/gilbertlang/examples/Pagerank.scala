@@ -11,18 +11,22 @@ object Pagerank {
 
     val executable = Gilbert.compileRessource("pagerank.gb")
 
-    val runtimeConfiguration = RuntimeConfiguration(blocksize = 5, outputPath = Some(path),
+//    val runtimeConfiguration = RuntimeConfiguration(blocksize = 5, outputPath = Some(path),
+//      compilerHints = true, verboseWrite = true)
+    val runtimeConfiguration = RuntimeConfiguration(blocksize = 5, outputPath = None,
       compilerHints = true, verboseWrite = true)
     val sparkConfiguration = EngineConfiguration(appName = "Pagerank",master = "node1", port = 7077,
       parallelism = dop, libraryPath =
         "/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/evaluation/target/lib/")
-    val stratosphereConfiguration = EngineConfiguration(appName = "NNMF", master = "node1", port = 6123,
+    val flinkConfiguration = EngineConfiguration(appName = "Pagerank", master = "node1", port = 6123,
       parallelism = dop, libraryPath = "/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/evaluation/target/lib/")
 
     withBreeze()
-//    val result = withStratosphere.remote(stratosphereConfiguration).execute(executable, runtimeConfiguration)
+    val result = withFlink.remote(flinkConfiguration).execute(executable, runtimeConfiguration)
+//    val result = withFlink.local(flinkConfiguration).execute(executable, runtimeConfiguration)
 //    val result = withSpark.remote(sparkConfiguration).execute(executable, runtimeConfiguration.copy(outputPath = None))
-      val result = local().execute(executable, runtimeConfiguration)
+//    val result = withSpark.local(sparkConfiguration).execute(executable, runtimeConfiguration)
+//    val result = local().execute(executable, runtimeConfiguration)
 
     println(result)
   }

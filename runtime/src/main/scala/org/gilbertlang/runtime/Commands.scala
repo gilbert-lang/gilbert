@@ -18,24 +18,18 @@
 
 package org.gilbertlang.runtime
 
-import java.net.URL
-
 import org.apache.log4j.{Level, Logger, SimpleLayout, WriterAppender}
 import org.apache.spark.{SparkConf, SparkContext}
 import org.gilbertlang.runtime.execution.reference.ReferenceExecutor
 import org.gilbertlang.runtime.execution.spark.SparkExecutor
-import org.gilbertlang.runtime.execution.stratosphere.FlinkExecutor
+import org.gilbertlang.runtime.execution.flink.FlinkExecutor
 import Executables._
-import org.apache.flink.api.common.operators.GenericDataSinkBase
-import org.apache.flink.api.common.{Plan, PlanExecutor}
 import org.apache.flink.api.scala.ExecutionEnvironment
-import org.apache.flink.client.{LocalExecutor, RemoteExecutor}
+import org.apache.flink.client.LocalExecutor
 import org.apache.flink.configuration.{ConfigConstants, Configuration}
 import org.gilbertlang.runtimeMacros.linalg.{MatrixFactory, RuntimeConfiguration}
 import org.gilbertlang.runtimeMacros.linalg.breeze.{BreezeBooleanMatrixFactory, BreezeDoubleMatrixFactory}
 import org.gilbertlang.runtimeMacros.linalg.mahout.{MahoutBooleanMatrixFactory, MahoutDoubleMatrixFactory}
-
-import scala.collection.JavaConverters._
 
 object local {
   class LocalExecutionEngine extends ExecutionEngine{
@@ -148,6 +142,7 @@ object withFlink{
 
     val configuration = new Configuration()
     configuration.setBoolean(ConfigConstants.FILESYSTEM_DEFAULT_OVERWRITE_KEY, true);
+    configuration.setInteger(ConfigConstants.TASK_MANAGER_NUM_TASK_SLOTS, engineConfiguration.parallelism)
     configuration.setInteger(ConfigConstants.DEFAULT_PARALLELISM_KEY, engineConfiguration.parallelism)
 
     val env = ExecutionEnvironment.createLocalEnvironment(configuration)

@@ -1,4 +1,4 @@
-package org.gilbertlang.runtime.execution.stratosphere
+package org.gilbertlang.runtime.execution.flink
 
 import _root_.breeze.linalg.{*, max, min, norm}
 import _root_.breeze.stats.distributions.{Gaussian, Uniform}
@@ -6,7 +6,6 @@ import org.apache.commons.logging.LogFactory
 import org.apache.flink.api.java.operators.DataSink
 import org.gilbertlang.runtime.Executor
 import org.apache.flink.api.scala._
-import org.apache.flink.types.{DoubleValue, StringValue}
 import org.gilbertlang.runtimeMacros.linalg.operators.{SubmatrixImplicits, SubvectorImplicits}
 
 import scala.collection.convert.WrapAsScala
@@ -74,7 +73,7 @@ import scala.language.postfixOps
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 
 @SerialVersionUID(1)
-class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
+class FlinkExecutor(@transient val env: ExecutionEnvironment, val appName: String)
     extends Executor
     with WrapAsScala
     with SubmatrixImplicits
@@ -87,12 +86,12 @@ class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
   type Scalar[T] = DataSet[T]
   type CellArray = DataSet[CellEntry]
   private var tempFileCounter = 0
-  private var iterationStatePlaceholderValue: Option[Matrix] = None
-  private var iterationStatePlaceholderValueCellArray: Option[CellArray] = None
-  private var convergenceCurrentStateValue: Option[Matrix] = None
-  private var convergenceNextStateValue: Option[Matrix] = None
-  private var convergenceCurrentStateCellArrayValue: Option[CellArray] = None
-  private var convergencePreviousStateCellArrayValue: Option[CellArray] = None
+  @transient private var iterationStatePlaceholderValue: Option[Matrix] = None
+  @transient private var iterationStatePlaceholderValueCellArray: Option[CellArray] = None
+  @transient private var convergenceCurrentStateValue: Option[Matrix] = None
+  @transient private var convergenceNextStateValue: Option[Matrix] = None
+  @transient private var convergenceCurrentStateCellArrayValue: Option[CellArray] = None
+  @transient private var convergencePreviousStateCellArrayValue: Option[CellArray] = None
 
   implicit val doubleMatrixFactory = MatrixFactory.getDouble
   implicit val booleanMatrixFactory = MatrixFactory.getBoolean
@@ -118,7 +117,13 @@ class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
             { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(matrix.map(Submatrix.outputFormatter("\n", " ", configuration.verboseWrite)).writeAsText(completePathWithFilename).name(s"WriteMatrix($completePathWithFilename)"))
+              List(matrix
+                .map{
+                  matrix =>
+                    Submatrix.outputFormatter(matrix, "\n", " ", configuration.verboseWrite)
+                }
+                .writeAsText(completePathWithFilename)
+                .name(s"WriteMatrix($completePathWithFilename)"))
             }
             })
           case MatrixType(BooleanType,_,_) =>
@@ -128,7 +133,9 @@ class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
             { (_, matrix) =>
             {
               val completePathWithFilename = newTempFileName()
-              List(matrix.map(BooleanSubmatrix.outputFormatter("\n", " ", configuration.verboseWrite)).writeAsText(completePathWithFilename).name(s"WriteMatrix($completePathWithFilename)"))
+              List(matrix.map(BooleanSubmatrix.outputFormatter("\n", " ", configuration.verboseWrite))
+                .writeAsText(completePathWithFilename)
+                .name(s"WriteMatrix($completePathWithFilename)"))
             }
             })
         }
@@ -157,7 +164,10 @@ class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
                     x.wrappedValue[Submatrix]
                 }
                 mappedCell.name("WriteCellArray: Unwrapped scalarRef Matrix(Double)")
-                mappedCell.map(Submatrix.outputFormatter("\n", " ", configuration.verboseWrite))
+                mappedCell.map{
+                  submatrix =>
+                    Submatrix.outputFormatter(submatrix, "\n", " ", configuration.verboseWrite)
+                }
                   .writeAsText(completePathWithFilename)
                   .name(s"WriteCellArray(Matrix[Double], $completePathWithFilename)")
               case StringType =>
@@ -989,7 +999,7 @@ class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
           })
 
       case compound: CompoundExecutable =>
-        val executables = compound.executables flatMap { evaluate(_) }
+        compound.executables flatMap { x => evaluate[List[DataSink[_]]](x) }
 
       case executable: ones =>
         handle[ones, (Scalar[Double], Scalar[Double])](
@@ -1419,7 +1429,6 @@ class FlinkExecutor(val env: ExecutionEnvironment, val appName: String)
             }else{
               iteration = initialState.iterate(numberIterations)(stepFunction)
             }
-            iteration.name("Fixpoint iteration")
 
             iteration
           })
