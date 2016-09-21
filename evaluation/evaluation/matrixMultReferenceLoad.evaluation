@@ -1,24 +1,24 @@
 [config]
-master=node1
+master=flink-till-m
 template = matrixMult.gb.template
 engine = Local
-blocksize = 100
+blocksize = 500
 compilerHints = true
 optimization.TP = true
 optimization.MMReordering = true
 densityThreshold = 0.5
-outputFile = matrixMultReferenceLoad
-tries = 1
-parallelism = 1
+outputFile = matrixMult/matrixMultReferenceLoad
+tries = 3
+parallelism = 64
 outputPath = file:///tmp/flink/
 checkpointDir =
 iterationUntilCheckpoint = 0
 math = Breeze
 
 [data]
-rowsA = 100, 500
-colsA = 100, 500
-colsB = 100, 500
+rowsA = 1000, 2500, 5000, 7500, 10000
+colsA = 1000, 2500, 5000, 7500, 10000
+colsB = 1000, 2500, 5000, 7500, 10000
 level = 0.1
 
 [header]
