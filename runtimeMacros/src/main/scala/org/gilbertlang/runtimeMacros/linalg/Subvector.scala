@@ -1,7 +1,5 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import _root_.breeze.linalg.support.ScalarOf
-
 case class Subvector(val vectorValue: DoubleVectorValue, index: Int, offset: Int, totalEntries: Int) {
 
   def vector: DoubleVector = vectorValue.vector
@@ -28,5 +26,4 @@ case class Subvector(val vectorValue: DoubleVectorValue, index: Int, offset: Int
 }
 
 object Subvector {
-  implicit val scalarOf = ScalarOf.dummy[Subvector, Double]
 }

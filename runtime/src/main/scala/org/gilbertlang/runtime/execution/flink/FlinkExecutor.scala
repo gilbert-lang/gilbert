@@ -1481,7 +1481,6 @@ class FlinkExecutor(@transient val env: ExecutionEnvironment, val appName: Strin
             iteration = initialState.iterate(numberIterations)(stepFunction)
           }
 
-          iteration.name("Fixpoint iteration")
           iteration
         })
 

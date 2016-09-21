@@ -36,7 +36,7 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
   implicit def canMapMatrixValues[T, R: ClassTag :Semiring]: support.CanMapValues[Matrix[T], T, R, Matrix[R]] = {
     new CanMapValues[Matrix[T], T, R, Matrix[R]]{
       /**Maps all key-value pairs from the given collection. */
-      override def apply(from: Matrix[T], fn: (T => R)): Matrix[R] = {
+      override def map(from: Matrix[T], fn: (T => R)): Matrix[R] = {
         from match{
           case x: DenseMatrix[T] => x.map(fn)(DenseMatrix.canMapValues)
           case x: CSCMatrix[T] => x.map(fn)(CSCMatrix.canMapValues)
@@ -46,16 +46,12 @@ trait BreezeMatrixImplicits extends BreezeSparseMatrixImplicits {
             result
         }
       }
-    }
-  }
 
-  implicit def canMapActiveMatrixValues[T, R: ClassTag: Semiring]: support.CanMapActiveValues[Matrix[T], T, R, Matrix[R]] = {
-    new CanMapActiveValues[Matrix[T], T, R, Matrix[R]] {
       /**Maps all active key-value pairs from the given collection. */
-      override def apply(from: Matrix[T], fn: (T) => R): Matrix[R] = {
+      override def mapActive(from: Matrix[T], fn: (T) => R): Matrix[R] = {
         from match {
-          case x: DenseMatrix[T] => x.mapValues(fn)(DenseMatrix.canMapValues)
-          case x: CSCMatrix[T] => x.mapActiveValues(fn)(CSCMatrix.canMapActiveValues)
+          case x: DenseMatrix[T] => x.mapActiveValues(fn)(DenseMatrix.canMapValues)
+          case x: CSCMatrix[T] => x.mapActiveValues(fn)(CSCMatrix.canMapValues)
           case x =>
             val result = DenseMatrix.zeros[R](x.rows, x.cols)
             x.activeIterator foreach { case ((row, col), value) => result.update(row, col, fn(value)) }

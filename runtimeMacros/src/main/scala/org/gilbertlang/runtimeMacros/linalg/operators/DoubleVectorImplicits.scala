@@ -7,7 +7,7 @@ import org.gilbertlang.runtimeMacros.linalg.breeze.BreezeDoubleVector
 import org.gilbertlang.runtimeMacros.linalg.mahout.MahoutDoubleVector
 
 trait DoubleVectorImplicits {
-//  implicit def handholdDV: CanMapValues.HandHold[DoubleVector, Double] = new CanMapValues.HandHold[DoubleVector, Double]
+  implicit def handholdDV: CanMapValues.HandHold[DoubleVector, Double] = new CanMapValues.HandHold[DoubleVector, Double]
 
   implicit def canZipMapValuesDV: CanZipMapValues[DoubleVector, Double, Double, DoubleVector] = {
     new CanZipMapValues[DoubleVector, Double, Double, DoubleVector]{

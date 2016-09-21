@@ -21,7 +21,6 @@ package org.gilbertlang.runtime.execution.reference
 import java.io.PrintStream
 import java.net.URI
 
-import breeze.linalg.support.ScalarOf
 import breeze.stats.distributions.{Gaussian, Uniform}
 import breeze.linalg.{*, max, min, norm}
 import org.apache.flink.core.fs.{FileSystem, Path}

@@ -1,6 +1,5 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import _root_.breeze.linalg.support.ScalarOf
 import _root_.breeze.linalg.support.CanSlice2
 import _root_.breeze.stats.distributions.{Rand, Uniform}
 
@@ -147,8 +146,6 @@ case class Submatrix(var matrixValue: DoubleMatrixValue, var rowIndex: Int, var 
 }
 
 object Submatrix extends SubmatrixImplicits {
-
-  implicit val scalarOf = ScalarOf.dummy[Submatrix, Double]
 
   def apply(partitionInformation: Partition, entries: Traversable[(Int,Int,
     Double)])(implicit factory: DoubleMatrixFactory, configuration: RuntimeConfiguration):

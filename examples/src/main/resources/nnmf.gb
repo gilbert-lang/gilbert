@@ -1,4 +1,4 @@
-V = eye(10,10)+ 0.1 * ones(10,10);
+V = eye(10,10) + 0.1 * ones(10,10);
 W = 0.5*ones(10,2);
 H = 0.1*ones(2,10) + eye(2,10);
 function [y] = step(x)
@@ -7,4 +7,3 @@ function [y] = step(x)
   y = {H, W};
 end
 fixpoint({H,W}, @step, 4)
-

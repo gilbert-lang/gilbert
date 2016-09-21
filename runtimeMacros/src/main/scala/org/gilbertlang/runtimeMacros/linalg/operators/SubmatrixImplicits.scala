@@ -6,7 +6,7 @@ import breeze.linalg.support.CanTraverseValues.ValuesVisitor
 import org.gilbertlang.runtimeMacros.linalg.{Subvector, DoubleVector, DoubleMatrix, Submatrix}
 
 trait SubmatrixImplicits extends DoubleMatrixImplicits {
-//  implicit def handholdSM: CanMapValues.HandHold[Submatrix, Double] = new CanMapValues.HandHold[Submatrix, Double]
+  implicit def handholdSM: CanMapValues.HandHold[Submatrix, Double] = new CanMapValues.HandHold[Submatrix, Double]
 
   implicit def canZipMapValuesSM: CanZipMapValues[Submatrix, Double, Double, Submatrix] = {
     new CanZipMapValues[Submatrix, Double, Double, Submatrix]{

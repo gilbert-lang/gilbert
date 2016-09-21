@@ -1,6 +1,5 @@
 package org.gilbertlang.runtimeMacros.linalg
 
-import _root_.breeze.linalg.support.ScalarOf
 import _root_.breeze.linalg.support.CanSlice2
 
 trait DoubleMatrix extends Serializable {
@@ -78,5 +77,4 @@ trait DoubleMatrix extends Serializable {
 }
 
 object DoubleMatrix {
-  implicit val scalarOf = ScalarOf.dummy[DoubleMatrix, Double]
 }

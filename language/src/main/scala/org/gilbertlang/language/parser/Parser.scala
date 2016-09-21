@@ -18,9 +18,6 @@
 
 package org.gilbertlang.language.parser
 
-import java.lang.String
-
-import scala.Some
 import scala.util.parsing.combinator.Parsers
 import scala.util.parsing.input.Reader
 import org.gilbertlang.language.lexer.Lexer

@@ -15,12 +15,14 @@ object NNMF {
 
     val executable = Gilbert.compileRessource("nnmf.gb")
 
-    val runtimeConfiguration = RuntimeConfiguration(blocksize = 5, outputPath = Some(path),
-      compilerHints = true, verboseWrite = true)
-    val sparkConfiguration = EngineConfiguration(appName = "NNMF",master = "node1", port = 7077,
+//    val runtimeConfiguration = RuntimeConfiguration(blocksize = 5, outputPath = Some(path),
+//      compilerHints = true, verboseWrite = true)
+      val runtimeConfiguration = RuntimeConfiguration(blocksize = 5, outputPath = None,
+        compilerHints = true, verboseWrite = true)
+    val sparkConfiguration = EngineConfiguration(appName = "NNMF",master = "stsffap", port = 7077,
       parallelism = dop, libraryPath =
         "/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/evaluation/target/lib/")
-    val stratosphereConfiguration = EngineConfiguration(appName = "NNMF", master = "node1", port = 6123,
+    val stratosphereConfiguration = EngineConfiguration(appName = "NNMF", master = "localhost", port = 6123,
       parallelism = dop, libraryPath = "/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/evaluation/target/lib/")
 
     withBreeze()
