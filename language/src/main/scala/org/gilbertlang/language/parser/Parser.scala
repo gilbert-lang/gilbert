@@ -261,6 +261,12 @@ trait Parser extends Parsers {
   def eof = accept(EOF)
 
   def parse(input: Reader[Char]) = {
+//    var current = input
+//    while(!current.atEnd) {
+//      print(current.first)
+//      current = current.rest
+//    }
+
     phrase(program)(input) match {
       case Success(result, _) => Some(result)
       case NoSuccess(msg, _) =>

@@ -1,20 +1,19 @@
 [config]
 master=localhost
 template = matrixMult.gb.template
-engine = Spark
+engine = Flink
 blocksize = 100
 compilerHints = true
 optimization.TP = true
 optimization.MMReordering = true
 densityThreshold = 0.5
-outputFile = matrixMultSparkLoad
+outputFile = matrixMultFlinkLoad
 tries = 1
 parallelism = 4
 outputPath = file:///tmp/flink/
 checkpointDir =
 iterationUntilCheckpoint = 0
 math = Breeze
-memory = 10g
 
 [data]
 rowsA = 100, 500

@@ -63,8 +63,8 @@ object withSpark {
     def execute(program: Executable, runtimeConfig: RuntimeConfiguration): Double = {
       val finalProgram = terminateExecutable(program)
 
-      val pattern = """Job finished: [^,]*, took ([0-9\.]*) s""".r
-      val sparkLogger = Logger.getLogger("org.apache.spark.SparkContext")
+      val pattern = """Job \d+ finished: [^,]*, took ([0-9\.]*) s""".r
+      val sparkLogger = Logger.getLogger("org.apache.spark.scheduler.DAGScheduler")
       sparkLogger.setLevel(Level.INFO)
       val gilbertTimer = new GilbertTimer(pattern)
       sparkLogger.addAppender(new WriterAppender(new SimpleLayout(), gilbertTimer))

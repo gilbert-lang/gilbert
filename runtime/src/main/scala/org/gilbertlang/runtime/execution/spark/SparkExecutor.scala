@@ -18,24 +18,25 @@
 
 package org.gilbertlang.runtime.execution.spark
 
-import java.net.URI
-
-import _root_.breeze.stats.distributions.{Uniform, Gaussian}
+import _root_.breeze.stats.distributions.{Gaussian, Uniform}
 import org.apache.commons.io.FileUtils
-import org.apache.spark.SparkContext._
 import org.apache.spark.rdd.RDD
 import org.gilbertlang.runtime._
 import org.gilbertlang.runtime.Executables._
 import org.gilbertlang.runtimeMacros.linalg._
-import org.apache.spark.{SparkContext}
+import org.apache.spark.SparkContext
 import org.gilbertlang.runtime.RuntimeTypes._
 import org.gilbertlang.runtime.Operations._
-import java.io.{File, PrintStream}
+import java.io.File
+
 import org.gilbertlang.runtime.execution.UtilityFunctions.binarize
 import org.gilbertlang.runtime.shell.PlanPrinter
-import _root_.breeze.linalg.{norm, min, max, *}
+import _root_.breeze.linalg.{*, max, min, norm}
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.gilbertlang.runtime.execution.UtilityFunctions
-import org.gilbertlang.runtimeMacros.linalg.operators.{SubvectorImplicits, SubmatrixImplicits}
+import org.gilbertlang.runtimeMacros.linalg.operators.{SubmatrixImplicits, SubvectorImplicits}
+
 import scala.language.postfixOps
 import scala.util.control.Breaks.{break, breakable}
 import org.gilbertlang.runtime.Executables.diag
@@ -110,10 +111,21 @@ Executor with SubmatrixImplicits with SubvectorImplicits {
 
   def getCWD: String = System.getProperty("user.dir")
 
-  def newTempFileName(path: String): String = {
+  def newTempFileName(p: String): String = {
     tempFileCounter += 1
-    val separator = if(path.endsWith("/")) "" else "/"
-    path + separator + "gilbert" + tempFileCounter + ".output"
+    val separator = if(p.endsWith("/")) "" else "/"
+    val result = p + separator + "gilbert" + tempFileCounter + ".output"
+
+    val path = new Path(result)
+    val conf = new Configuration()
+
+    val fs = FileSystem.get(conf)
+
+    if (fs.exists(path)) {
+      fs.delete(path, true)
+    }
+
+    result
   }
 
   protected def execute(executable: Executable): Any = {

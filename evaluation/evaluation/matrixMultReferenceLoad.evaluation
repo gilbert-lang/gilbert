@@ -8,17 +8,17 @@ optimization.TP = true
 optimization.MMReordering = true
 densityThreshold = 0.5
 outputFile = matrixMultReferenceLoad
-tries = 20
-parallelism =
-outputPath =
+tries = 1
+parallelism = 1
+outputPath = file:///tmp/flink/
 checkpointDir =
-iterationUntilCheckpoint =matrixMultReferenceLoad.evaluation
+iterationUntilCheckpoint = 0
 math = Breeze
 
 [data]
-rowsA = 100, 500, 1000
-colsA = 100, 500, 1000
-colsB = 100, 500, 1000
+rowsA = 100, 500
+colsA = 100, 500
+colsB = 100, 500
 level = 0.1
 
 [header]

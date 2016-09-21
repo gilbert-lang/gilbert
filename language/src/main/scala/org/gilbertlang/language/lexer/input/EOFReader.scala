@@ -29,9 +29,12 @@ object EOFReader {
 class EOFReader[T](val reader: Reader[T], val eofEmitted: Boolean = false) extends Reader[T] {
 
   import EOFReader.EofCh
-  
+
   def first = reader.first
-  def rest = new EOFReader(reader.rest, first == EofCh)
+  def rest = {
+    val eofEmitted = first == EofCh
+    new EOFReader(reader.rest, eofEmitted)
+  }
   
   def atEnd = reader.atEnd && eofEmitted
   

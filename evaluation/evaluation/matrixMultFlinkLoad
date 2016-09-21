@@ -1,4 +1,4 @@
-# Engine: Spark; Math-Backend: Breeze
+# Engine: Flink; Math-Backend: Breeze
 # Template: matrixMult.gb.template
 # App-Name: Evaluation
 # Compiler Hints: true
@@ -9,5 +9,5 @@
 # level: List(0.1);
 
 RowsA ColsA ColsB Time Error 
-100 100 100 2.488283 0.0 
-500 500 500 3.786875 0.0 
+100 100 100 2.397 0.0 
+500 500 500 2.339 0.0 

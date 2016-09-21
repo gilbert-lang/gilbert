@@ -317,8 +317,12 @@ object Runner {
           dataSet(m.group(1))
       })
 
-      printWriter.println(replacedLine)
+      printWriter.print(replacedLine)
       line = bufferedReader.readLine()
+
+      if (line != null) {
+        printWriter.println()
+      }
     }
 
     stringWriter.toString
@@ -408,7 +412,7 @@ object Runner {
 
   def setEngine(engineName: String) {
     engineName match {
-      case "Stratosphere" => this.engine = Engines.Flink
+      case "Flink" => this.engine = Engines.Flink
       case "Spark" => this.engine = Engines.Spark
       case "Local" => this.engine = Engines.Local
       case _ => throw new RuntimeException(s"$engineName is not supported")
