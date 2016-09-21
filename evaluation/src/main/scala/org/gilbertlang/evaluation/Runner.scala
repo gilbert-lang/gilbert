@@ -451,10 +451,10 @@ object Runner {
 
     val splittedEntries = headerEntries map { entry => entry.split(":")}
 
-    val (names, references) =splittedEntries.unzip{ array =>
+    val (names, references) =splittedEntries.map{ array =>
       val result = (array(0), array(1))
       result
-    }
+    }.unzip
 
     this.headerNames = names.toList
     this.headerReferences = references.toList

@@ -18,7 +18,7 @@ object Pagerank {
     val sparkConfiguration = EngineConfiguration(appName = "Pagerank",master = "node1", port = 7077,
       parallelism = dop, libraryPath =
         "/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/evaluation/target/lib/")
-    val flinkConfiguration = EngineConfiguration(appName = "Pagerank", master = "node1", port = 6123,
+    val flinkConfiguration = EngineConfiguration(appName = "Pagerank", master = "localhost", port = 6123,
       parallelism = dop, libraryPath = "/Users/till/uni/ws14/dima/mastersthesis/workspace/gilbert/evaluation/target/lib/")
 
     withBreeze()

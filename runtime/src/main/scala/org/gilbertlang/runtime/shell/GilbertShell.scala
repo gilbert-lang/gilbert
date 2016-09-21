@@ -34,14 +34,15 @@ class GilbertShell extends ILoop {
 
   override def prompt = "> "
 
-  addThunk {
-    intp.beQuietDuring {
-      intp.addImports("io.ssc.gilbert.runtime._")
-      intp.addImports("io.ssc.gilbert.runtime.execution._")
-      intp.addImports("io.ssc.gilbert.runtime.execution.reference._")
-      intp.addImports("io.ssc.gilbert.runtime.shell._")
-    }
-  }
+  // TODO: Fix this for Scala 2.11
+//  addThunk {
+//    intp.beQuietDuring {
+//      intp.addImports("io.ssc.gilbert.runtime._")
+//      intp.addImports("io.ssc.gilbert.runtime.execution._")
+//      intp.addImports("io.ssc.gilbert.runtime.execution.reference._")
+//      intp.addImports("io.ssc.gilbert.runtime.shell._")
+//    }
+//  }
 
   override def printWelcome() {
     echo(
