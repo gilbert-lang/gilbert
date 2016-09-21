@@ -1,5 +1,5 @@
 [config]
-master=flink-till-w
+master=flink-till-m
 template = matrixMult.gb.template
 engine = Spark
 blocksize = 500
