@@ -21,7 +21,7 @@ object Runner {
   val DEFAULT_JOBMANAGER_PORT_SPARK = 7077
   val DEFAULT_JOBMANAGER_PORT_STRATOSPHERE = 6123
   val DEFAULT_SEPARATOR = " "
-  val DEFAULT_ENGINE = "Stratosphere"
+  val DEFAULT_ENGINE = "Flink"
   val DEFAULT_MATHBACKEND = "Breeze"
   val DEFAULT_COMPILERHINTS = "true"
   val DEFAULT_BLOCKSIZE = "1000"
@@ -271,7 +271,7 @@ object Runner {
     val executor = evaluationConfig.engine match {
       case Engines.Local => local()
       case Engines.Spark => withSpark.remote(engineConfiguration)
-      case Engines.Stratosphere => withFlink.remote(engineConfiguration)
+      case Engines.Flink => withFlink.remote(engineConfiguration)
     }
 
 
@@ -408,7 +408,7 @@ object Runner {
 
   def setEngine(engineName: String) {
     engineName match {
-      case "Stratosphere" => this.engine = Engines.Stratosphere
+      case "Stratosphere" => this.engine = Engines.Flink
       case "Spark" => this.engine = Engines.Spark
       case "Local" => this.engine = Engines.Local
       case _ => throw new RuntimeException(s"$engineName is not supported")
@@ -487,7 +487,7 @@ object Runner {
 
     if(port < 0){
       port = engine match {
-        case Engines.Stratosphere => DEFAULT_JOBMANAGER_PORT_STRATOSPHERE
+        case Engines.Flink => DEFAULT_JOBMANAGER_PORT_STRATOSPHERE
         case Engines.Spark => DEFAULT_JOBMANAGER_PORT_SPARK
         case _ => -1
       }
