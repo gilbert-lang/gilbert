@@ -1,0 +1,24 @@
+[config]
+master=flink-till-m
+template = pagerank.gb.template
+engine = Flink
+blocksize = 500
+compilerHints = true
+optimization.TP = true
+optimization.MMReordering = true
+densityThreshold = 0.5
+outputFile = pagerank/pagerankLoadFlink
+tries = 1
+parallelism = 64
+outputPath = file:///tmp/Flink/
+checkpointDir =
+iterationUntilCheckpoint = 0
+math = Breeze
+
+[data]
+numVerties = 5000, 10000, 25000, 50000
+maxIterations = 10
+sparsity = 0.001
+
+[header]
+header = NumVertices:numVertices Sparsity:sparsity MaxIterations:maxIterations Time:time Error:error
