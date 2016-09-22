@@ -1,0 +1,9 @@
+V = rand($rows, 100000, 0, 1, 0.001);
+H = rand(10, 100000, 0, 1);
+W = rand($rows, 10, 0, 1);
+function [y] = step(x)
+  H = x{1}.*((x{2}'*V)./(x{2}'*x{2}*x{1}));
+  W = x{2}.*(V*H')./(x{2}*H*H');
+  y = {H, W};
+end
+step({H,W})

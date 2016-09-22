@@ -1,0 +1,22 @@
+[config]
+master=flink-till-m
+template = nnmfStep.gb.template
+engine = Flink
+blocksize = 500
+compilerHints = true
+optimization.TP = true
+optimization.MMReordering = true
+densityThreshold = 0.5
+outputFile = nnmfStep/nnmfStepScalabilityFlink
+tries = 1
+parallelism = 1, 2, 4, 8, 16, 32, 64
+outputPath = file:///tmp/Flink/
+checkpointDir =
+iterationUntilCheckpoint = 0
+math = Breeze
+
+[data]
+rows = 1000, 2000, 4000, 8000, 16000, 32000, 64000
+
+[header]
+header = Rows:rows Time:time Error:error

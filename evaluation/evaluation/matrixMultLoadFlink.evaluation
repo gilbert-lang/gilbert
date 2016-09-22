@@ -1,0 +1,25 @@
+[config]
+master=flink-till-m
+template = matrixMult.gb.template
+engine = Flink
+blocksize = 500
+compilerHints = true
+optimization.TP = true
+optimization.MMReordering = true
+densityThreshold = 0.5
+outputFile = matrixMult/matrixMultLoadFlink
+tries = 1
+parallelism = 64
+outputPath = file:///tmp/flink/
+checkpointDir =
+iterationUntilCheckpoint = 0
+math = Breeze
+
+[data]
+rowsA = 1000, 2500, 5000, 7500, 10000, 25000, 50000, 64000
+colsA = 1000, 2500, 5000, 7500, 10000, 25000, 50000, 64000
+colsB = 1000, 2500, 5000, 7500, 10000, 25000, 50000, 64000
+level = 0.1
+
+[header]
+header = RowsA:rowsA ColsA:colsA ColsB:colsB Time:time Error:error
