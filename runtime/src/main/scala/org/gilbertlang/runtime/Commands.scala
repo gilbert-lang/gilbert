@@ -108,7 +108,13 @@ object withSpark {
     val jars = List("runtime-0.1-SNAPSHOT.jar",
       "runtimeMacros-0.1-SNAPSHOT.jar",
       "mahout-math-0.12.2.jar",
-      "flink-core-1.1.2.jar")
+      "flink-core-1.1.2.jar",
+      "core-1.1.2.jar",
+      "jniloader-1.1.jar",
+      "netlib-native_system-linux-x86_64-1.1-natives.jar",
+      "netlib-native_ref-linux-x86_64-1.1-natives.jar",
+      "native_ref-java-1.1.jar",
+      "native_system-java-1.1.jar")
 
     jars map { jar => root + jar}
   }
@@ -168,7 +174,12 @@ object withFlink{
 
   private def getFlinkDependencies(root: String): List[String] = {
     val jars = List("runtime-0.1-SNAPSHOT.jar", "runtimeMacros-0.1-SNAPSHOT.jar", "breeze_2.11-0.11.2.jar",
-      "mahout-math-0.12.2.jar", "commons-math3-3.2.jar")
+      "mahout-math-0.12.2.jar", "commons-math3-3.2.jar", "core-1.1.2.jar",
+      "jniloader-1.1.jar",
+      "netlib-native_system-linux-x86_64-1.1-natives.jar",
+      "netlib-native_ref-linux-x86_64-1.1-natives.jar",
+      "native_ref-java-1.1.jar",
+      "native_system-java-1.1.jar")
 
     jars map { jar => root + jar}
   }
