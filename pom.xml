@@ -31,12 +31,11 @@
                 <groupId>org.scalanlp</groupId>
                 <artifactId>breeze_${scala.binary.version}</artifactId>
                 <version>${breeze.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>com.thoughtworks.paranamer</groupId>
-                        <artifactId>paranamer</artifactId>
-                    </exclusion>
-                </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.scalanlp</groupId>
+                <artifactId>breeze-natives_${scala.binary.version}</artifactId>
+                <version>${breeze.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.gilbertlang</groupId>

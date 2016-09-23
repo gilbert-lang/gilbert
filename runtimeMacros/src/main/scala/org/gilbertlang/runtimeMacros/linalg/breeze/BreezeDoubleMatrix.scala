@@ -37,7 +37,18 @@ class BreezeDoubleMatrix(var matrix: Matrix[Double]) extends DoubleMatrix{
     matrix / op.matrix
   }
   def *(op: DoubleMatrix): DoubleMatrix = {
-    matrix * op.matrix
+    matrix match {
+      case x:DenseMatrix[Double] =>
+        op.matrix match {
+          case y: DenseMatrix[Double] => x * y
+          case y: CSCMatrix[Double] => x * y
+        }
+      case x:CSCMatrix[Double] =>
+        op.matrix match {
+          case y: DenseMatrix[Double] => x * y
+          case y: CSCMatrix[Double] => x * y
+        }
+    }
   }
 
   def :*(op: DoubleMatrix): DoubleMatrix = {

@@ -16,6 +16,10 @@
       <artifactId>breeze_${scala.binary.version}</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.scalanlp</groupId>
+      <artifactId>breeze-natives_${scala.binary.version}</artifactId>
+    </dependency>
+    <dependency>
       <groupId>org.scala-lang</groupId>
       <artifactId>scala-library</artifactId>
     </dependency>
