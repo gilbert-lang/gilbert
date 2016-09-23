@@ -17,7 +17,7 @@ math = Breeze
 memory = 47g
 
 [data]
-rows = 500, 1000, 1500, 5000, 10000, 25000, 50000, 100000, 150000
+rows = 500, 1000, 2000, 3000, 5000, 10000, 25000, 50000
 
 [header]
 header = Rows:rows Time:time Error:error

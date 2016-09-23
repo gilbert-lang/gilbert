@@ -17,7 +17,7 @@ math = Breeze
 memory = 47g
 
 [data]
-numVerties = 5000, 10000, 25000, 50000
+numVerties = 5000, 10000, 25000
 maxIterations = 10
 sparsity = 0.001
 

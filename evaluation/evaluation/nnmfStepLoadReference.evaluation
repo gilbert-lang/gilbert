@@ -16,7 +16,7 @@ iterationUntilCheckpoint = 0
 math = Breeze
 
 [data]
-rows = 500, 1000, 1500
+rows = 500, 1000, 2000, 3000
 
 [header]
 header = Rows:rows Time:time Error:error
