@@ -16,7 +16,7 @@ iterationUntilCheckpoint = 0
 math = Breeze
 
 [data]
-numVerties = 5000, 10000, 25000, 50000
+numVertices = 5000, 10000, 25000, 50000
 maxIterations = 10
 sparsity = 0.001
 
