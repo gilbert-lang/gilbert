@@ -1,8 +1,8 @@
 A = sprand($numVertices, $numVertices, 0, 1, $sparsity);
 d = sum(A, 2);
 T = (diag(1 ./ d) * A)';
-r_0 = ones(numVertices, 1) / numVertices;
-e = ones(numVertices, 1) / numVertices;
+r_0 = ones($numVertices, 1) / $numVertices;
+e = ones($numVertices, 1) / $numVertices;
 eps = 0.001;
 ranks = fixpoint(r_0, @(r) (.85 * T * r + .15 * e), $maxIterations, @(prev, cur) norm(prev-cur,2) <= eps);
 ranks
