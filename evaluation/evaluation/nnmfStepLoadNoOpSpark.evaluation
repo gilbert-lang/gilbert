@@ -1,0 +1,23 @@
+[config]
+master=flink-till-m
+template = nnmfStep.gb.template
+engine = Spark
+blocksize = 500
+compilerHints = true
+optimization.TP = false
+optimization.MMReordering = false
+densityThreshold = 0.5
+outputFile = nnmfStep/nnmfStepLoadNoOpSpark
+tries = 5
+parallelism = 64
+outputPath = file:///tmp/spark/
+checkpointDir =
+iterationUntilCheckpoint = 0
+math = Breeze
+memory = 47g
+
+[data]
+rows = 500, 1000, 2000, 3000, 5000, 10000, 50000, 100000, 150000
+
+[header]
+header = Rows:rows Time:time Error:error
